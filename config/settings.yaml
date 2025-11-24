@@ -1,0 +1,32 @@
+# NBA ELO Intelligence Engine - Configuration
+
+# API Endpoints
+api:
+  espn_scoreboard: "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
+  request_timeout: 10
+  retry_attempts: 3
+  rate_limit_delay: 0.5  # seconds between requests
+
+# ELO Parameters
+elo:
+  base_rating: 1500
+  k_factor: 20
+  home_court_advantage: 100
+
+# Data Paths
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  exports: "data/exports"
+  config: "config"
+  figures: "figures"
+
+# Season Configuration
+season:
+  current_season_start: "2023-10-01"
+  current_season_end: "2024-04-30"
+  
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
