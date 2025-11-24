@@ -51,6 +51,9 @@ class PlayerELOEngine:
         # History tracking
         self.rating_history = []
 
+        # Track which seasons have had regression applied
+        self.seasons_regressed = set()
+
         logger.info(f"Player ELO Engine initialized: base={base_rating}, K={k_factor}, regression={regression_to_mean}")
 
     def reset_ratings(self):
@@ -58,6 +61,7 @@ class PlayerELOEngine:
         self.current_ratings = {}
         self.player_metadata = defaultdict(lambda: {'name': '', 'games': 0, 'last_season': None})
         self.rating_history = []
+        self.seasons_regressed = set()
         logger.info("Player ratings reset to base")
 
     def _ensure_player_exists(self, player_id: str, player_name: str):
@@ -70,10 +74,15 @@ class PlayerELOEngine:
     def _apply_season_regression(self, current_season: int):
         """
         Apply regression to mean for players between seasons.
+        Only applies once per season to avoid redundant calculations.
 
         Args:
             current_season: Current season (e.g., 2024)
         """
+        # Skip if regression already applied for this season
+        if current_season in self.seasons_regressed:
+            return
+
         regressed_count = 0
         for player_id in self.current_ratings:
             last_season = self.player_metadata[player_id]['last_season']
@@ -86,7 +95,8 @@ class PlayerELOEngine:
                 regressed_count += 1
 
         if regressed_count > 0:
-            logger.info(f"Applied season regression to {regressed_count} players")
+            logger.info(f"Season {current_season}: Applied regression to {regressed_count} players from previous seasons")
+            self.seasons_regressed.add(current_season)
 
     def process_game(self, game_id: str, date: int, players: List[Dict]) -> Dict:
         """
