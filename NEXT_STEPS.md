@@ -322,19 +322,83 @@ def clean_scheduled_games(input_path: str, dry_run: bool = False):
 
 ---
 
-## Task 3: Finalize Weekly Update Workflow
+## Workflow Philosophy: Daily vs Weekly
+
+### Daily Workflow (Lightweight & Fast)
+**Purpose:** Quick updates during the season for games that happened yesterday
+
+**Characteristics:**
+- **Frequency:** Every day during NBA season
+- **Scope:** Yesterday's games only (typically 5-15 games)
+- **Time:** 2-5 minutes total
+- **Automation:** Runs via Task Scheduler at 6 AM
+- **Operations:**
+  1. Fetch yesterday's games (1-2 seconds)
+  2. Append to master file (instant)
+  3. Recompute ELO (5 seconds - full dataset)
+  4. Auto-commit and push (10 seconds)
+
+**What it DOESN'T do:**
+- ❌ Generate reports
+- ❌ Run validation suite
+- ❌ Clean up old data
+- ❌ Check data quality metrics
+- ❌ Backup data
+
+**Use case:** Keep data fresh during active season without manual intervention
+
+---
+
+### Weekly Workflow (Comprehensive & Thorough)
+**Purpose:** Maintenance, reporting, validation, and cleanup
+
+**Characteristics:**
+- **Frequency:** Once per week (recommended: Monday morning)
+- **Scope:** Full week's games + maintenance tasks
+- **Time:** 10-15 minutes total
+- **Automation:** Manual (run when convenient)
+- **Operations:**
+  1. Fetch past week's games (backup in case daily missed any)
+  2. Deduplicate entire dataset
+  3. Recompute ELO from scratch
+  4. **Run full validation suite** (accuracy, data quality)
+  5. **Generate weekly report** (top movers, upsets, trends)
+  6. **Clean up old scheduled games**
+  7. **Backup data files**
+  8. Review and commit with detailed message
+
+**What it DOES that daily doesn't:**
+- ✅ Full validation and accuracy check
+- ✅ Weekly performance report
+- ✅ Data cleanup and optimization
+- ✅ Backup creation
+- ✅ Trend analysis
+- ✅ Manual review opportunity
+
+**Use case:** Weekly health check + comprehensive reporting
+
+---
+
+## Task 3: Weekly Workflow Implementation
 
 ### 3.1 Create Weekly Update Script
 
 **File:** `scripts/weekly_update.sh`
 
-**Purpose:** Automated weekly update script for NBA ELO system
+**Purpose:** Comprehensive weekly maintenance and reporting script
 
 **Specifications:**
 ```bash
 #!/bin/bash
-# Weekly NBA ELO Update Script
-# Run every Monday to update with previous week's games
+# Weekly NBA ELO Update & Maintenance Script
+# Run every Monday morning for comprehensive weekly maintenance
+#
+# What this does that daily updates DON'T:
+# - Full validation and accuracy checking
+# - Weekly performance reports
+# - Data cleanup and deduplication
+# - Backup creation
+# - Trend analysis
 
 set -e  # Exit on error
 
@@ -345,79 +409,109 @@ cd $PROJECT_DIR
 # Calculate date range (previous 7 days)
 END_DATE=$(date -d "yesterday" +%Y%m%d)
 START_DATE=$(date -d "7 days ago" +%Y%m%d)
+WEEK_NUM=$(date +%U)
 
-echo "========================================"
-echo "NBA ELO Weekly Update"
+echo "========================================================================"
+echo "NBA ELO WEEKLY MAINTENANCE - Week $WEEK_NUM"
 echo "Date range: $START_DATE to $END_DATE"
-echo "========================================"
+echo "Started: $(date)"
+echo "========================================================================"
 
-# Step 1: Fetch new games
+# Step 1: Backup BEFORE any changes
 echo ""
-echo "[1/6] Fetching new games..."
+echo "[1/8] Creating backup..."
+BACKUP_DIR="backups/weekly/week_$WEEK_NUM"
+mkdir -p $BACKUP_DIR
+cp data/raw/nba_games_all.csv $BACKUP_DIR/nba_games_all.csv
+cp data/exports/team_elo_history.csv $BACKUP_DIR/team_elo_history.csv 2>/dev/null || true
+echo "  Backup saved to: $BACKUP_DIR"
+
+# Cleanup old weekly backups (keep last 4 weeks)
+find backups/weekly -type d -mtime +28 -exec rm -rf {} + 2>/dev/null || true
+
+# Step 2: Fetch week's games (catch any missed by daily updates)
+echo ""
+echo "[2/8] Fetching past week's games (backup check)..."
 python src/etl/fetch_scoreboard.py \
     --start-date $START_DATE \
     --end-date $END_DATE \
     --output data/raw/nba_games_weekly.csv
 
 # Check if any games found
-if [ ! -s data/raw/nba_games_weekly.csv ]; then
-    echo "No new games found. Exiting."
-    exit 0
+if [ -s data/raw/nba_games_weekly.csv ]; then
+    GAME_COUNT=$(wc -l < data/raw/nba_games_weekly.csv)
+    echo "  Found $GAME_COUNT games from API"
+
+    # Append new games
+    tail -n +2 data/raw/nba_games_weekly.csv >> data/raw/nba_games_all.csv
+else
+    echo "  No new games found (daily updates likely caught everything)"
 fi
 
-GAME_COUNT=$(wc -l < data/raw/nba_games_weekly.csv)
-echo "Found $GAME_COUNT new games"
-
-# Step 2: Backup current data
+# Step 3: Deduplicate entire dataset
 echo ""
-echo "[2/6] Backing up current data..."
-BACKUP_DIR="backups/$(date +%Y%m%d)"
-mkdir -p $BACKUP_DIR
-cp data/raw/nba_games_all.csv $BACKUP_DIR/
-cp data/exports/team_elo_history.csv $BACKUP_DIR/ 2>/dev/null || true
-
-# Step 3: Append new games
-echo ""
-echo "[3/6] Appending new games to master file..."
-tail -n +2 data/raw/nba_games_weekly.csv >> data/raw/nba_games_all.csv
-
-# Step 4: Remove duplicates
-echo ""
-echo "[4/6] Removing duplicates..."
+echo "[3/8] Deduplicating entire dataset..."
 python scripts/remove_duplicates.py
+echo "  Deduplication complete"
 
-# Step 5: Recompute ELO
+# Step 4: Clean up old scheduled games (weekly maintenance)
 echo ""
-echo "[5/6] Recomputing ELO ratings..."
+echo "[4/8] Cleaning up old scheduled games..."
+python scripts/clean_scheduled_games.py --dry-run
+# Uncomment after reviewing dry-run results:
+# python scripts/clean_scheduled_games.py
+
+# Step 5: Recompute ELO from scratch (full recalculation)
+echo ""
+echo "[5/8] Recomputing ELO ratings (full recalculation)..."
 python src/engines/team_elo_engine.py \
     --input data/raw/nba_games_all.csv \
     --output data/exports/team_elo_history.csv \
     --k-factor 20 \
     --home-advantage 70
+echo "  ELO computation complete"
 
-# Step 6: Validate
+# Step 6: Full validation suite
 echo ""
-echo "[6/6] Validating results..."
-python scripts/validate_phase_1_5.py
+echo "[6/8] Running full validation suite..."
+python scripts/validate_phase_1_5.py > reports/weekly/week_${WEEK_NUM}_validation.txt
+cat reports/weekly/week_${WEEK_NUM}_validation.txt
+echo "  Validation saved to: reports/weekly/week_${WEEK_NUM}_validation.txt"
 
-# Check data status
+# Step 7: Generate weekly report
 echo ""
-echo "========================================"
+echo "[7/8] Generating weekly performance report..."
+python scripts/generate_weekly_report.py --week $WEEK_NUM \
+    --start-date $START_DATE \
+    --end-date $END_DATE
+echo "  Report saved to: reports/weekly/week_${WEEK_NUM}_report.md"
+
+# Step 8: Data status summary
+echo ""
+echo "[8/8] Final data status check..."
 python scripts/check_data_status.py
 
 # Summary
 echo ""
-echo "========================================"
-echo "Weekly update complete!"
-echo "New games: $GAME_COUNT"
-echo "Backup saved to: $BACKUP_DIR"
-echo "========================================"
+echo "========================================================================"
+echo "WEEKLY MAINTENANCE COMPLETE"
+echo "========================================================================"
+echo ""
+echo "Summary:"
+echo "  - Week: $WEEK_NUM ($START_DATE to $END_DATE)"
+echo "  - Backup: $BACKUP_DIR"
+echo "  - Validation: reports/weekly/week_${WEEK_NUM}_validation.txt"
+echo "  - Report: reports/weekly/week_${WEEK_NUM}_report.md"
 echo ""
 echo "Next steps:"
-echo "  1. Review validation results above"
-echo "  2. Check git status: git status"
-echo "  3. Commit changes: git add . && git commit -m 'Weekly update: $START_DATE to $END_DATE'"
-echo "  4. Push to GitHub: git push"
+echo "  1. Review weekly report: cat reports/weekly/week_${WEEK_NUM}_report.md"
+echo "  2. Check validation results above"
+echo "  3. Review git changes: git diff"
+echo "  4. Commit: git add . && git commit -m 'Weekly update: Week $WEEK_NUM'"
+echo "  5. Push: git push"
+echo ""
+echo "Completed: $(date)"
+echo "========================================================================"
 ```
 
 **Sub-tasks:**
@@ -488,6 +582,126 @@ echo "  4. Push to GitHub: git push"
 - [ ] Add rollback procedure for failed updates
 
 **Estimated Effort:** 30 minutes
+
+---
+
+### 3.4 Create Weekly Report Generator
+
+**File:** `scripts/generate_weekly_report.py`
+
+**Purpose:** Generate comprehensive weekly performance report with trends and insights
+
+**Specifications:**
+```python
+"""
+Generate weekly NBA ELO performance report
+
+Usage:
+    python scripts/generate_weekly_report.py --week 47 --start-date 20251117 --end-date 20251123
+
+Output: reports/weekly/week_47_report.md
+"""
+
+import pandas as pd
+import argparse
+from datetime import datetime
+
+def generate_weekly_report(week_num, start_date, end_date):
+    """
+    Generate comprehensive weekly report
+
+    Sections:
+    1. Summary (games, dates, accuracy)
+    2. Biggest Rating Changes (top gainers/losers)
+    3. Upset Alert (biggest upsets of the week)
+    4. Current Top 10 Teams
+    5. Trending Up/Down (week-over-week changes)
+    6. Key Insights (notable patterns)
+    """
+
+    # Load data
+    games = pd.read_csv('data/raw/nba_games_all.csv')
+    elo_history = pd.read_csv('data/exports/team_elo_history.csv')
+
+    # Filter to this week
+    week_games = games[(games['date'] >= int(start_date)) & (games['date'] <= int(end_date))]
+
+    report = f"""# NBA ELO Weekly Report - Week {week_num}
+
+**Period:** {start_date[:4]}-{start_date[4:6]}-{start_date[6:8]} to {end_date[:4]}-{end_date[4:6]}-{end_date[6:8]}
+**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+---
+
+## Summary
+
+- **Games Played:** {len(week_games)}
+- **Teams Active:** {week_games['home_team_name'].nunique()}
+- **Total Points Scored:** {week_games['home_score'].sum() + week_games['away_score'].sum():,}
+- **Average Margin:** {abs(week_games['home_score'] - week_games['away_score']).mean():.1f} points
+
+---
+
+## Biggest Rating Changes
+
+### Top 5 Gainers
+[Team rankings with biggest ELO gains this week]
+
+### Top 5 Losers
+[Team rankings with biggest ELO drops this week]
+
+---
+
+## Upset Alert
+
+[Biggest upsets where lower-rated team won]
+
+---
+
+## Current Top 10 Teams
+
+[ELO rankings as of end of week]
+
+---
+
+## Trending Analysis
+
+**Rising Teams:** [Teams with consistent gains]
+**Falling Teams:** [Teams with consistent losses]
+
+---
+
+## Key Insights
+
+- Notable streaks
+- Surprising performances
+- Statistical anomalies
+
+---
+
+*Report generated automatically by NBA ELO system*
+"""
+
+    return report
+```
+
+**Sub-tasks:**
+- [ ] Implement weekly report generator
+- [ ] Add top gainers/losers analysis
+- [ ] Add upset detection logic
+- [ ] Add trend analysis (3-week rolling)
+- [ ] Add visual formatting (tables, emoji indicators)
+- [ ] Test with sample week
+
+**Acceptance Criteria:**
+- Generates markdown report
+- Identifies top movers accurately
+- Detects upsets (lower ELO wins)
+- Shows current rankings
+- Trend analysis over 3 weeks
+- Clean, readable format
+
+**Estimated Effort:** 2 hours
 
 ---
 
@@ -1279,6 +1493,7 @@ def hybrid_prediction(team_elo_home: float, team_elo_away: float,
 | 3.1 Weekly update script | 1 hour | HIGH |
 | 3.2 Dry run testing | 1.5 hours | HIGH |
 | 3.3 Documentation | 30 min | MEDIUM |
+| 3.4 Weekly report generator | 2 hours | HIGH |
 | **Task 4: Daily Workflow** | | |
 | 4.1 Daily update script | 1 hour | HIGH |
 | 4.2 Task Scheduler setup | 45 min | HIGH |
@@ -1292,19 +1507,40 @@ def hybrid_prediction(team_elo_home: float, team_elo_away: float,
 | 5.6 Full calculation | 1 hour | HIGH |
 | 5.7 Hybrid prediction | 3 hours | HIGH |
 | 5.8 Phase 3 validation | 2 hours | HIGH |
-| **TOTAL** | **~28.5 hours** | |
+| **TOTAL** | **~30.5 hours** | |
 
 ---
 
 ## Recommended Implementation Order
 
-### Sprint 1: Core Helper Scripts (Day 1-2, ~4 hours)
+### Quick Comparison: Daily vs Weekly
+
+| Aspect | Daily Workflow | Weekly Workflow |
+|--------|---------------|-----------------|
+| **Frequency** | Every day (automated) | Once per week (manual) |
+| **Duration** | 2-5 minutes | 10-15 minutes |
+| **Scope** | Yesterday's games only | Full week + maintenance |
+| **Fetch Data** | Yesterday (~10 games) | Week's games (~70 games) |
+| **Deduplication** | No | Yes (full dataset) |
+| **ELO Calculation** | Full recalc (5 sec) | Full recalc from scratch |
+| **Validation** | No | Yes (full suite) |
+| **Reports** | No | Yes (comprehensive) |
+| **Cleanup** | No | Yes (old scheduled games) |
+| **Backup** | No | Yes (weekly snapshots) |
+| **Git Commit** | Auto (simple message) | Manual (detailed review) |
+| **Email Alerts** | On error only | On completion + summary |
+| **Use When** | Season active, hands-off | Weekly check-in, review needed |
+
+---
+
+### Sprint 1: Core Helper Scripts (Day 1-2, ~6 hours)
 1. ✅ Deduplication script (30 min)
 2. ✅ Daily report generator (1.5 hours)
 3. ✅ Weekly update script (1 hour)
-4. ✅ Dry run testing (1.5 hours)
+4. ✅ Weekly report generator (2 hours)
+5. ✅ Dry run testing (1.5 hours)
 
-**Goal:** Enable manual weekly updates
+**Goal:** Enable both daily and weekly workflows
 
 ---
 

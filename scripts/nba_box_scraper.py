@@ -92,53 +92,95 @@ class NBABoxScraper:
     
     def _parse_boxscore(self, data, game_id):
         """
-        Parse ESPN API response to extract player data
-        
+        Parse ESPN API response to extract player data INCLUDING FULL STATS
+
         Args:
             data: JSON response from ESPN API
             game_id: Game ID for reference
-            
+
         Returns:
-            List of player dictionaries
+            List of player dictionaries with complete box score stats
         """
         players = []
-        
+
         try:
             if 'boxscore' not in data or 'players' not in data['boxscore']:
                 logger.warning(f"Game {game_id}: No boxscore data")
                 return None
-            
+
             for team_data in data['boxscore']['players']:
                 team_id = team_data.get('team', {}).get('id', '')
                 team_name = team_data.get('team', {}).get('displayName', '')
-                
+
                 for player_stats in team_data.get('statistics', []):
+                    # Get stat labels (column headers)
+                    labels = player_stats.get('labels', [])
+
                     for athlete in player_stats.get('athletes', []):
                         athlete_info = athlete.get('athlete', {})
                         stats_list = athlete.get('stats', [])
-                        
-                        # Parse minutes (format: "MM:SS" or "MM")
-                        minutes_played = self._parse_minutes(
-                            stats_list[0] if stats_list else '0'
-                        )
-                        
+
+                        # Create base player record
                         player_record = {
                             'game_id': game_id,
                             'player_id': athlete_info.get('id', ''),
                             'player_name': athlete_info.get('displayName', ''),
                             'team_id': team_id,
                             'team_name': team_name,
-                            'minutes': minutes_played,
                             'starter': athlete.get('starter', False),
                             'position': athlete_info.get('position', {}).get('abbreviation', ''),
                             'jersey': athlete_info.get('jersey', ''),
                             'didNotPlay': athlete.get('didNotPlay', False)
                         }
-                        
+
+                        # Parse all stats using labels
+                        # Expected labels: ['MIN', 'PTS', 'FG', '3PT', 'FT', 'REB', 'AST', 'TO', 'STL', 'BLK', 'OREB', 'DREB', 'PF', '+/-']
+                        for i, label in enumerate(labels):
+                            stat_value = stats_list[i] if i < len(stats_list) else ''
+
+                            if label == 'MIN':
+                                # Minutes: convert "MM" or "MM:SS" to decimal
+                                player_record['minutes'] = self._parse_minutes(stat_value)
+                            elif label == 'PTS':
+                                player_record['points'] = self._parse_int(stat_value)
+                            elif label == 'FG':
+                                # Field goals: "made-attempted"
+                                fg_made, fg_att = self._parse_made_attempted(stat_value)
+                                player_record['fg_made'] = fg_made
+                                player_record['fg_attempted'] = fg_att
+                            elif label == '3PT':
+                                # Three pointers: "made-attempted"
+                                three_made, three_att = self._parse_made_attempted(stat_value)
+                                player_record['three_pt_made'] = three_made
+                                player_record['three_pt_attempted'] = three_att
+                            elif label == 'FT':
+                                # Free throws: "made-attempted"
+                                ft_made, ft_att = self._parse_made_attempted(stat_value)
+                                player_record['ft_made'] = ft_made
+                                player_record['ft_attempted'] = ft_att
+                            elif label == 'REB':
+                                player_record['rebounds'] = self._parse_int(stat_value)
+                            elif label == 'AST':
+                                player_record['assists'] = self._parse_int(stat_value)
+                            elif label == 'TO':
+                                player_record['turnovers'] = self._parse_int(stat_value)
+                            elif label == 'STL':
+                                player_record['steals'] = self._parse_int(stat_value)
+                            elif label == 'BLK':
+                                player_record['blocks'] = self._parse_int(stat_value)
+                            elif label == 'OREB':
+                                player_record['offensive_rebounds'] = self._parse_int(stat_value)
+                            elif label == 'DREB':
+                                player_record['defensive_rebounds'] = self._parse_int(stat_value)
+                            elif label == 'PF':
+                                player_record['personal_fouls'] = self._parse_int(stat_value)
+                            elif label == '+/-':
+                                player_record['plus_minus'] = self._parse_int(stat_value)
+
                         players.append(player_record)
-            
+
             return players if players else None
-            
+
         except Exception as e:
             logger.error(f"Game {game_id}: Parsing error - {e}")
             return None
@@ -146,12 +188,41 @@ class NBABoxScraper:
     def _parse_minutes(self, minutes_str):
         """Convert minutes string to decimal"""
         try:
+            if not minutes_str or minutes_str == '--':
+                return 0.0
             if ':' in minutes_str:
                 parts = minutes_str.split(':')
                 return int(parts[0]) + int(parts[1]) / 60
-            return float(minutes_str) if minutes_str else 0.0
+            return float(minutes_str)
         except:
             return 0.0
+
+    def _parse_int(self, value_str):
+        """Parse integer value, handling '--' and empty strings"""
+        try:
+            if not value_str or value_str == '--':
+                return 0
+            # Handle negative values (e.g., +/- can be negative)
+            return int(value_str)
+        except ValueError:
+            return 0
+
+    def _parse_made_attempted(self, value_str):
+        """
+        Parse 'made-attempted' format (e.g., '6-18' for field goals)
+
+        Returns:
+            Tuple of (made, attempted)
+        """
+        try:
+            if not value_str or value_str == '--':
+                return (0, 0)
+            parts = value_str.split('-')
+            if len(parts) == 2:
+                return (int(parts[0]), int(parts[1]))
+            return (0, 0)
+        except ValueError:
+            return (0, 0)
     
     def scrape_season(self, game_ids, output_file, checkpoint_interval=100):
         """
