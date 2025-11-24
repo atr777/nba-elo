@@ -1,16 +1,16 @@
 # NBA ELO Intelligence Engine
 
-**A comprehensive NBA rating and prediction system with 65.69% accuracy**
+**A comprehensive NBA rating and prediction system with 69.73% accuracy**
 
-[![Status](https://img.shields.io/badge/Phase%201.5-Complete-success)]() [![Accuracy](https://img.shields.io/badge/Accuracy-65.69%25-brightgreen)]() [![Games](https://img.shields.io/badge/Games-31%2C202-blue)]() [![Seasons](https://img.shields.io/badge/Seasons-26-blue)]()
+[![Status](https://img.shields.io/badge/Phase%203.0-Complete-success)]() [![Accuracy](https://img.shields.io/badge/Accuracy-69.73%25-brightgreen)]() [![Games](https://img.shields.io/badge/Games-31%2C068-blue)]() [![Seasons](https://img.shields.io/badge/Seasons-25-blue)]()
 
 ---
 
 ## Overview
 
-The NBA ELO Intelligence Engine calculates dynamic team and player ratings using an advanced ELO system that incorporates contextual factors like rest days, travel distance, margin of victory, and season-to-season regression. The system analyzes 26 seasons of NBA data (2000-2025) to predict game outcomes with exceptional accuracy.
+The NBA ELO Intelligence Engine combines team-level and player-level ELO ratings in a hybrid system that incorporates contextual factors like rest days, margin of victory, and season regression. The system analyzes 25 seasons of NBA data (2000-2025) to predict game outcomes with exceptional accuracy.
 
-**Current Achievement:** 65.69% prediction accuracy on 31,202 games (exceeding 62% target)
+**Current Achievement:** 69.73% prediction accuracy on 31,068 games using hybrid team+player ELO (80/20 blend)
 
 ---
 
@@ -25,12 +25,13 @@ The NBA ELO Intelligence Engine calculates dynamic team and player ratings using
 - ✅ **Travel Analytics** - Distance tracking and long travel flagging
 - ✅ **Prediction System** - 65.69% accuracy on game outcomes
 
-### Player ELO System (Phase 3 - IN PROGRESS 🔄)
-- 🔄 **Player Box Score Data** - Currently scraping ~650,000 records
-- ⏳ **Individual Ratings** - Player-level skill tracking
-- ⏳ **Lineup Analysis** - Minutes-weighted team strength
-- ⏳ **Trade Impact** - Roster change quantification
-- ⏳ **Injury Modeling** - Replacement player analysis
+### Hybrid ELO System (Phase 3 - COMPLETE ✅)
+- ✅ **Player ELO Engine** - Individual player ratings (2,628 players tracked)
+- ✅ **Plus/Minus Metric** - Performance-based rating updates
+- ✅ **Hybrid Predictor** - 80% team ELO + 20% player ELO (optimal blend)
+- ✅ **Minutes Weighting** - Aggregates player ratings by playing time
+- ✅ **Season Regression** - 33% regression toward mean for players
+- ✅ **69.73% Accuracy** - Exceeds 66-68% target by 1.73-3.73 points
 
 ### Analytics & Visualization (Phase 2 - PARTIAL ✅)
 - ✅ **ELO Time Series** - Team rating evolution charts

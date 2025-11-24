@@ -35,7 +35,7 @@ def save_dataframe_to_csv(df: pd.DataFrame, filepath: str, index: bool = False) 
     # Ensure directory exists
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     df.to_csv(filepath, index=index)
-    print(f"✓ Saved: {filepath} ({len(df)} rows)")
+    print(f"[OK] Saved: {filepath} ({len(df)} rows)")
 
 
 def ensure_directory(directory: str) -> None:

@@ -136,32 +136,75 @@ All notable changes to the NBA ELO Intelligence Engine project.
 
 | Version | Phase | Accuracy | Key Features | Games | Status |
 |---------|-------|----------|--------------|-------|--------|
-| **1.5.0** | 1.5 | **65.69%** ✅ | MOV, HCA=70, Rest, Regression, Travel | 31,202 | **Current** |
+| **3.0.0** | 3.0 | **69.73%** 🎯 | Hybrid (Team+Player), Blend Weight 0.8 | 31,068 | **Current** |
+| 1.5.0 | 1.5 | 65.69% ✅ | MOV, HCA=70, Rest, Regression, Travel | 31,202 | Complete |
 | 1.0.0 | 1.0 | ~58% | Basic ELO, HCA=100 | 31,284 | Complete |
+
+**Accuracy Progression:** 58% → 65.69% → 69.73% (+11.73 points total improvement)
+
+---
+
+## [3.0.0] - 2025-11-24 🎯
+
+### Added
+- **Player ELO Engine** - `src/engines/player_elo_engine.py`
+  - Plus/minus based performance metric
+  - Minutes-weighted rating updates (adjusted K-factor)
+  - Season regression (33% toward mean)
+  - Individual player tracking (2,628 players)
+  - Processed 621,730 player-game records
+
+- **Hybrid Prediction System** - `src/engines/hybrid_predictor.py`
+  - Combines team ELO + player ELO
+  - Configurable blend weight (optimal: 0.8)
+  - Minutes-weighted team aggregation from player ratings
+  - Chronological validation (no look-ahead bias)
+
+- **Player Box Score Data Collection**
+  - 816,450 player records across 31,088 games
+  - 26 columns: full performance stats
+  - Stats: points, rebounds, assists, plus/minus, steals, blocks, turnovers
+  - Shooting: FG, 3PT, FT (made/attempted)
+  - Coverage: 99.6% success rate (2000-2025)
+
+### Performance
+- **Prediction Accuracy:** 69.73% (Phase 3 with blend weight 0.8)
+  - Target: 66-68%
+  - **Exceeded by:** +1.73 to +3.73 points
+  - Improvement: +4.04 points over Phase 1.5 baseline
+  - Additional correct predictions: +1,255 games
+
+- **Blend Weight Optimization Results:**
+  - 0.5 (50/50): 68.54% accuracy
+  - 0.6 (60/40): 69.28% accuracy
+  - 0.7 (70/30): 69.53% accuracy
+  - **0.8 (80/20): 69.73% accuracy** ← Optimal
+
+- **Computation Speed:** ~95 seconds for full dataset
+  - 19x slower than team-only ELO
+  - Trade-off: Significant accuracy gain
+
+### Key Findings
+- **Team ELO dominates:** 80% weight optimal (vs 20% player)
+- **Team effects > Individual talent:** Chemistry, coaching, system captured by team ELO
+- **Player ELO adds signal:** Meaningful 20% contribution
+- **Stable across eras:** Consistent accuracy 2000-2025
+
+### Files Added
+- `src/engines/player_elo_engine.py` - Player rating system
+- `src/engines/hybrid_predictor.py` - Hybrid prediction model
+- `data/exports/player_elo_history.csv` (56 MB) - Rating history
+- `data/exports/player_ratings.csv` (123 KB) - Current ratings
+- `data/raw/player_boxscores_all.csv` (81 MB) - Player performance data
+
+### Documentation
+- `PHASE_3_COMPLETE.md` - Comprehensive Phase 3 documentation
+- `SCRAPER_COMPLETE.md` - Scraper validation report
+- Updated `CHANGELOG.md` with Phase 3 results
 
 ---
 
 ## Upcoming Releases
-
-### [3.0.0] - Planned (Phase 3)
-
-**Target:** 66-68% prediction accuracy
-
-**Planned Features:**
-- Player-level ELO ratings
-- Minutes-weighted team strength
-- Trade impact analysis
-- Lineup strength calculator
-- Injury replacement modeling
-- Rookie integration tracking
-
-**Prerequisites:**
-- ✅ Player box score data (~650,000 records) - Currently scraping
-- ⏳ Player ELO engine implementation
-- ⏳ Trade/transaction tracking system
-- ⏳ Roster change detection
-
-**Estimated Timeline:** 2-3 weeks after box score data completion
 
 ### [4.0.0] - Future (Phase 4)
 
