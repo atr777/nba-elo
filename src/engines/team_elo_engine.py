@@ -140,31 +140,43 @@ class TeamELOEngine:
     def compute_season_elo(self, games_df: pd.DataFrame, reset: bool = True) -> pd.DataFrame:
         """
         Compute ELO ratings for all games in a season.
-        
+
         Args:
             games_df: DataFrame with game data (must be sorted by date)
             reset: Whether to reset ratings before computation
-            
+
         Returns:
             DataFrame with rating history
         """
         if reset:
             self.reset_ratings()
-        
-        logger.info(f"Computing ELO for {len(games_df)} games")
-        
+
+        # Filter out scheduled/incomplete games (0-0 scores)
+        # Keep scheduled games in raw data but exclude from ELO calculations
+        original_count = len(games_df)
+        games_df = games_df[
+            (games_df['home_score'].astype(int) > 0) |
+            (games_df['away_score'].astype(int) > 0)
+        ].copy()
+
+        filtered_count = original_count - len(games_df)
+        if filtered_count > 0:
+            logger.info(f"Filtered out {filtered_count} scheduled/incomplete games (0-0 scores)")
+
+        logger.info(f"Computing ELO for {len(games_df)} completed games")
+
         # Ensure games are sorted by date
         games_df = games_df.sort_values('date').reset_index(drop=True)
-        
+
         # Process each game
         for _, game in games_df.iterrows():
             self.process_game(game.to_dict())
-        
+
         # Convert history to DataFrame
         history_df = pd.DataFrame(self.rating_history)
-        
+
         logger.info(f"✓ Computed {len(history_df)} rating updates")
-        
+
         return history_df
     
     def get_current_ratings(self) -> pd.DataFrame:

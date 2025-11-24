@@ -37,18 +37,29 @@ class Phase15Validator:
         logger.info("=" * 60)
         logger.info("STEP 1: Data Quality Validation")
         logger.info("=" * 60)
-        
+
         # Load data
         logger.info(f"Loading data from: {self.data_path}")
         self.data = pd.read_csv(self.data_path)
-        
+
+        # Filter out scheduled/incomplete games (0-0 scores)
+        original_count = len(self.data)
+        self.data = self.data[
+            (self.data['home_score'].astype(int) > 0) |
+            (self.data['away_score'].astype(int) > 0)
+        ].copy()
+
+        scheduled_games = original_count - len(self.data)
+        if scheduled_games > 0:
+            logger.info(f"ℹ Filtered out {scheduled_games} scheduled/incomplete games (0-0 scores)")
+
         # Basic stats
         total_games = len(self.data)
         date_range = f"{self.data['date'].min()} to {self.data['date'].max()}"
-        unique_teams = pd.concat([self.data['home_team_name'], 
+        unique_teams = pd.concat([self.data['home_team_name'],
                                   self.data['away_team_name']]).nunique()
-        
-        logger.info(f"✓ Total games: {total_games:,}")
+
+        logger.info(f"✓ Total completed games: {total_games:,}")
         logger.info(f"✓ Date range: {date_range}")
         logger.info(f"✓ Unique teams: {unique_teams}")
         

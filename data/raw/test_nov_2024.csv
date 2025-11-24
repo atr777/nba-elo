@@ -1,0 +1,223 @@
+game_id,date,home_team_id,home_team_name,away_team_id,away_team_name,home_score,away_score,winner_team_id
+401704698,20241101,30,Charlotte Hornets,2,Boston Celtics,109,124,2
+401704699,20241101,5,Cleveland Cavaliers,19,Orlando Magic,120,109,5
+401704700,20241101,8,Detroit Pistons,18,New York Knicks,98,128,18
+401704701,20241101,1,Atlanta Hawks,23,Sacramento Kings,115,123,23
+401704702,20241101,17,Brooklyn Nets,4,Chicago Bulls,120,112,17
+401704703,20241101,28,Toronto Raptors,13,Los Angeles Lakers,125,131,13
+401704704,20241101,3,New Orleans Pelicans,11,Indiana Pacers,125,118,3
+401704705,20241101,16,Minnesota Timberwolves,7,Denver Nuggets,119,116,16
+401704706,20241101,22,Portland Trail Blazers,25,Oklahoma City Thunder,114,137,25
+401704707,20241102,30,Charlotte Hornets,2,Boston Celtics,103,113,2
+401704708,20241102,20,Philadelphia 76ers,29,Memphis Grizzlies,107,124,29
+401704709,20241102,28,Toronto Raptors,23,Sacramento Kings,131,128,28
+401704710,20241102,10,Houston Rockets,9,Golden State Warriors,121,127,9
+401704711,20241102,15,Milwaukee Bucks,5,Cleveland Cavaliers,113,114,5
+401704712,20241102,24,San Antonio Spurs,16,Minnesota Timberwolves,113,103,24
+401704713,20241102,27,Washington Wizards,14,Miami Heat,98,118,14
+401704714,20241102,7,Denver Nuggets,26,Utah Jazz,129,103,7
+401704715,20241102,21,Phoenix Suns,22,Portland Trail Blazers,103,97,21
+401704716,20241102,12,LA Clippers,25,Oklahoma City Thunder,92,105,25
+401704717,20241103,17,Brooklyn Nets,8,Detroit Pistons,92,106,8
+401704718,20241103,3,New Orleans Pelicans,1,Atlanta Hawks,111,126,1
+401704719,20241103,6,Dallas Mavericks,19,Orlando Magic,108,85,6
+401704720,20241104,5,Cleveland Cavaliers,15,Milwaukee Bucks,116,114,5
+401704721,20241104,27,Washington Wizards,9,Golden State Warriors,112,125,9
+401704722,20241104,8,Detroit Pistons,13,Los Angeles Lakers,115,103,8
+401704723,20241104,1,Atlanta Hawks,2,Boston Celtics,93,123,2
+401704724,20241104,17,Brooklyn Nets,29,Memphis Grizzlies,106,104,17
+401704725,20241104,14,Miami Heat,23,Sacramento Kings,110,111,23
+401704726,20241104,4,Chicago Bulls,26,Utah Jazz,126,135,26
+401704727,20241104,10,Houston Rockets,18,New York Knicks,109,97,10
+401704728,20241104,16,Minnesota Timberwolves,30,Charlotte Hornets,114,93,16
+401704729,20241104,25,Oklahoma City Thunder,19,Orlando Magic,102,86,25
+401704730,20241104,3,New Orleans Pelicans,22,Portland Trail Blazers,100,118,22
+401704731,20241104,6,Dallas Mavericks,11,Indiana Pacers,127,134,11
+401704732,20241104,7,Denver Nuggets,28,Toronto Raptors,121,119,7
+401704733,20241104,21,Phoenix Suns,20,Philadelphia 76ers,118,116,21
+401704734,20241104,12,LA Clippers,24,San Antonio Spurs,113,104,12
+401704735,20241106,30,Charlotte Hornets,8,Detroit Pistons,108,107,30
+401704736,20241106,11,Indiana Pacers,19,Orlando Magic,118,111,11
+401704737,20241106,1,Atlanta Hawks,18,New York Knicks,121,116,1
+401704738,20241106,2,Boston Celtics,9,Golden State Warriors,112,118,9
+401704739,20241106,10,Houston Rockets,24,San Antonio Spurs,127,100,10
+401704740,20241106,29,Memphis Grizzlies,13,Los Angeles Lakers,131,114,29
+401704741,20241106,3,New Orleans Pelicans,5,Cleveland Cavaliers,122,131,5
+401704742,20241106,6,Dallas Mavericks,4,Chicago Bulls,119,99,6
+401704743,20241106,7,Denver Nuggets,25,Oklahoma City Thunder,124,122,7
+401704744,20241106,21,Phoenix Suns,14,Miami Heat,115,112,21
+401704745,20241106,12,LA Clippers,20,Philadelphia 76ers,110,98,12
+401704746,20241106,23,Sacramento Kings,28,Toronto Raptors,122,107,23
+401704747,20241107,4,Chicago Bulls,16,Minnesota Timberwolves,119,135,16
+401704748,20241107,15,Milwaukee Bucks,26,Utah Jazz,123,100,15
+401704749,20241107,24,San Antonio Spurs,22,Portland Trail Blazers,118,105,24
+401704750,20241108,30,Charlotte Hornets,11,Indiana Pacers,103,83,30
+401704751,20241108,8,Detroit Pistons,1,Atlanta Hawks,122,121,8
+401704752,20241108,19,Orlando Magic,3,New Orleans Pelicans,115,88,19
+401704753,20241108,2,Boston Celtics,17,Brooklyn Nets,108,104,2
+401704754,20241108,5,Cleveland Cavaliers,9,Golden State Warriors,136,117,5
+401704755,20241108,18,New York Knicks,15,Milwaukee Bucks,116,94,18
+401704756,20241108,6,Dallas Mavericks,21,Phoenix Suns,113,114,21
+401704757,20241108,29,Memphis Grizzlies,27,Washington Wizards,128,104,29
+401704758,20241108,25,Oklahoma City Thunder,10,Houston Rockets,126,107,25
+401704759,20241108,16,Minnesota Timberwolves,22,Portland Trail Blazers,127,102,16
+401704760,20241108,7,Denver Nuggets,14,Miami Heat,135,122,7
+401704761,20241108,13,Los Angeles Lakers,20,Philadelphia 76ers,116,106,13
+401704762,20241108,23,Sacramento Kings,12,LA Clippers,98,107,12
+401704763,20241109,24,San Antonio Spurs,26,Utah Jazz,110,111,26
+401704764,20241109,1,Atlanta Hawks,4,Chicago Bulls,113,125,4
+401704765,20241109,5,Cleveland Cavaliers,17,Brooklyn Nets,105,100,5
+401704766,20241109,12,LA Clippers,28,Toronto Raptors,105,103,12
+401704767,20241110,8,Detroit Pistons,10,Houston Rockets,99,101,10
+401704768,20241110,15,Milwaukee Bucks,2,Boston Celtics,107,113,2
+401704769,20241110,11,Indiana Pacers,18,New York Knicks,132,121,11
+401704770,20241110,19,Orlando Magic,27,Washington Wizards,121,94,19
+401704771,20241110,20,Philadelphia 76ers,30,Charlotte Hornets,107,105,20
+401704772,20241110,16,Minnesota Timberwolves,14,Miami Heat,94,95,14
+401704773,20241110,25,Oklahoma City Thunder,9,Golden State Warriors,116,127,9
+401704774,20241110,7,Denver Nuggets,6,Dallas Mavericks,122,120,7
+401704775,20241110,21,Phoenix Suns,23,Sacramento Kings,118,127,23
+401704776,20241110,22,Portland Trail Blazers,29,Memphis Grizzlies,89,134,29
+401704777,20241110,13,Los Angeles Lakers,28,Toronto Raptors,123,103,13
+401704778,20241111,4,Chicago Bulls,5,Cleveland Cavaliers,113,119,5
+401704779,20241111,10,Houston Rockets,27,Washington Wizards,107,92,10
+401704780,20241111,3,New Orleans Pelicans,17,Brooklyn Nets,105,107,17
+401704781,20241111,25,Oklahoma City Thunder,12,LA Clippers,134,128,25
+401704782,20241111,24,San Antonio Spurs,23,Sacramento Kings,116,96,24
+401703370,20241112,2,Boston Celtics,1,Atlanta Hawks,116,117,1
+401703371,20241112,8,Detroit Pistons,14,Miami Heat,123,121,8
+401703372,20241112,19,Orlando Magic,30,Charlotte Hornets,114,89,19
+401703373,20241112,20,Philadelphia 76ers,18,New York Knicks,99,111,18
+401703374,20241112,15,Milwaukee Bucks,28,Toronto Raptors,99,85,15
+401703375,20241112,26,Utah Jazz,21,Phoenix Suns,112,120,21
+401703376,20241112,9,Golden State Warriors,6,Dallas Mavericks,120,117,9
+401703377,20241112,22,Portland Trail Blazers,16,Minnesota Timberwolves,122,108,22
+401704783,20241113,19,Orlando Magic,11,Indiana Pacers,94,90,19
+401704784,20241113,17,Brooklyn Nets,2,Boston Celtics,114,139,2
+401704785,20241113,18,New York Knicks,4,Chicago Bulls,123,124,4
+401704786,20241113,20,Philadelphia 76ers,5,Cleveland Cavaliers,106,114,5
+401704787,20241113,25,Oklahoma City Thunder,3,New Orleans Pelicans,106,88,25
+401704788,20241113,10,Houston Rockets,12,LA Clippers,111,103,10
+401704789,20241113,15,Milwaukee Bucks,8,Detroit Pistons,127,120,15
+401704790,20241113,24,San Antonio Spurs,27,Washington Wizards,139,130,24
+401704791,20241113,13,Los Angeles Lakers,29,Memphis Grizzlies,128,123,13
+401704792,20241113,22,Portland Trail Blazers,16,Minnesota Timberwolves,106,98,22
+401704793,20241113,23,Sacramento Kings,21,Phoenix Suns,127,104,23
+401704794,20241114,26,Utah Jazz,6,Dallas Mavericks,115,113,26
+401703378,20241115,11,Indiana Pacers,14,Miami Heat,111,124,14
+401703379,20241115,19,Orlando Magic,20,Philadelphia 76ers,98,86,19
+401703380,20241115,28,Toronto Raptors,8,Detroit Pistons,95,99,8
+401703381,20241115,1,Atlanta Hawks,27,Washington Wizards,129,117,1
+401703382,20241115,5,Cleveland Cavaliers,4,Chicago Bulls,144,126,5
+401703383,20241115,18,New York Knicks,17,Brooklyn Nets,124,122,18
+401703384,20241115,24,San Antonio Spurs,13,Los Angeles Lakers,115,120,13
+401703385,20241115,10,Houston Rockets,12,LA Clippers,125,104,10
+401703386,20241115,3,New Orleans Pelicans,7,Denver Nuggets,101,94,3
+401703387,20241115,25,Oklahoma City Thunder,21,Phoenix Suns,99,83,25
+401703388,20241115,9,Golden State Warriors,29,Memphis Grizzlies,123,118,9
+401703389,20241115,23,Sacramento Kings,16,Minnesota Timberwolves,126,130,16
+401704795,20241116,30,Charlotte Hornets,15,Milwaukee Bucks,115,114,30
+401704796,20241116,2,Boston Celtics,28,Toronto Raptors,126,123,2
+401704797,20241116,3,New Orleans Pelicans,13,Los Angeles Lakers,99,104,13
+401704798,20241116,6,Dallas Mavericks,24,San Antonio Spurs,110,93,6
+401704799,20241116,23,Sacramento Kings,26,Utah Jazz,121,117,23
+401704800,20241117,16,Minnesota Timberwolves,21,Phoenix Suns,120,117,16
+401704801,20241117,11,Indiana Pacers,14,Miami Heat,119,110,11
+401704802,20241117,5,Cleveland Cavaliers,30,Charlotte Hornets,128,114,5
+401704803,20241117,27,Washington Wizards,8,Detroit Pistons,104,124,8
+401704804,20241117,29,Memphis Grizzlies,7,Denver Nuggets,105,90,29
+401704805,20241117,22,Portland Trail Blazers,1,Atlanta Hawks,114,110,22
+401704806,20241117,18,New York Knicks,17,Brooklyn Nets,114,104,18
+401704807,20241117,4,Chicago Bulls,10,Houston Rockets,107,143,10
+401704808,20241117,25,Oklahoma City Thunder,6,Dallas Mavericks,119,121,6
+401704809,20241117,12,LA Clippers,26,Utah Jazz,116,105,12
+401704810,20241118,8,Detroit Pistons,4,Chicago Bulls,112,122,4
+401704811,20241118,14,Miami Heat,20,Philadelphia 76ers,106,89,14
+401704812,20241118,18,New York Knicks,27,Washington Wizards,134,106,18
+401704813,20241118,28,Toronto Raptors,11,Indiana Pacers,130,119,28
+401704814,20241118,15,Milwaukee Bucks,10,Houston Rockets,101,100,15
+401704815,20241118,21,Phoenix Suns,19,Orlando Magic,99,109,19
+401704816,20241118,23,Sacramento Kings,1,Atlanta Hawks,108,109,1
+401704817,20241118,12,LA Clippers,9,Golden State Warriors,102,99,12
+401703390,20241119,2,Boston Celtics,5,Cleveland Cavaliers,120,117,2
+401703391,20241119,17,Brooklyn Nets,30,Charlotte Hornets,116,115,17
+401703392,20241119,29,Memphis Grizzlies,7,Denver Nuggets,110,122,7
+401703393,20241119,6,Dallas Mavericks,3,New Orleans Pelicans,132,91,6
+401703394,20241119,24,San Antonio Spurs,25,Oklahoma City Thunder,110,104,24
+401703395,20241119,13,Los Angeles Lakers,26,Utah Jazz,124,118,13
+401704818,20241120,5,Cleveland Cavaliers,3,New Orleans Pelicans,128,100,5
+401704819,20241120,15,Milwaukee Bucks,4,Chicago Bulls,122,106,15
+401704820,20241120,10,Houston Rockets,11,Indiana Pacers,130,113,10
+401704821,20241120,29,Memphis Grizzlies,20,Philadelphia 76ers,117,111,29
+401704822,20241120,25,Oklahoma City Thunder,22,Portland Trail Blazers,109,99,25
+401704823,20241120,21,Phoenix Suns,18,New York Knicks,122,138,18
+401704824,20241120,9,Golden State Warriors,1,Atlanta Hawks,120,97,9
+401704825,20241120,12,LA Clippers,19,Orlando Magic,104,93,12
+401704826,20241121,30,Charlotte Hornets,8,Detroit Pistons,123,121,30
+401704827,20241121,28,Toronto Raptors,16,Minnesota Timberwolves,110,105,28
+401704828,20241121,24,San Antonio Spurs,26,Utah Jazz,126,118,24
+401704829,20241121,13,Los Angeles Lakers,19,Orlando Magic,118,119,19
+401703396,20241122,20,Philadelphia 76ers,17,Brooklyn Nets,113,98,20
+401703397,20241122,27,Washington Wizards,2,Boston Celtics,96,108,2
+401703398,20241122,15,Milwaukee Bucks,11,Indiana Pacers,129,117,15
+401703399,20241122,4,Chicago Bulls,1,Atlanta Hawks,136,122,4
+401703400,20241122,10,Houston Rockets,22,Portland Trail Blazers,116,88,10
+401703401,20241122,3,New Orleans Pelicans,9,Golden State Warriors,108,112,9
+401703402,20241122,7,Denver Nuggets,6,Dallas Mavericks,120,123,6
+401703403,20241122,12,LA Clippers,23,Sacramento Kings,104,88,12
+401704830,20241123,26,Utah Jazz,18,New York Knicks,121,106,26
+401704831,20241123,19,Orlando Magic,8,Detroit Pistons,111,100,19
+401704832,20241123,4,Chicago Bulls,29,Memphis Grizzlies,131,142,29
+401704833,20241123,10,Houston Rockets,22,Portland Trail Blazers,98,104,22
+401704834,20241123,15,Milwaukee Bucks,30,Charlotte Hornets,125,119,15
+401704835,20241123,24,San Antonio Spurs,9,Golden State Warriors,104,94,24
+401704836,20241123,13,Los Angeles Lakers,7,Denver Nuggets,102,127,7
+401704837,20241124,2,Boston Celtics,16,Minnesota Timberwolves,107,105,2
+401704838,20241124,11,Indiana Pacers,27,Washington Wizards,115,103,11
+401704839,20241124,14,Miami Heat,6,Dallas Mavericks,123,118,14
+401704840,20241124,20,Philadelphia 76ers,12,LA Clippers,99,125,12
+401704841,20241124,5,Cleveland Cavaliers,28,Toronto Raptors,122,108,5
+401704842,20241124,23,Sacramento Kings,17,Brooklyn Nets,103,108,17
+401704843,20241125,30,Charlotte Hornets,19,Orlando Magic,84,95,19
+401704844,20241125,8,Detroit Pistons,28,Toronto Raptors,102,100,8
+401704845,20241125,11,Indiana Pacers,3,New Orleans Pelicans,114,110,11
+401704846,20241125,1,Atlanta Hawks,6,Dallas Mavericks,119,129,6
+401704847,20241125,2,Boston Celtics,12,LA Clippers,126,94,2
+401704848,20241125,29,Memphis Grizzlies,22,Portland Trail Blazers,123,98,29
+401704849,20241125,7,Denver Nuggets,18,New York Knicks,118,145,18
+401704850,20241125,9,Golden State Warriors,17,Brooklyn Nets,120,128,17
+401704851,20241125,23,Sacramento Kings,25,Oklahoma City Thunder,109,130,25
+401703404,20241126,27,Washington Wizards,4,Chicago Bulls,108,127,4
+401703405,20241126,14,Miami Heat,15,Milwaukee Bucks,103,106,15
+401703406,20241126,16,Minnesota Timberwolves,10,Houston Rockets,111,117,10
+401703407,20241126,26,Utah Jazz,24,San Antonio Spurs,115,128,24
+401703408,20241126,21,Phoenix Suns,13,Los Angeles Lakers,127,100,21
+401704852,20241127,30,Charlotte Hornets,14,Miami Heat,94,98,14
+401704853,20241127,5,Cleveland Cavaliers,1,Atlanta Hawks,124,135,1
+401704854,20241127,11,Indiana Pacers,22,Portland Trail Blazers,121,114,11
+401704855,20241127,19,Orlando Magic,4,Chicago Bulls,133,119,19
+401704856,20241127,20,Philadelphia 76ers,10,Houston Rockets,115,122,10
+401704857,20241127,27,Washington Wizards,12,LA Clippers,96,121,12
+401704858,20241127,6,Dallas Mavericks,18,New York Knicks,129,114,6
+401704859,20241127,29,Memphis Grizzlies,8,Detroit Pistons,131,111,29
+401704860,20241127,16,Minnesota Timberwolves,23,Sacramento Kings,104,115,23
+401704861,20241127,3,New Orleans Pelicans,28,Toronto Raptors,93,119,28
+401704862,20241127,24,San Antonio Spurs,13,Los Angeles Lakers,101,119,13
+401704863,20241127,21,Phoenix Suns,17,Brooklyn Nets,117,127,17
+401704864,20241127,26,Utah Jazz,7,Denver Nuggets,103,122,7
+401704865,20241127,9,Golden State Warriors,25,Oklahoma City Thunder,101,105,25
+401703409,20241129,30,Charlotte Hornets,18,New York Knicks,98,99,18
+401703410,20241129,1,Atlanta Hawks,5,Cleveland Cavaliers,117,101,1
+401703411,20241129,29,Memphis Grizzlies,3,New Orleans Pelicans,120,109,29
+401703412,20241129,17,Brooklyn Nets,19,Orlando Magic,100,123,19
+401703413,20241129,16,Minnesota Timberwolves,12,LA Clippers,93,92,16
+401703414,20241129,11,Indiana Pacers,8,Detroit Pistons,106,130,8
+401703415,20241129,14,Miami Heat,28,Toronto Raptors,121,111,14
+401703416,20241129,4,Chicago Bulls,2,Boston Celtics,129,138,2
+401703417,20241129,13,Los Angeles Lakers,25,Oklahoma City Thunder,93,101,25
+401703418,20241129,22,Portland Trail Blazers,23,Sacramento Kings,115,106,22
+401704866,20241130,30,Charlotte Hornets,1,Atlanta Hawks,104,107,1
+401704867,20241130,8,Detroit Pistons,20,Philadelphia 76ers,96,111,20
+401704868,20241130,15,Milwaukee Bucks,27,Washington Wizards,124,114,15
+401704869,20241130,21,Phoenix Suns,9,Golden State Warriors,113,105,21
+401704870,20241130,26,Utah Jazz,6,Dallas Mavericks,94,106,6
