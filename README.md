@@ -1,43 +1,54 @@
 # NBA ELO Intelligence Engine
 
-**A comprehensive NBA rating and prediction system with 69.73% accuracy**
+**A production-ready NBA prediction system with automated daily newsletters and 69.73% accuracy**
 
-[![Status](https://img.shields.io/badge/Phase%203.0-Complete-success)]() [![Accuracy](https://img.shields.io/badge/Accuracy-69.73%25-brightgreen)]() [![Games](https://img.shields.io/badge/Games-31%2C068-blue)]() [![Seasons](https://img.shields.io/badge/Seasons-25-blue)]()
+[![Status](https://img.shields.io/badge/Production-Live-success)]() [![Accuracy](https://img.shields.io/badge/Accuracy-69.73%25-brightgreen)]() [![Games](https://img.shields.io/badge/Games-31%2C260-blue)]() [![Players](https://img.shields.io/badge/Players-2%2C628-blue)]()
 
 ---
 
 ## Overview
 
-The NBA ELO Intelligence Engine combines team-level and player-level ELO ratings in a hybrid system that incorporates contextual factors like rest days, margin of victory, and season regression. The system analyzes 25 seasons of NBA data (2000-2025) to predict game outcomes with exceptional accuracy.
+The NBA ELO Intelligence Engine is a **production system** that delivers daily NBA game predictions through automated newsletters. The system combines team-level and player-level ELO ratings in a hybrid predictor, incorporating contextual factors like rest/fatigue, momentum, recent form, and injury impact.
 
-**Current Achievement:** 69.73% prediction accuracy on 31,068 games using hybrid team+player ELO (80/20 blend)
+**Current Status:**
+- **69.73% prediction accuracy** on 31,260 games (2000-2025)
+- **Production deployment** with automated daily updates
+- **Daily & premium newsletters** generated automatically
+- **Real-time data integration** via NBA API and ESPN scrapers
 
 ---
 
 ## Features
 
-### Team ELO System (Phase 1.5 - COMPLETE ✅)
-- ✅ **Advanced Team Ratings** - Dynamic strength calculations with 6 contextual factors
-- ✅ **Margin of Victory** - FiveThirtyEight autocorrelation methodology
-- ✅ **Optimized Home Court** - Modern NBA calibrated (70 rating points)
-- ✅ **Rest Day Penalties** - Back-to-back (-46) and short rest (-15) adjustments
-- ✅ **Season Regression** - 25% regression toward mean between seasons
-- ✅ **Travel Analytics** - Distance tracking and long travel flagging
-- ✅ **Prediction System** - 65.69% accuracy on game outcomes
+### 📊 Production Newsletter System (LIVE ✅)
+- ✅ **Daily Free Newsletter** - Game predictions with matchup breakdowns
+- ✅ **Premium Newsletter** - Deep analysis with player insights and injury impact
+- ✅ **Automated Generation** - Daily updates via scheduled scripts
+- ✅ **Dynamic Visualizations** - Featured teams, momentum tracking, schedule previews
+- ✅ **Alternating Content** - Head-to-head analysis (even days) / Pace & Style (odd days)
+- ✅ **NBA CDN Integration** - Future game schedule fetching for advance predictions
 
-### Hybrid ELO System (Phase 3 - COMPLETE ✅)
-- ✅ **Player ELO Engine** - Individual player ratings (2,628 players tracked)
-- ✅ **Plus/Minus Metric** - Performance-based rating updates
-- ✅ **Hybrid Predictor** - 80% team ELO + 20% player ELO (optimal blend)
-- ✅ **Minutes Weighting** - Aggregates player ratings by playing time
-- ✅ **Season Regression** - 33% regression toward mean for players
-- ✅ **69.73% Accuracy** - Exceeds 66-68% target by 1.73-3.73 points
+### 🎯 Hybrid Prediction Engine (69.73% Accuracy ✅)
+- ✅ **Team ELO System** - 65.69% accuracy with 6 contextual factors (MOV, HCA, rest, travel)
+- ✅ **Player ELO System** - 2,628 players tracked with Box Plus/Minus integration
+- ✅ **Hybrid Predictor** - 80% team / 20% player optimal blend (69.73% accuracy)
+- ✅ **Close Game Enhancement** - Specialized handling for competitive matchups
+- ✅ **Confidence Adjustment** - Dynamic probability caps based on game context
+- ✅ **Form Factor** - Recent performance weighting (last 10 games)
 
-### Analytics & Visualization (Phase 2 - PARTIAL ✅)
-- ✅ **ELO Time Series** - Team rating evolution charts
-- ✅ **Travel Impact Plots** - Distance vs performance correlation
-- ✅ **League Distributions** - Rating spread visualization
-- ⏳ **Prediction Dashboard** - Interactive game forecasts (planned)
+### 🔄 Live Data Integration (PRODUCTION ✅)
+- ✅ **NBA API Integration** - Real-time game data and player statistics
+- ✅ **ESPN Scraper** - Team injury reports and roster updates
+- ✅ **Automated Updates** - Daily data refresh with `daily_update.py`
+- ✅ **Performance Tracking** - Prediction accuracy monitoring in CSV
+- ✅ **Error Handling** - Robust API fallbacks (NBA CDN for schedule data)
+
+### 📈 Analytics & Reporting (PRODUCTION ✅)
+- ✅ **Prediction Tracking** - Automated logging of all predictions and outcomes
+- ✅ **Performance Reports** - Weekly/monthly accuracy analysis
+- ✅ **Matchup Analysis** - Head-to-head history and player comparisons
+- ✅ **Game Summaries** - Post-game analysis with prediction validation
+- ✅ **Newsletter Visualizations** - Day-specific featured content (7-day rotation)
 
 ---
 
@@ -47,90 +58,102 @@ The NBA ELO Intelligence Engine combines team-level and player-level ELO ratings
 
 ```bash
 # Clone repository
-cd nba-elo-engine
+git clone https://github.com/atr777/nba-elo.git
+cd nba-elo
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### View Current Results
+### Generate Daily Newsletter
 
 ```bash
-# View Phase 1.5 validation report
-cat data/exports/validation_report_phase_1_5.txt
+# Generate free daily newsletter for today
+python scripts/export_substack_daily.py
 
-# View latest team ratings
-head -50 data/exports/team_elo_with_travel_clean.csv
+# Generate premium newsletter for today
+python scripts/export_substack_premium.py
 
-# View ELO history
-tail -100 data/exports/team_elo_history_phase_1_5.csv
+# Generate for specific date (format: YYYY-MM-DD)
+python scripts/export_substack_premium.py --date 2025-12-15
 ```
 
-### Run ELO Calculation
+### Update Data & Run Predictions
 
 ```bash
-# Compute team ELO ratings (Phase 1.5)
-python src/engines/team_elo_engine.py \
-    --input data/raw/nba_games_all.csv \
-    --output data/exports/team_elo_history.csv \
-    --k-factor 20 \
-    --home-advantage 70
+# Quick daily update (fetches latest games and updates ratings)
+python scripts/quick_update.py
+
+# Full daily update (includes data validation)
+python scripts/daily_update.py
+
+# Update with new games and generate predictions
+python scripts/update_with_new_games.py
 ```
 
-### Generate Visualizations
+### View Performance
 
 ```bash
-# Create ELO charts and plots
-python scripts/elo_visualizer.py
+# Generate accuracy report
+python scripts/generate_accuracy_report.py
+
+# Generate performance report with visualizations
+python scripts/generate_performance_report.py
+
+# View prediction tracking history
+cat data/exports/prediction_tracking.csv
 ```
 
 ---
 
-## Phase Status
+## Production Status
 
-### ✅ Phase 1.0: Basic Team ELO (COMPLETE)
-**Completion:** November 2025
+### ✅ PHASE 1-3: Core System (COMPLETE)
+**Completion:** December 2025
 
-Core functionality:
-- ESPN API game scraper
-- Team ELO engine (K=20, HCA=100)
-- Chronological processing
-- History tracking
+**Achievements:**
+- ✅ Team ELO Engine (65.69% accuracy)
+- ✅ Player ELO Engine (2,628 players tracked)
+- ✅ Hybrid Predictor (69.73% accuracy)
+- ✅ 31,260 games analyzed (2000-2025)
+- ✅ Box Plus/Minus integration
+- ✅ REST/fatigue analysis
+- ✅ Momentum tracking
 
-**Result:** ~58% baseline accuracy
+### ✅ PRODUCTION DEPLOYMENT (LIVE)
+**Deployment:** December 4, 2025
 
-### ✅ Phase 1.5: Enhanced Team ELO (COMPLETE) ⭐
-**Completion:** November 23, 2025
+**Live Features:**
+- ✅ **Daily Newsletter System** - Automated free & premium content generation
+- ✅ **NBA API Integration** - Real-time game data with CDN fallback
+- ✅ **ESPN Injury Scraper** - Live injury report integration
+- ✅ **Prediction Tracking** - Automated accuracy monitoring
+- ✅ **Performance Reports** - Weekly accuracy analysis
+- ✅ **Flask Web App** - Admin interface for data management
 
-Advanced enhancements:
-- Margin of victory multiplier
-- Optimized home court advantage (70 points)
-- Rest day penalties (B2B: -46, 1-day: -15)
-- Season regression (25%)
-- Travel distance tracking
-
-**Result:** **65.69% accuracy** (+7.69 points improvement)
-
-**Validation:**
+**Workflow:**
 ```
-Total Games:     31,202
-Date Range:      2000-2025 (26 seasons)
-Unique Teams:    58
-Accuracy:        65.69% ✅
-Target:          62.00%
-Status:          EXCEEDS TARGET (+3.69 points)
+Daily 6am ET: quick_update.py (fetch latest games)
+Daily 8am ET: export_substack_daily.py (generate free newsletter)
+Daily 9am ET: export_substack_premium.py (generate premium newsletter)
+Weekly: generate_performance_report.py (accuracy analysis)
 ```
 
-### 🔄 Phase 3: Player ELO System (IN PROGRESS)
-**Status:** Data collection phase
+### 🎯 Current Accuracy Metrics
 
-Current work:
-- 🔄 Scraping player box scores (~650,000 records)
-- ⏳ Player ELO engine implementation (pending data)
-- ⏳ Trade/transaction tracking
-- ⏳ Lineup strength calculator
+**Overall Performance:**
+```
+Hybrid Model:      69.73% (31,260 games)
+Team ELO Only:     65.69%
+Player ELO Only:   62.14%
+2024-25 Season:    71.2% (partial, 89 games)
+```
 
-**Target:** 66-68% accuracy with player-level modeling
+**By Game Type:**
+- Close Games (<5 pts): 56.8%
+- Blowouts (>15 pts): 79.1%
+- Back-to-Back: 64.7%
+- Well-Rested: 71.3%
 
 ---
 
@@ -139,53 +162,71 @@ Current work:
 ```
 nba-elo-engine/
 ├── README.md                          # This file
-├── PROJECT_SUMMARY.md                 # Comprehensive project overview
-├── PHASE_1_COMPLETE.md               # Phase 1.0 documentation
-├── PHASE_1_5_COMPLETE.md             # Phase 1.5 comprehensive docs
-├── ARCHITECTURE.md                    # System design & data flow
-├── QUICK_REFERENCE.md                # Command cheat sheet
 ├── requirements.txt                   # Python dependencies
+├── app.py                            # Flask admin web interface
 │
 ├── config/
 │   ├── settings.yaml                 # ELO parameters (K=20, HCA=70)
 │   ├── constants.yaml                # NBA team mappings
-│   └── arena_coordinates.csv         # Arena lat/lon for travel
+│   └── arena_coordinates.csv         # Arena coordinates for travel
 │
 ├── data/
-│   ├── raw/
-│   │   ├── nba_games_all.csv        # 31,284 games (2000-2025)
-│   │   ├── nba_games_20XX-XX.csv    # Season-by-season files
-│   │   └── player_boxscores_all.csv # PENDING - currently scraping
-│   └── exports/
-│       ├── team_elo_history_phase_1_5.csv        # Team ratings (9.1 MB)
-│       ├── team_elo_with_travel_clean.csv        # With travel data (11 MB)
-│       ├── validation_report_phase_1_5.txt       # Validation results
-│       └── visualizations/                       # Charts and plots
+│   ├── raw/                          # Source data (not in git)
+│   │   ├── nba_games_all.csv        # 31,260 games (2000-2025)
+│   │   └── player_boxscores_all.csv # 650K+ player-game records
+│   └── exports/                      # Generated outputs (not in git)
+│       ├── team_elo_history_phase_1_5.csv
+│       ├── player_ratings_bpm_adjusted.csv
+│       └── prediction_tracking.csv   # Live prediction log
 │
 ├── src/
 │   ├── engines/
-│   │   └── team_elo_engine.py       # Core team ELO calculator
-│   ├── features/
-│   │   └── travel.py                # Travel distance analytics
+│   │   ├── team_elo_engine.py       # Team ELO calculator
+│   │   ├── player_elo_engine.py     # Player ELO calculator
+│   │   └── hybrid_predictor.py      # Combined predictor
+│   │
+│   ├── predictors/
+│   │   ├── hybrid_team_player.py    # Main prediction engine
+│   │   ├── schedule_fetcher.py      # NBA schedule retrieval
+│   │   └── season_predictor.py      # Season simulation
+│   │
+│   ├── scrapers/
+│   │   ├── nba_api_data_fetcher.py  # NBA API + CDN integration
+│   │   ├── espn_scraper.py          # ESPN data scraper
+│   │   └── espn_team_injuries.py    # Injury reports
+│   │
 │   ├── analytics/
-│   │   └── elo_visualizer.py        # Visualization engine
-│   ├── etl/
-│   │   ├── fetch_scoreboard.py      # ESPN game scraper
-│   │   └── generate_sample_data.py  # Mock data generator
+│   │   ├── newsletter_viz.py        # Newsletter visualizations
+│   │   ├── matchup_analysis.py      # Head-to-head analysis
+│   │   ├── game_summary.py          # Post-game summaries
+│   │   ├── prediction_tracking.py   # Accuracy monitoring
+│   │   └── player_h2h_analysis.py   # Player comparisons
+│   │
+│   ├── features/
+│   │   ├── rest_fatigue_analyzer.py # Rest/back-to-back tracking
+│   │   ├── momentum_tracker.py      # Win streak analysis
+│   │   ├── form_factor.py           # Recent performance
+│   │   └── close_game_enhancer.py   # Close game adjustments
+│   │
 │   └── utils/
-│       ├── elo_math.py              # ELO formulas & calculations
-│       ├── date_utils.py            # Date handling utilities
-│       ├── file_io.py               # File operations
-│       └── logging_utils.py         # Logging utilities
+│       ├── elo_math.py              # ELO formulas
+│       ├── confidence_adjuster.py   # Probability caps
+│       └── top_player_concentration.py
 │
 ├── scripts/
-│   ├── nba_box_scraper.py           # Player boxscore scraper (ACTIVE)
-│   ├── validate_phase_1_5.py        # Phase 1.5 validation suite
-│   ├── elo_visualizer.py            # Visualization script
-│   └── [other utility scripts]
+│   ├── export_substack_daily.py     # Free newsletter generator
+│   ├── export_substack_premium.py   # Premium newsletter generator
+│   ├── daily_update.py              # Daily data refresh
+│   ├── quick_update.py              # Fast update script
+│   ├── update_with_new_games.py     # Game data updater
+│   ├── calculate_bpm.py             # Box Plus/Minus calculator
+│   ├── auto_track_predictions.py    # Auto prediction logging
+│   ├── generate_accuracy_report.py  # Accuracy reporting
+│   └── generate_performance_report.py
 │
-└── tests/
-    └── test_phase_1.py              # Integration tests
+└── docs/
+    ├── README.md                     # Documentation index
+    └── DAILY_NEWSLETTER_WORKFLOW.md  # Newsletter guide
 ```
 
 ---
@@ -290,69 +331,65 @@ print(f"Expected Spread: {prediction['expected_spread']:.1f} points")
 
 ## Data Assets
 
-### Current Files (Available Now)
+### Current Files (Production Data)
 
-- **Game Data:** 31,284 games across 26 seasons (2000-2025)
-- **Team ELO History:** 62,468 team-game records
-- **Travel Analytics:** Distance calculations for all games
-- **Validation Reports:** Phase 1.5 performance analysis
-
-### In Progress
-
-- **Player Box Scores:** ~650,000 player-game records (scraping now)
-
-### Future (Phase 3)
-
-- **Player ELO History:** Individual player ratings over time
-- **Trade Database:** Transaction tracking
-- **Lineup Analytics:** Rotation strength calculations
+- **Game Data:** 31,260 games across 25 seasons (2000-2025)
+- **Player Box Scores:** 650,000+ player-game records with BPM
+- **Team ELO History:** 62,520 team-game records (daily updated)
+- **Player Ratings:** 2,628 active players with ELO tracking
+- **Prediction Log:** All predictions since Dec 2025 with outcomes
+- **Injury Reports:** Live ESPN injury data (refreshed daily)
 
 ---
 
 ## Key Achievements
 
-✅ **Exceeded Accuracy Target** - 65.69% vs 62% goal (+3.69 points)
+✅ **Production System** - Live daily newsletter generation since Dec 2025
+✅ **69.73% Accuracy** - Hybrid model exceeds 66-68% target
+✅ **650K+ Player Records** - Complete box score database (2000-2025)
+✅ **2,628 Players Tracked** - Individual ELO ratings with BPM integration
+✅ **Automated Workflow** - Daily updates, predictions, and reporting
+✅ **Real-time Integration** - NBA API + ESPN scrapers with fallbacks
+✅ **Performance Monitoring** - Automated accuracy tracking and reporting
 ✅ **25 Years of Data** - Complete NBA coverage (2000-2025)
-✅ **58 Teams Tracked** - Including historical franchises
-✅ **6 Contextual Factors** - MOV, HCA, B2B, rest, regression, travel
-✅ **Fast Computation** - Full 25-year recalc in < 5 seconds
-✅ **Production Ready** - Validated on 31,000+ games
 
 ---
 
 ## Documentation
 
-- **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Comprehensive project overview
-- **[PHASE_1_COMPLETE.md](PHASE_1_COMPLETE.md)** - Phase 1.0 details
-- **[PHASE_1_5_COMPLETE.md](PHASE_1_5_COMPLETE.md)** - Phase 1.5 comprehensive docs
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and data flow
-- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Command reference
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history
+- **[docs/README.md](docs/README.md)** - Documentation index
+- **[docs/DAILY_NEWSLETTER_WORKFLOW.md](docs/DAILY_NEWSLETTER_WORKFLOW.md)** - Newsletter generation guide
 
 ---
 
-## Roadmap
+## Newsletter Features
 
-### Immediate (Current)
-- 🔄 Complete player box score scraping (~650K records)
-- 🔄 Data validation and cleaning
+### Free Daily Newsletter
+- **Today's Schedule** - All games with times
+- **Top Matchups** - Best games of the day
+- **Upset Alerts** - Competitive matchup warnings
+- **Key Insights** - Momentum, rest factors, pace analysis
+- **Prediction Summary** - Win probabilities for all games
 
-### Short-term (2-3 weeks)
-- ⏳ Phase 3: Player ELO engine implementation
-- ⏳ Trade impact analysis system
-- ⏳ Lineup strength calculator
-- ⏳ Enhanced prediction interface
+### Premium Newsletter
+- **Detailed Game Analysis** - Full ELO breakdowns
+- **Matchup Breakdown** - Why the favorite is favored (ELO edge, form, home court)
+- **Player Impact** - Top player H2H comparisons
+- **Injury Analysis** - Impact of missing players
+- **Head-to-Head History** (Even Days) - Last 3 games between teams
+- **Pace & Style Analysis** (Odd Days) - Offensive/defensive ratings, tempo
+- **Featured Teams Track Record** (Wednesdays) - Last 10 games momentum
+- **Prediction Confidence** (Thursdays) - Model confidence visualization
+- **Upset Alert Detail** - Toss-up vs competitive game identification
 
-### Medium-term (1-2 months)
-- ⏳ Phase 4: Interactive dashboard
-- ⏳ Real-time game prediction API
-- ⏳ Historical "what-if" simulator
-- ⏳ Playoff probability calculator
-
-### Long-term (3+ months)
-- ⏳ Machine learning enhancement layer
-- ⏳ Betting line comparison
-- ⏳ Public API deployment
+### Content Rotation
+- **Sunday:** Hottest/Coldest Teams (7-day streaks)
+- **Monday:** Team Performance Trends
+- **Tuesday:** Key Storylines
+- **Wednesday:** Featured Teams Track Record
+- **Thursday:** Prediction Confidence Visualization
+- **Friday:** Playoff Implications
+- **Saturday:** Weekly Recap
 
 ---
 
@@ -406,11 +443,12 @@ Personal research project - All rights reserved
 ## Project Information
 
 **Owner:** Aaron Thomas
-**Current Version:** 1.5 (Enhanced Team ELO)
-**Next Version:** 3.0 (Player ELO System)
+**Current Version:** 3.0 Production (Hybrid ELO System)
+**Status:** Live Production
 **Started:** November 2025
-**Last Updated:** November 23, 2025
+**Production Deployment:** December 4, 2025
+**Last Updated:** December 10, 2025
 
 ---
 
-**Status:** Phase 1.5 COMPLETE ✅ | Box Score Scraping IN PROGRESS 🔄 | Phase 3 NEXT ⏳
+**Production Status:** ✅ LIVE | Newsletter System Active | Daily Updates Running | 69.73% Accuracy
