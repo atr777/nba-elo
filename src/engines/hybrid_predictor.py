@@ -31,7 +31,7 @@ class HybridPredictor:
     Default blend_weight = 0.7 (70% team, 30% player)
     """
 
-    def __init__(self, blend_weight: float = 0.7, home_advantage: float = 70):
+    def __init__(self, blend_weight: float = 0.7, home_advantage: float = 30  # Calibrated):
         """
         Initialize the Hybrid Predictor.
 
@@ -211,7 +211,7 @@ def validate_hybrid_predictions(
     player_ratings_file: str,
     player_boxscores_file: str,
     blend_weight: float = 0.7,
-    home_advantage: float = 70,
+    home_advantage: float = 30,  # Calibrated to 54.33% home win rate
     output_file: Optional[str] = None
 ) -> Dict:
     """

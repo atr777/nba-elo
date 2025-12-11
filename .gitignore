@@ -1,4 +1,6 @@
-# Data files (too large for git)
+# ==========================================
+# DATA FILES (Too large for git)
+# ==========================================
 data/raw/nba_games_all.csv
 data/raw/nba_games_*-*.csv
 data/raw/player_boxscores_all.csv
@@ -13,7 +15,9 @@ data/exports/visualizations/*.png
 !data/raw/mock_player_boxscores.csv
 !data/exports/test.csv
 
-# Python
+# ==========================================
+# PYTHON
+# ==========================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -40,21 +44,150 @@ venv/
 env/
 ENV/
 
-# IDEs
+# ==========================================
+# IDE & EDITORS
+# ==========================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# ==========================================
+# OS FILES
+# ==========================================
 .DS_Store
 Thumbs.db
+nul
 
-# Logs
+# ==========================================
+# BACKUP FILES
+# ==========================================
+*_backup*.py
+*_backup*.csv
+app_backup_*.py
+src/predictors/hybrid_team_player_backup*.py
+
+# ==========================================
+# TEST & DEVELOPMENT SCRIPTS (Root Level)
+# ==========================================
+test_player_data.py
+test_routes.py
+test_season_api.py
+test_ui_pages.py
+
+# ==========================================
+# DEVELOPMENT DOCUMENTATION
+# ==========================================
+
+# Root level development docs
+COMPLETE_ACCURACY_ROADMAP.md
+PRODUCTION_STRATEGY.md
+QUICK_START_GUIDE.md
+QUICK_WINS.md
+ACCURACY_IMPROVEMENT_REPORT.md
+DEEP_ANALYSIS_100_GAMES.md
+UPSET_ANALYSIS_TAKEAWAYS.md
+test_tomorrow.md
+
+# Development folders
+docs/checkpoints/
+docs/completed/
+docs/plans/
+docs/reports/
+
+# Test newsletters in docs
+docs/substack_newsletter*.md
+docs/test_newsletter*.md
+
+# Additional docs to exclude
+docs/CLOSE_GAME_ENHANCEMENT_INTEGRATION.md
+docs/DASHBOARD_FRAMEWORK.md
+docs/HOME_COURT_RECALIBRATION_PRIORITY_2.md
+docs/MODEL_IMPROVEMENT_INSIGHTS.md
+docs/NEWSLETTER_ISSUES_AND_TASKS.md
+docs/NEWSLETTER_VISUALIZATION_IDEAS.md
+docs/NEWSLETTER_VIZ_VALIDATION.md
+docs/PLAYER_RATING_ADJUSTMENTS.md
+docs/PRIORITIES_1_2_VALIDATION_RESULTS.md
+docs/PRIORITY_3_DEPLOYMENT_SUMMARY.md
+docs/PRIORITY_3_REST_FATIGUE_DESIGN.md
+docs/PRODUCTION_DEPLOYMENT_DEC_4_2025.md
+docs/QA_REPORT_PREMIUM_NEWSLETTER.md
+
+# ==========================================
+# NEWSLETTER TEST OUTPUTS
+# ==========================================
+newsletters/test_*.md
+newsletters/qa_*.md
+newsletters/premium_2026-*.md
+data/exports/daily_*.md
+data/exports/premium_*.md
+
+# ==========================================
+# BUILD & COMPILATION
+# ==========================================
+build_exe.py
+*.spec
+dist/
+build/
+
+# ==========================================
+# SCRIPTS - TEST & DEVELOPMENT ONLY
+# ==========================================
+
+# Test scripts
+scripts/test_*.py
+scripts/check_*.py
+scripts/debug_*.py
+scripts/verify_*.py
+scripts/validate_*.py
+scripts/qa_*.py
+
+# Fix & analysis scripts (one-time use)
+scripts/fix_*.py
+scripts/analyze_*.py
+scripts/backtest_*.py
+scripts/monitor_*.py
+
+# Data processing scripts (one-time setup)
+scripts/build_player_mapping_from_boxscores.py
+scripts/scrape_bpm.py
+scripts/nba_box_scraper.py
+scripts/merge_*.py
+scripts/apply_*.py
+scripts/adjust_*.py
+scripts/add_*.py
+scripts/extract_*.py
+scripts/fetch_2025_26_schedule.py
+scripts/find_*.py
+scripts/get_nba_api_ids.py
+scripts/parse_*.py
+scripts/clean_*.py
+scripts/interactive_newsletter.py
+
+# Scripts data folder
+scripts/data/
+
+# ==========================================
+# LOGS & CACHE
+# ==========================================
 *.log
 scripts/box_scraper.log
+.cache/
+temp/
+tmp/
 
+# ==========================================
+# NOTEBOOKS
+# ==========================================
+notebooks/
+*.ipynb
+.ipynb_checkpoints/
+
+# ==========================================
+# MISCELLANEOUS
+# ==========================================
 # Test files
 test_games.csv
 scripts/test_games.csv
@@ -63,3 +196,65 @@ scripts/test_boxscores.csv
 # Temporary files
 *.tmp
 *.bak
+
+# Figures & Visualizations (generated outputs)
+figures/
+-Force/
+
+# Claude Code Settings (personal)
+.claude/settings.local.json
+
+# ==========================================
+# ROOT LEVEL FILES TO EXCLUDE
+# ==========================================
+
+# Documentation (development/historical)
+ARCHITECTURE.md
+CHANGELOG.md
+CHECKPOINT_PHASE_3.md
+DATA_FILTERING.md
+NEXT_STEPS.md
+PHASE_1_5_COMPLETE.md
+PHASE_1_COMPLETE.md
+PHASE_3_COMPLETE.md
+PHASE_3_PLAN.md
+PHASE_4_PLAN.md
+PROJECT_SUMMARY.md
+QUICK_REFERENCE.md
+SCRAPER_COMPLETE.md
+SCRAPER_FIX_SUMMARY.md
+UPDATE_WORKFLOW.md
+
+# Temp data files
+data/raw/nba_games_2025_26_season.csv
+data/raw/nba_games_nov23_24_2025.csv
+data/raw/player_boxscores_with_bpm.csv
+data/raw/player_boxscores_with_raptor.csv
+data/raw/player_raptor_historical.csv
+data/raw/player_raptor_modern.csv
+data/raw/test_nov_2024.csv
+data/team_locations.csv
+
+# Validation & output files
+roster_validation_report.txt
+validation_output.txt
+validation_report.txt
+data/exports/validation_report_phase_1_5.txt
+top_30_bpm.txt
+top_30_plusminus.txt
+
+# Temp JSON/HTML files
+espn_hou_injuries.html
+houston_injuries.json
+temp_players.json
+test_response.json
+
+# Static assets & templates (may be app-specific)
+static/
+templates/
+
+# Admin tool
+nba_elo_admin.py
+
+# Batch scripts
+scripts/*.bat

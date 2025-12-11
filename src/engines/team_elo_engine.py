@@ -16,38 +16,72 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from src.utils.file_io import load_csv_to_dataframe, save_dataframe_to_csv, load_settings, get_data_path
 from src.utils.elo_math import process_game_elo_update
 from src.utils.logging_utils import get_logger
+from src.features.form_factor import FormTracker
+from src.features.rest_penalties import RestTracker
 
 logger = get_logger(__name__)
 
 
 class TeamELOEngine:
     """Engine for computing team-level ELO ratings."""
-    
+
     def __init__(
         self,
         base_rating: float = 1500,
         k_factor: float = 20,
-        home_advantage: float = 100
+        home_advantage: float = 20,  # Phase 4: Reduced from 30 to 20 (modern NBA has lower HCA)
+        use_mov: bool = True,
+        use_enhanced_features: bool = True,
+        use_top_player_concentration: bool = True,
+        player_ratings: pd.DataFrame = None,
+        player_team_mapping: pd.DataFrame = None
     ):
         """
         Initialize the Team ELO Engine.
-        
+
         Args:
             base_rating: Starting ELO rating for all teams
             k_factor: K-factor for rating updates (sensitivity parameter)
             home_advantage: Home court advantage rating bonus
+            use_mov: If True, apply margin-of-victory multiplier (default: True)
+            use_enhanced_features: If True, apply form factor and rest penalties (default: True)
+            use_top_player_concentration: If True, apply top player concentration adjustments (default: True)
+            player_ratings: DataFrame with player ratings for concentration calculations
+            player_team_mapping: DataFrame mapping players to teams
         """
         self.base_rating = base_rating
         self.k_factor = k_factor
         self.home_advantage = home_advantage
-        
+        self.use_mov = use_mov
+        self.use_enhanced_features = use_enhanced_features
+        self.use_top_player_concentration = use_top_player_concentration
+
         # Current ratings dictionary {team_id: rating}
         self.current_ratings = {}
-        
+
         # History tracking
         self.rating_history = []
-        
-        logger.info(f"Team ELO Engine initialized: base={base_rating}, K={k_factor}, home_adv={home_advantage}")
+
+        # Player data for top player concentration
+        self.player_ratings = player_ratings if player_ratings is not None else pd.DataFrame()
+        self.player_team_mapping = player_team_mapping if player_team_mapping is not None else pd.DataFrame()
+
+        # Enhanced features trackers
+        if use_enhanced_features:
+            self.form_tracker = FormTracker(lookback_games=5, form_weight=0.1)
+            self.rest_tracker = RestTracker(b2b_penalty=46, one_day_penalty=15)
+        else:
+            self.form_tracker = None
+            self.rest_tracker = None
+
+        mov_status = "enabled" if use_mov else "disabled"
+        enhanced_status = "enabled" if use_enhanced_features else "disabled"
+        concentration_status = "enabled" if use_top_player_concentration else "disabled"
+        logger.info(
+            f"Team ELO Engine initialized: base={base_rating}, K={k_factor}, "
+            f"home_adv={home_advantage}, MOV={mov_status}, Enhanced={enhanced_status}, "
+            f"TopPlayerConcentration={concentration_status}"
+        )
     
     def reset_ratings(self):
         """Reset all team ratings to base rating."""
@@ -87,16 +121,29 @@ class TeamELOEngine:
             home_score=game['home_score'],
             away_score=game['away_score'],
             k_factor=self.k_factor,
-            home_advantage=self.home_advantage
+            home_advantage=self.home_advantage,
+            use_mov=self.use_mov
         )
         
         # Update current ratings
         self.current_ratings[game['home_team_id']] = result['home_new_rating']
         self.current_ratings[game['away_team_id']] = result['away_new_rating']
-        
+
+        # Update enhanced features trackers
+        if self.use_enhanced_features:
+            # Update form tracker with point differentials
+            home_diff = game['home_score'] - game['away_score']
+            away_diff = game['away_score'] - game['home_score']
+            self.form_tracker.add_game_result(game['home_team_id'], home_diff)
+            self.form_tracker.add_game_result(game['away_team_id'], away_diff)
+
+            # Update rest tracker with game dates
+            self.rest_tracker.update_last_game(game['home_team_id'], game['date'])
+            self.rest_tracker.update_last_game(game['away_team_id'], game['date'])
+
         # Record history
         self._record_history(game, result)
-        
+
         return result
     
     def _record_history(self, game: Dict, result: Dict):
@@ -175,7 +222,7 @@ class TeamELOEngine:
         # Convert history to DataFrame
         history_df = pd.DataFrame(self.rating_history)
 
-        logger.info(f"✓ Computed {len(history_df)} rating updates")
+        logger.info(f"[OK] Computed {len(history_df)} rating updates")
 
         return history_df
     
@@ -192,35 +239,130 @@ class TeamELOEngine:
         ]
         return pd.DataFrame(ratings_list).sort_values('rating', ascending=False)
     
-    def predict_game(self, home_team_id: str, away_team_id: str) -> Dict:
+    def predict_game(self, home_team_id: str, away_team_id: str, game_date: int = None) -> Dict:
         """
         Predict outcome of a game between two teams.
-        
+
         Args:
             home_team_id: Home team ID
             away_team_id: Away team ID
-            
+            game_date: Game date (YYYYMMDD format) for rest penalty calculation (optional)
+
         Returns:
-            Dictionary with prediction details
+            Dictionary with prediction details including enhanced features
         """
         if home_team_id not in self.current_ratings or away_team_id not in self.current_ratings:
             raise ValueError("One or both teams not found in current ratings")
-        
+
         home_rating = self.current_ratings[home_team_id]
         away_rating = self.current_ratings[away_team_id]
-        
-        # Calculate with home advantage
+
+        # Apply enhanced features if enabled
+        home_form_adj = 0.0
+        away_form_adj = 0.0
+        home_rest_penalty = 0.0
+        away_rest_penalty = 0.0
+
+        if self.use_enhanced_features:
+            # Form factor adjustments
+            home_form_adj = self.form_tracker.get_form_adjustment(home_team_id)
+            away_form_adj = self.form_tracker.get_form_adjustment(away_team_id)
+
+            # Rest penalties (only if game_date provided)
+            if game_date is not None:
+                home_rest_penalty = self.rest_tracker.get_rest_penalty(home_team_id, game_date)
+                away_rest_penalty = self.rest_tracker.get_rest_penalty(away_team_id, game_date)
+
+        # Calculate adjusted ratings (before top player concentration)
+        home_adjusted = home_rating + home_form_adj + home_rest_penalty
+        away_adjusted = away_rating + away_form_adj + away_rest_penalty
+
+        # Apply top player concentration if enabled
+        home_concentration_bonus = 0.0
+        away_concentration_bonus = 0.0
+        home_concentration_risk = 0.0
+        away_concentration_risk = 0.0
+        concentration_confidence_penalty = 0.0
+
+        if self.use_top_player_concentration and not self.player_ratings.empty and not self.player_team_mapping.empty:
+            from src.utils.top_player_concentration import (
+                calculate_top_player_metrics,
+                apply_concentration_adjustments,
+                get_confidence_adjustment_for_concentration
+            )
+
+            # Calculate concentration metrics for both teams
+            home_metrics = calculate_top_player_metrics(
+                home_team_id, self.player_ratings, self.player_team_mapping, home_adjusted
+            )
+            away_metrics = calculate_top_player_metrics(
+                away_team_id, self.player_ratings, self.player_team_mapping, away_adjusted
+            )
+
+            # Apply concentration adjustments to ELO
+            home_adjusted, away_adjusted, adj_details = apply_concentration_adjustments(
+                home_metrics, away_metrics, home_adjusted, away_adjusted
+            )
+
+            home_concentration_bonus = adj_details['home_top_player_bonus'] + adj_details['home_depth_adjustment']
+            away_concentration_bonus = adj_details['away_top_player_bonus'] + adj_details['away_depth_adjustment']
+            home_concentration_risk = adj_details['home_concentration_risk']
+            away_concentration_risk = adj_details['away_concentration_risk']
+
+        # Calculate win probability with all adjustments
         from src.utils.elo_math import calculate_win_probability
-        home_win_prob = calculate_win_probability(home_rating, away_rating, self.home_advantage)
-        
-        return {
+        from src.utils.confidence_adjuster import get_confidence_with_cap
+
+        home_win_prob = calculate_win_probability(home_adjusted, away_adjusted, self.home_advantage)
+
+        # Apply confidence caps to prevent overconfidence
+        confidence_info = get_confidence_with_cap(home_win_prob, home_adjusted, away_adjusted)
+
+        # Further reduce confidence for high concentration risk teams
+        final_confidence = confidence_info['confidence']
+        if self.use_top_player_concentration and not self.player_ratings.empty:
+            from src.utils.top_player_concentration import get_confidence_adjustment_for_concentration
+
+            final_confidence = get_confidence_adjustment_for_concentration(
+                confidence_info['predicted_winner'],
+                {'concentration_risk': home_concentration_risk},
+                {'concentration_risk': away_concentration_risk},
+                final_confidence
+            )
+            concentration_confidence_penalty = confidence_info['confidence'] - final_confidence
+
+        result = {
             'home_team_id': home_team_id,
             'away_team_id': away_team_id,
             'home_rating': home_rating,
             'away_rating': away_rating,
-            'home_win_probability': home_win_prob,
-            'away_win_probability': 1 - home_win_prob
+            'home_win_probability': confidence_info['home_win_prob_capped'] if confidence_info['predicted_winner'] == 'home' else 1 - final_confidence,
+            'away_win_probability': confidence_info['away_win_prob_capped'] if confidence_info['predicted_winner'] == 'away' else 1 - final_confidence,
+            'confidence': final_confidence,
+            'predicted_winner': confidence_info['predicted_winner'],
+            'confidence_capped': confidence_info['confidence_reduced'],
+            'original_home_win_probability': home_win_prob,
+            'original_away_win_probability': 1 - home_win_prob
         }
+
+        # Include enhanced features info if enabled
+        if self.use_enhanced_features:
+            result['home_form_adjustment'] = home_form_adj
+            result['away_form_adjustment'] = away_form_adj
+            result['home_rest_penalty'] = home_rest_penalty
+            result['away_rest_penalty'] = away_rest_penalty
+            result['home_adjusted_rating'] = home_adjusted
+            result['away_adjusted_rating'] = away_adjusted
+
+        # Include top player concentration info if enabled
+        if self.use_top_player_concentration:
+            result['home_concentration_bonus'] = home_concentration_bonus
+            result['away_concentration_bonus'] = away_concentration_bonus
+            result['home_concentration_risk'] = home_concentration_risk
+            result['away_concentration_risk'] = away_concentration_risk
+            result['concentration_confidence_penalty'] = concentration_confidence_penalty
+
+        return result
 
 
 def main():
@@ -232,20 +374,23 @@ def main():
     parser.add_argument('--output', type=str, help='Output ELO history CSV path')
     parser.add_argument('--k-factor', type=float, default=20, help='K-factor (default: 20)')
     parser.add_argument('--home-advantage', type=float, default=100, help='Home advantage (default: 100)')
-    
+    parser.add_argument('--use-mov', action='store_true', default=True, help='Use margin-of-victory multiplier (default: True)')
+    parser.add_argument('--no-mov', action='store_false', dest='use_mov', help='Disable margin-of-victory multiplier')
+
     args = parser.parse_args()
-    
+
     # Load games
-    input_path = args.input or get_data_path('raw', 'nba_games_raw.csv')
+    input_path = args.input or get_data_path('raw', 'nba_games_all.csv')
     output_path = args.output or get_data_path('exports', 'team_elo_history.csv')
-    
+
     logger.info(f"Loading games from: {input_path}")
     games_df = load_csv_to_dataframe(input_path)
-    
+
     # Initialize engine
     engine = TeamELOEngine(
         k_factor=args.k_factor,
-        home_advantage=args.home_advantage
+        home_advantage=args.home_advantage,
+        use_mov=args.use_mov
     )
     
     # Compute ELO
@@ -255,7 +400,7 @@ def main():
     save_dataframe_to_csv(history_df, output_path)
     
     # Print summary
-    print(f"\n✓ ELO computation complete!")
+    print(f"\n[OK] ELO computation complete!")
     print(f"  Total updates: {len(history_df)}")
     print(f"  Teams tracked: {history_df['team_id'].nunique()}")
     print(f"\nTop 5 teams (final ratings):")

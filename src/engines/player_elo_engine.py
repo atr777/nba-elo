@@ -28,7 +28,8 @@ class PlayerELOEngine:
         self,
         base_rating: float = 1500,
         k_factor: float = 20,
-        regression_to_mean: float = 0.33
+        regression_to_mean: float = 0.33,
+        performance_metric: str = 'plus_minus'
     ):
         """
         Initialize the Player ELO Engine.
@@ -37,10 +38,12 @@ class PlayerELOEngine:
             base_rating: Starting ELO rating for all players
             k_factor: K-factor for rating updates (sensitivity parameter)
             regression_to_mean: Regression factor between seasons (0-1)
+            performance_metric: Performance metric to use ('plus_minus' or 'bpm')
         """
         self.base_rating = base_rating
         self.k_factor = k_factor
         self.regression_to_mean = regression_to_mean
+        self.performance_metric = performance_metric
 
         # Current ratings dictionary {player_id: rating}
         self.current_ratings = {}
@@ -54,7 +57,7 @@ class PlayerELOEngine:
         # Track which seasons have had regression applied
         self.seasons_regressed = set()
 
-        logger.info(f"Player ELO Engine initialized: base={base_rating}, K={k_factor}, regression={regression_to_mean}")
+        logger.info(f"Player ELO Engine initialized: base={base_rating}, K={k_factor}, regression={regression_to_mean}, metric={performance_metric}")
 
     def reset_ratings(self):
         """Reset all player ratings to base rating."""
@@ -137,7 +140,7 @@ class PlayerELOEngine:
             player_id = player['player_id']
             player_name = player['player_name']
             minutes = player.get('minutes', 0)
-            plus_minus = player.get('plus_minus', 0)
+            plus_minus = player.get('plus_minus', 0)  # Get for logging
 
             # Ensure player exists
             self._ensure_player_exists(player_id, player_name)
@@ -147,19 +150,22 @@ class PlayerELOEngine:
             self.player_metadata[player_id]['games'] += 1
             self.player_metadata[player_id]['last_season'] = season
 
-            # Calculate performance score
-            # Plus/minus normalized to 48 minutes (full game)
-            # Typical plus/minus range: -30 to +30
-            # Convert to 0-1 scale: (plus_minus + 30) / 60
-            # Then scale by minutes played as percentage of game
-
+            # Calculate performance score based on selected metric
             if minutes > 0:
-                # Normalize plus/minus to per-game rate
-                pm_per_48 = (plus_minus / minutes) * 48
+                if self.performance_metric == 'bpm':
+                    # Use Box Plus/Minus (BPM) metric
+                    # BPM scale: -10 to +10 (typical range), with 0 = league average
+                    bpm = player.get('bpm', 0.0)
+                    bpm_clamped = max(-10, min(10, bpm))
+                    performance_score = (bpm_clamped + 10) / 20  # 0 to 1 scale
+                else:
+                    # Use plus/minus metric (default)
+                    # Normalize plus/minus to per-game rate
+                    pm_per_48 = (plus_minus / minutes) * 48
 
-                # Convert to 0-1 scale (clamped between -30 and +30)
-                pm_clamped = max(-30, min(30, pm_per_48))
-                performance_score = (pm_clamped + 30) / 60  # 0 to 1 scale
+                    # Convert to 0-1 scale (clamped between -30 and +30)
+                    pm_clamped = max(-30, min(30, pm_per_48))
+                    performance_score = (pm_clamped + 30) / 60  # 0 to 1 scale
 
                 # Weight by minutes played (0-1 scale, 48 minutes = 1.0)
                 minutes_weight = min(1.0, minutes / 48)
@@ -295,7 +301,8 @@ def run_player_elo_engine(
     output_history_file: str,
     output_ratings_file: str,
     k_factor: float = 20,
-    regression_to_mean: float = 0.33
+    regression_to_mean: float = 0.33,
+    performance_metric: str = 'plus_minus'
 ):
     """
     Run the player ELO engine on historical data.
@@ -307,6 +314,7 @@ def run_player_elo_engine(
         output_ratings_file: Path to save current ratings
         k_factor: K-factor for rating updates
         regression_to_mean: Regression factor between seasons
+        performance_metric: Performance metric to use ('plus_minus' or 'bpm')
     """
     logger.info("=" * 70)
     logger.info("PLAYER ELO ENGINE - Starting")
@@ -327,7 +335,7 @@ def run_player_elo_engine(
     logger.info(f"Loaded {len(players_df):,} player boxscore records")
 
     # Initialize engine
-    engine = PlayerELOEngine(k_factor=k_factor, regression_to_mean=regression_to_mean)
+    engine = PlayerELOEngine(k_factor=k_factor, regression_to_mean=regression_to_mean, performance_metric=performance_metric)
 
     # Process games chronologically
     logger.info("Processing games...")
@@ -389,11 +397,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Run Player ELO Engine')
     parser.add_argument('--games', default='data/raw/nba_games_all.csv', help='Team games CSV file')
-    parser.add_argument('--players', default='data/raw/player_boxscores_all.csv', help='Player boxscores CSV file')
+    parser.add_argument('--players', default='data/raw/player_boxscores_with_bpm.csv', help='Player boxscores CSV file')
     parser.add_argument('--output-history', default='data/exports/player_elo_history.csv', help='Output history file')
     parser.add_argument('--output-ratings', default='data/exports/player_ratings.csv', help='Output ratings file')
     parser.add_argument('--k-factor', type=float, default=20, help='K-factor for rating updates')
     parser.add_argument('--regression', type=float, default=0.33, help='Regression to mean between seasons')
+    parser.add_argument('--metric', default='bpm', choices=['plus_minus', 'bpm'], help='Performance metric (plus_minus or bpm)')
 
     args = parser.parse_args()
 
@@ -403,5 +412,6 @@ if __name__ == "__main__":
         output_history_file=args.output_history,
         output_ratings_file=args.output_ratings,
         k_factor=args.k_factor,
-        regression_to_mean=args.regression
+        regression_to_mean=args.regression,
+        performance_metric=args.metric
     )
