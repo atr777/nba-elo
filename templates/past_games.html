@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}Past Games - NBA ELO Dashboard{% endblock %}
+
+{% block content %}
+<style>
+.filter-bar {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+body.dark-theme .filter-bar {
+    background: #2d2d2d;
+}
+
+.filter-bar button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.filter-bar button.active {
+    background: #1e3a8a;
+    color: white;
+    border-color: #1e3a8a;
+}
+
+.filter-bar button:not(.active) {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+body.dark-theme .filter-bar button:not(.active) {
+    background: #1a1a1a;
+    color: #e8e8e8;
+    border-color: #444;
+}
+
+.games-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    margin-top: 1rem;
+}
+
+.games-table th {
+    background: #f8f9fa;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    border: none;
+}
+
+body.dark-theme .games-table th {
+    background: #374151;
+    color: #f3f4f6;
+}
+
+.games-table td {
+    padding: 15px 12px;
+    border: none;
+}
+
+.games-table tr.game-row {
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.games-table tr.game-row:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+body.dark-theme .games-table tr.game-row:hover {
+    box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+}
+
+/* Result indicators */
+.result-correct {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+body.dark-theme .result-correct {
+    background-color: #064e3b;
+    color: #6ee7b7;
+}
+
+.result-incorrect {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+body.dark-theme .result-incorrect {
+    background-color: #7f1d1d;
+    color: #fca5a5;
+}
+
+.loading-spinner {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+    color: #667eea;
+}
+
+.summary-box {
+    background: #1e3a8a;
+    color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+body.dark-theme .summary-box {
+    background: #1e40af;
+}
+
+.summary-item {
+    text-align: center;
+}
+
+.summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.summary-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* Player details section */
+.player-details {
+    display: none;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-top: 2px solid #e5e7eb;
+}
+
+body.dark-theme .player-details {
+    background: #1a1a1a;
+    border-top-color: #374151;
+}
+
+.player-section {
+    margin-bottom: 1rem;
+}
+
+.player-section h4 {
+    color: #1e3a8a;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+body.dark-theme .player-section h4 {
+    color: #60a5fa;
+}
+
+.player-item {
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+body.dark-theme .player-item {
+    background: #2d2d2d;
+}
+
+.player-stats {
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+body.dark-theme .player-stats {
+    color: #9ca3af;
+}
+
+.clickable-row {
+    cursor: pointer;
+}
+</style>
+
+<div class="card">
+    <h2>Past Games</h2>
+    <p>View past game predictions and results</p>
+</div>
+
+<div class="filter-bar">
+    <strong>Filter:</strong>
+    <button onclick="loadGames(1, this)">Yesterday</button>
+    <button class="active" onclick="loadGames(7, this)">Last 7 Days</button>
+    <button onclick="loadGames(15, this)">Last 15 Days</button>
+</div>
+
+<div id="summaryContainer"></div>
+
+<div id="gamesContainer">
+    <div class="loading-spinner">
+        Loading past games...
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentFilter = 7;
+let gamesData = [];
+
+async function togglePlayerDetails(index, game) {
+    const detailsDiv = document.getElementById(`player-details-${index}`);
+
+    if (detailsDiv.style.display === 'block') {
+        detailsDiv.style.display = 'none';
+        return;
+    }
+
+    // Show and load data
+    detailsDiv.style.display = 'block';
+
+    // If already loaded, don't reload
+    if (detailsDiv.dataset.loaded === 'true') {
+        return;
+    }
+
+    try {
+        // Convert date from YYYY-MM-DD to YYYYMMDD format
+        const gameDate = game.date.replace(/-/g, '');
+
+        // Fetch player data for both teams
+        const response = await fetch(`/api/game-players?home_team_id=${game.home_team_id}&away_team_id=${game.away_team_id}&game_date=${gameDate}`);
+        const data = await response.json();
+
+        if (data.error) {
+            detailsDiv.innerHTML = `<p style="text-align: center; color: #666;">${data.error}</p>`;
+            return;
+        }
+
+        let html = '';
+
+        // Show note if using fallback data
+        if (data.note) {
+            html += `<div style="background: #fef3c7; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.85rem; color: #92400e;">
+                <strong>Note:</strong> ${data.note}
+            </div>`;
+        }
+
+        html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">';
+
+        // Away team section
+        html += `<div class="player-section">
+            <h4>${game.away_team_name}</h4>`;
+
+        if (data.away_top_scorers && data.away_top_scorers.length > 0) {
+            html += '<div style="margin-bottom: 0.75rem;"><strong style="font-size: 0.85rem;">Top 3 Scorers:</strong>';
+            data.away_top_scorers.forEach(player => {
+                if (player.points !== undefined) {
+                    // Actual game data
+                    html += `
+                        <div class="player-item">
+                            <strong>${player.name}</strong>
+                            <div class="player-stats">${player.points} PTS | ${player.rebounds} REB | ${player.assists} AST</div>
+                        </div>
+                    `;
+                } else {
+                    // Roster fallback data
+                    html += `
+                        <div class="player-item">
+                            <strong>${player.name}</strong> <span style="font-size: 0.8rem; color: #666;">${player.position || ''}</span>
+                            <div class="player-stats">ELO Rating: ${player.elo.toFixed(1)}</div>
+                        </div>
+                    `;
+                }
+            });
+            html += '</div>';
+        }
+
+        if (data.away_injuries && data.away_injuries.length > 0) {
+            html += '<div><strong style="font-size: 0.85rem; color: #dc2626;">Players Out (DNP):</strong>';
+            data.away_injuries.forEach(player => {
+                html += `
+                    <div class="player-item" style="border-left: 3px solid #dc2626;">
+                        <strong>${player.name}</strong>
+                        <div class="player-stats">Status: ${player.status || 'DNP'}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        html += '</div>';
+
+        // Home team section
+        html += `<div class="player-section">
+            <h4>${game.home_team_name}</h4>`;
+
+        if (data.home_top_scorers && data.home_top_scorers.length > 0) {
+            html += '<div style="margin-bottom: 0.75rem;"><strong style="font-size: 0.85rem;">Top 3 Scorers:</strong>';
+            data.home_top_scorers.forEach(player => {
+                if (player.points !== undefined) {
+                    // Actual game data
+                    html += `
+                        <div class="player-item">
+                            <strong>${player.name}</strong>
+                            <div class="player-stats">${player.points} PTS | ${player.rebounds} REB | ${player.assists} AST</div>
+                        </div>
+                    `;
+                } else {
+                    // Roster fallback data
+                    html += `
+                        <div class="player-item">
+                            <strong>${player.name}</strong> <span style="font-size: 0.8rem; color: #666;">${player.position || ''}</span>
+                            <div class="player-stats">ELO Rating: ${player.elo.toFixed(1)}</div>
+                        </div>
+                    `;
+                }
+            });
+            html += '</div>';
+        }
+
+        if (data.home_injuries && data.home_injuries.length > 0) {
+            html += '<div><strong style="font-size: 0.85rem; color: #dc2626;">Players Out (DNP):</strong>';
+            data.home_injuries.forEach(player => {
+                html += `
+                    <div class="player-item" style="border-left: 3px solid #dc2626;">
+                        <strong>${player.name}</strong>
+                        <div class="player-stats">Status: ${player.status || 'DNP'}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        html += '</div></div>';
+
+        detailsDiv.innerHTML = html;
+        detailsDiv.dataset.loaded = 'true';
+
+    } catch (error) {
+        console.error('Error loading player data:', error);
+        detailsDiv.innerHTML = `<p style="text-align: center; color: #dc2626;">Error loading player data</p>`;
+    }
+}
+
+async function loadGames(days, buttonEl) {
+    currentFilter = days;
+
+    // Update active button
+    document.querySelectorAll('.filter-bar button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    if (buttonEl) {
+        buttonEl.classList.add('active');
+    }
+
+    const container = document.getElementById('gamesContainer');
+    const summaryContainer = document.getElementById('summaryContainer');
+
+    container.innerHTML = '<div class="loading-spinner">Loading past games...</div>';
+    summaryContainer.innerHTML = '';
+
+    try {
+        const response = await fetch(`/api/past-games?days=${days}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            container.innerHTML = `
+                <div class="card">
+                    <p style="text-align: center; color: #666; padding: 2rem;">
+                        ${data.error}
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        const games = data.games;
+        const summary = data.summary;
+
+        // Store games globally for player details access
+        gamesData = games;
+
+        // Display summary
+        if (summary && summary.total > 0) {
+            summaryContainer.innerHTML = `
+                <div class="summary-box">
+                    <div class="summary-item">
+                        <div class="summary-value">${summary.accuracy}</div>
+                        <div class="summary-label">Accuracy</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${summary.correct}</div>
+                        <div class="summary-label">Correct</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${summary.total - summary.correct}</div>
+                        <div class="summary-label">Incorrect</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value">${summary.total}</div>
+                        <div class="summary-label">Total Games</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (!games || games.length === 0) {
+            container.innerHTML = `
+                <div class="card">
+                    <p style="text-align: center; color: #666; padding: 2rem;">
+                        No games found for selected period
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        let tableHTML = `
+            <div class="card">
+                <h3>Game Results</h3>
+                <p style="color: #666; margin-bottom: 1rem;">${games.length} games found</p>
+
+                <table class="games-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Matchup</th>
+                            <th>Final Score</th>
+                            <th>Prediction</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        games.forEach((game, index) => {
+            const homeWon = game.actual_winner === 'home';
+            const awayWon = game.actual_winner === 'away';
+            const correct = game.correct;
+
+            const resultClass = correct ? 'result-correct' : 'result-incorrect';
+            const resultText = correct ? 'CORRECT' : 'MISS';
+
+            // Determine predicted winner and probability
+            let predictedWinner, predictedProb;
+            if (game.predicted_winner === 'home') {
+                predictedWinner = game.home_team_name;
+                predictedProb = (game.predicted_home_prob * 100).toFixed(1);
+            } else {
+                predictedWinner = game.away_team_name;
+                predictedProb = (game.predicted_away_prob * 100).toFixed(1);
+            }
+
+            tableHTML += `
+                <tr class="game-row clickable-row ${resultClass}" onclick="togglePlayerDetails(${index}, gamesData[${index}])">
+                    <td>${game.date}</td>
+                    <td>
+                        <strong style="${awayWon ? 'font-weight: 700;' : ''}">${game.away_team_name}</strong> @
+                        <strong style="${homeWon ? 'font-weight: 700;' : ''}">${game.home_team_name}</strong>
+                    </td>
+                    <td><strong>${game.away_score} - ${game.home_score}</strong></td>
+                    <td><strong>${predictedWinner}</strong> (${predictedProb}%)</td>
+                    <td><strong>${resultText}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="5" style="padding: 0;">
+                        <div id="player-details-${index}" class="player-details">
+                            <p style="text-align: center; color: #666;">Click to load player data...</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tableHTML += `</tbody></table></div>`;
+
+        container.innerHTML = tableHTML;
+
+    } catch (error) {
+        console.error('Error loading games:', error);
+        container.innerHTML = `
+            <div class="card">
+                <p style="color: red;">Error loading games: ${error.message}</p>
+                <button onclick="loadGames(currentFilter)">Try Again</button>
+            </div>
+        `;
+    }
+}
+
+// Load games on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadGames(7);
+});
+</script>
+{% endblock %}

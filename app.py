@@ -14,7 +14,7 @@ import numpy as np
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
@@ -54,6 +54,9 @@ DATA = {
     'predictor': None,
     'elo_engine': None  # TeamELOEngine with enhanced features
 }
+
+# Global update process tracker
+UPDATE_PROCESS = None
 
 def _validate_player_ratings(player_ratings):
     """
@@ -120,7 +123,7 @@ def load_data():
     # Load player ratings (BPM version with position adjustments)
     DATA['player_ratings'] = load_csv_to_dataframe('data/exports/player_ratings_bpm_adjusted.csv')
 
-    # Validate player ratings to ensure adjustments are applied
+    # Validate player ratings data quality
     _validate_player_ratings(DATA['player_ratings'])
 
     # Load player-team mapping
@@ -544,10 +547,250 @@ def performance_page():
     return render_template('performance.html')
 
 
-@app.route('/simulate')
-def simulate_page():
-    """Scenario simulation (injuries, trades, etc.)."""
-    return render_template('simulate.html')
+@app.route('/past-games')
+def past_games_page():
+    """View past games with predictions and results."""
+    return render_template('past_games.html')
+
+
+@app.route('/api/past-games')
+def get_past_games():
+    """Get past games with predictions and results, with optional date filter."""
+    try:
+        days = request.args.get('days', '7')  # Default to last 7 days
+
+        # Load prediction tracking CSV
+        tracking_file = Path('data/exports/prediction_tracking.csv')
+
+        if not tracking_file.exists():
+            return jsonify({'games': [], 'error': 'No predictions tracked yet', 'summary': {}})
+
+        df = pd.read_csv(tracking_file)
+
+        # Filter for completed games
+        completed = df[df['actual_winner'].notna()].copy()
+
+        if len(completed) == 0:
+            return jsonify({'games': [], 'error': 'No completed games yet', 'summary': {}})
+
+        # Convert date to datetime (format: YYYYMMDD)
+        completed['date'] = pd.to_datetime(completed['date'], format='%Y%m%d')
+
+        # Filter by days if not "all"
+        if days != 'all':
+            days_int = int(days)
+            cutoff_date = datetime.now() - timedelta(days=days_int)
+            filtered = completed[completed['date'] >= cutoff_date].copy()
+        else:
+            filtered = completed.copy()
+
+        # Sort by date descending
+        filtered = filtered.sort_values('date', ascending=False)
+
+        # Format for frontend
+        games = []
+        for _, game in filtered.iterrows():
+            games.append({
+                'home_team_id': int(game['home_team_id']),
+                'away_team_id': int(game['away_team_id']),
+                'home_team_name': game['home_team_name'],
+                'away_team_name': game['away_team_name'],
+                'predicted_winner': game['predicted_winner'],
+                'actual_winner': game['actual_winner'],
+                'correct': bool(game['correct']),
+                'home_score': int(game['actual_home_score']) if pd.notna(game['actual_home_score']) else None,
+                'away_score': int(game['actual_away_score']) if pd.notna(game['actual_away_score']) else None,
+                'confidence': float(game['confidence']) if pd.notna(game['confidence']) else 0.5,
+                'date': game['date'].strftime('%Y-%m-%d'),
+                'predicted_home_prob': float(game['predicted_home_prob']) if pd.notna(game.get('predicted_home_prob')) else 0.5,
+                'predicted_away_prob': float(game['predicted_away_prob']) if pd.notna(game.get('predicted_away_prob')) else 0.5,
+            })
+
+        # Calculate summary stats
+        correct_count = filtered['correct'].sum()
+        total_count = len(filtered)
+        accuracy = (correct_count / total_count * 100) if total_count > 0 else 0
+
+        return jsonify({
+            'games': games,
+            'summary': {
+                'correct': int(correct_count),
+                'total': int(total_count),
+                'accuracy': f"{accuracy:.1f}%",
+                'period': f"Last {days} days" if days != 'all' else "All time"
+            }
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load past games: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'games': [], 'error': str(e), 'summary': {}}), 500
+
+
+@app.route('/api/game-players')
+def get_game_players():
+    """Get game-specific player data including top scorers and DNP players."""
+    try:
+        home_team_id = int(request.args.get('home_team_id'))
+        away_team_id = int(request.args.get('away_team_id'))
+        game_date = request.args.get('game_date')  # Format: YYYYMMDD
+
+        # Load games data to find the specific game_id
+        games_file = Path('data/raw/nba_games_all.csv')
+        if not games_file.exists():
+            return jsonify({'error': 'Games data not available'}), 404
+
+        games_df = pd.read_csv(games_file)
+
+        # Find the game_id for this matchup on this date
+        game = games_df[
+            (games_df['home_team_id'] == home_team_id) &
+            (games_df['away_team_id'] == away_team_id) &
+            (games_df['date'].astype(str) == str(game_date))
+        ]
+
+        if game.empty:
+            print(f"[WARNING] No game found for home={home_team_id}, away={away_team_id}, date={game_date}")
+            return get_team_roster_fallback(home_team_id, away_team_id)
+
+        game_id = game.iloc[0]['game_id']
+        home_team_name = game.iloc[0]['home_team_name']
+        away_team_name = game.iloc[0]['away_team_name']
+
+        # Load box score data
+        boxscore_file = Path('data/raw/player_boxscores_all.csv')
+        if not boxscore_file.exists():
+            print(f"[WARNING] Box score file not found")
+            return get_team_roster_fallback(home_team_id, away_team_id)
+
+        boxscores_df = pd.read_csv(boxscore_file, low_memory=False)
+
+        # Filter for this specific game
+        game_boxscores = boxscores_df[boxscores_df['game_id'] == game_id]
+
+        if game_boxscores.empty:
+            print(f"[WARNING] No box scores found for game_id={game_id}")
+            return get_team_roster_fallback(home_team_id, away_team_id)
+
+        # Create NBA API team abbreviation to our team name mapping
+        # Map team abbreviations from box scores to full team names
+        team_abbr_to_name = {
+            'ATL': 'Atlanta Hawks', 'BOS': 'Boston Celtics', 'BKN': 'Brooklyn Nets',
+            'CHA': 'Charlotte Hornets', 'CHI': 'Chicago Bulls', 'CLE': 'Cleveland Cavaliers',
+            'DAL': 'Dallas Mavericks', 'DEN': 'Denver Nuggets', 'DET': 'Detroit Pistons',
+            'GSW': 'Golden State Warriors', 'HOU': 'Houston Rockets', 'IND': 'Indiana Pacers',
+            'LAC': 'Los Angeles Clippers', 'LAL': 'Los Angeles Lakers', 'MEM': 'Memphis Grizzlies',
+            'MIA': 'Miami Heat', 'MIL': 'Milwaukee Bucks', 'MIN': 'Minnesota Timberwolves',
+            'NOP': 'New Orleans Pelicans', 'NYK': 'New York Knicks', 'OKC': 'Oklahoma City Thunder',
+            'ORL': 'Orlando Magic', 'PHI': 'Philadelphia 76ers', 'PHX': 'Phoenix Suns',
+            'POR': 'Portland Trail Blazers', 'SAC': 'Sacramento Kings', 'SAS': 'San Antonio Spurs',
+            'TOR': 'Toronto Raptors', 'UTA': 'Utah Jazz', 'WAS': 'Washington Wizards'
+        }
+
+        # Map box score team abbreviations to our team names
+        game_boxscores['mapped_team_name'] = game_boxscores['team_name'].map(team_abbr_to_name)
+
+        # Separate home and away players by matching team names
+        home_boxscores = game_boxscores[game_boxscores['mapped_team_name'] == home_team_name]
+        away_boxscores = game_boxscores[game_boxscores['mapped_team_name'] == away_team_name]
+
+        # Get top 3 scorers for each team (players who actually played)
+        home_played = home_boxscores[home_boxscores['didNotPlay'] == False]
+        away_played = away_boxscores[away_boxscores['didNotPlay'] == False]
+
+        home_top_scorers = home_played.nlargest(3, 'points')
+        away_top_scorers = away_played.nlargest(3, 'points')
+
+        # Get DNP players
+        home_dnp = home_boxscores[home_boxscores['didNotPlay'] == True]
+        away_dnp = away_boxscores[away_boxscores['didNotPlay'] == True]
+
+        response = {
+            'home_top_scorers': [
+                {
+                    'name': row['player_name'],
+                    'points': int(row['points']) if pd.notna(row['points']) else 0,
+                    'rebounds': int(row['rebounds']) if pd.notna(row['rebounds']) else 0,
+                    'assists': int(row['assists']) if pd.notna(row['assists']) else 0,
+                    'position': row['position'] if pd.notna(row.get('position')) else ''
+                }
+                for _, row in home_top_scorers.iterrows()
+            ],
+            'away_top_scorers': [
+                {
+                    'name': row['player_name'],
+                    'points': int(row['points']) if pd.notna(row['points']) else 0,
+                    'rebounds': int(row['rebounds']) if pd.notna(row['rebounds']) else 0,
+                    'assists': int(row['assists']) if pd.notna(row['assists']) else 0,
+                    'position': row['position'] if pd.notna(row.get('position')) else ''
+                }
+                for _, row in away_top_scorers.iterrows()
+            ],
+            'home_injuries': [
+                {
+                    'name': row['player_name'],
+                    'position': row['position'] if pd.notna(row.get('position')) else ''
+                }
+                for _, row in home_dnp.iterrows()
+            ],
+            'away_injuries': [
+                {
+                    'name': row['player_name'],
+                    'position': row['position'] if pd.notna(row.get('position')) else ''
+                }
+                for _, row in away_dnp.iterrows()
+            ]
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load game players: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+def get_team_roster_fallback(home_team_id, away_team_id):
+    """Fallback to team roster data when box scores aren't available."""
+    try:
+        player_file = Path('data/exports/player_team_mapping_with_elo.csv')
+        if not player_file.exists():
+            return jsonify({'error': 'Player data not available'}), 404
+
+        players_df = pd.read_csv(player_file)
+
+        # Get top 3 players by ELO for each team
+        home_players = players_df[players_df['team_id'] == home_team_id].nlargest(3, 'rating')
+        away_players = players_df[players_df['team_id'] == away_team_id].nlargest(3, 'rating')
+
+        response = {
+            'home_top_scorers': [
+                {
+                    'name': row['player_name'],
+                    'elo': float(row['rating']),
+                    'position': row['position'] if pd.notna(row.get('position')) else 'N/A'
+                }
+                for _, row in home_players.iterrows()
+            ],
+            'away_top_scorers': [
+                {
+                    'name': row['player_name'],
+                    'elo': float(row['rating']),
+                    'position': row['position'] if pd.notna(row.get('position')) else 'N/A'
+                }
+                for _, row in away_players.iterrows()
+            ],
+            'home_injuries': [],
+            'away_injuries': [],
+            'note': 'Box score data not available for this game. Showing top 3 players by ELO rating.'
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/newsletter')
@@ -935,31 +1178,132 @@ def api_predict_today():
 
 @app.route('/admin/update-database', methods=['POST'])
 def admin_update_database():
-    """Trigger daily database update."""
+    """Trigger daily database update (runs in background)."""
     try:
         import subprocess
         import os
-        
-        # Run daily update script with UTF-8 encoding
-        result = subprocess.run(
+
+        # Run daily update script in background (no timeout)
+        process = subprocess.Popen(
             ['python', 'scripts/daily_update.py'],
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             encoding='utf-8',
-            errors='replace',  # Replace undecodable chars instead of crashing
-            timeout=300,  # 5 minute timeout
+            errors='replace',
             cwd=os.path.dirname(os.path.abspath(__file__))
         )
-        
+
+        # Store process in global dict for status checking
+        global UPDATE_PROCESS
+        UPDATE_PROCESS = process
+
         return jsonify({
-            'success': result.returncode == 0,
-            'output': result.stdout,
-            'error': result.stderr if result.returncode != 0 else None
+            'success': True,
+            'message': 'Update started in background. Check status for progress.',
+            'pid': process.pid
         })
-        
-    except subprocess.TimeoutExpired:
-        return jsonify({'success': False, 'error': 'Update timed out (>5 minutes)'}), 500
+
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/admin/update-status', methods=['GET'])
+def admin_update_status():
+    """Check the status of the background update process."""
+    try:
+        global UPDATE_PROCESS
+
+        if 'UPDATE_PROCESS' not in globals() or UPDATE_PROCESS is None:
+            return jsonify({
+                'status': 'idle',
+                'message': 'No update process running'
+            })
+
+        # Check if process is still running
+        poll_result = UPDATE_PROCESS.poll()
+
+        if poll_result is None:
+            # Still running
+            return jsonify({
+                'status': 'running',
+                'message': 'Update in progress...',
+                'pid': UPDATE_PROCESS.pid
+            })
+        elif poll_result == 0:
+            # Completed successfully
+            stdout, stderr = UPDATE_PROCESS.communicate()
+            UPDATE_PROCESS = None
+
+            # Auto-reload data after successful update
+            try:
+                print("\n[AUTO-RELOAD] Reloading data after successful update...")
+                load_data()
+                latest_date = DATA['games']['date'].max()
+                print(f"[AUTO-RELOAD] Data reloaded: {len(DATA['games'])} games, latest: {latest_date}")
+            except Exception as reload_error:
+                print(f"[AUTO-RELOAD] Warning: Failed to reload data: {reload_error}")
+
+            return jsonify({
+                'status': 'completed',
+                'success': True,
+                'output': stdout,
+                'message': 'Update completed successfully',
+                'data_reloaded': True
+            })
+        else:
+            # Failed
+            stdout, stderr = UPDATE_PROCESS.communicate()
+            UPDATE_PROCESS = None
+            return jsonify({
+                'status': 'failed',
+                'success': False,
+                'output': stdout,
+                'error': stderr,
+                'return_code': poll_result
+            })
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/admin/reload-data', methods=['POST'])
+def admin_reload_data():
+    """Reload all data from disk without restarting the app."""
+    try:
+        print("\n" + "="*80)
+        print("RELOADING DATA...")
+        print("="*80)
+
+        # Reload all data
+        load_data()
+
+        # Get latest game date - handle both int and Timestamp types
+        latest_date = DATA['games']['date'].max()
+        try:
+            # Try to convert to int (works for numpy int64)
+            latest_date = int(latest_date)
+        except (TypeError, ValueError):
+            # If it's a Timestamp, format it as YYYYMMDD
+            try:
+                latest_date = int(latest_date.strftime('%Y%m%d'))
+            except:
+                # Fallback - just use string representation
+                latest_date = str(latest_date)
+
+        return jsonify({
+            'success': True,
+            'message': 'Data reloaded successfully',
+            'total_games': len(DATA['games']),
+            'latest_date': latest_date,
+            'teams': len(DATA['team_ratings']),
+            'players': len(DATA['player_ratings'])
+        })
+
+    except Exception as e:
+        import traceback
+        print(f"Error reloading data: {e}")
+        print(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
