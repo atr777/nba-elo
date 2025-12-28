@@ -25,6 +25,7 @@ from utils.file_io import load_csv_to_dataframe
 from scrapers.espn_team_injuries import get_injury_report
 from engines.team_elo_engine import TeamELOEngine
 from analytics.model_performance_tracker import get_tracker
+from analytics.betting_analyzer import BettingAnalyzer
 from predictors.hybrid_team_player import predict_game_hybrid
 
 app = Flask(__name__)
@@ -790,6 +791,70 @@ def get_team_roster_fallback(home_team_id, away_team_id):
         return jsonify(response)
 
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/betting')
+def betting_page():
+    """Daily betting recommendations interface."""
+    return render_template('betting.html')
+
+
+@app.route('/api/betting/daily-recommendations')
+def get_daily_betting_recommendations():
+    """Get daily low-risk betting recommendations."""
+    try:
+        date_str = request.args.get('date', 'today')
+
+        # Parse date
+        if date_str == 'today':
+            target_date = datetime.now()
+        elif date_str == 'tomorrow':
+            target_date = datetime.now() + timedelta(days=1)
+        else:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d')
+
+        # Get predictions for target date
+        predictions = []
+        for game in DATA['games_df'].itertuples():
+            game_date = pd.to_datetime(str(game.date), format='%Y%m%d').date()
+
+            if game_date == target_date.date():
+                # Only predict if game hasn't been played yet
+                if pd.isna(game.home_score) or game.home_score == 0:
+                    try:
+                        prediction = predict_game_hybrid(
+                            game.home_team_id,
+                            game.away_team_id,
+                            game.date
+                        )
+
+                        predictions.append({
+                            'game_id': game.game_id,
+                            'date': game_date.strftime('%Y-%m-%d'),
+                            'home_team_id': game.home_team_id,
+                            'home_team_name': game.home_team_name,
+                            'away_team_id': game.away_team_id,
+                            'away_team_name': game.away_team_name,
+                            'predicted_home_prob': prediction['home_win_prob'],
+                            'predicted_away_prob': prediction['away_win_prob'],
+                            'predicted_winner': prediction['predicted_winner'],
+                            'confidence': prediction['confidence']
+                        })
+                    except Exception as e:
+                        print(f"Error predicting game {game.game_id}: {e}")
+                        continue
+
+        # Generate betting analysis
+        analyzer = BettingAnalyzer()
+        report = analyzer.generate_betting_report(predictions)
+
+        return jsonify(report)
+
+    except Exception as e:
+        print(f"[ERROR] Failed to generate betting recommendations: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -1670,11 +1735,12 @@ if __name__ == '__main__':
     print("\nAvailable pages:")
     print("  - Home:        http://localhost:5000/")
     print("  - Predict:     http://localhost:5000/predict")
-    print("  - Newsletter:  http://localhost:5000/newsletter  <- NEW!")
+    print("  - Betting:     http://localhost:5000/betting  <- NEW!")
+    print("  - Newsletter:  http://localhost:5000/newsletter")
     print("  - Players:     http://localhost:5000/players")
     print("  - Teams:       http://localhost:5000/teams")
     print("  - Visualize:   http://localhost:5000/visualize")
-    print("  - Simulate:    http://localhost:5000/simulate")
+    print("  - Past Games:  http://localhost:5000/past-games")
     print("\nPress Ctrl+C to stop the server")
     print("="*80 + "\n")
 
