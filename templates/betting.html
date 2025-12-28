@@ -1,570 +1,560 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Betting Recommendations - NBA ELO</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% extends "base.html" %}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #ffffff;
-            min-height: 100vh;
-            padding: 2rem;
-        }
+{% block title %}Betting Recommendations - NBA ELO Dashboard{% endblock %}
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
+{% block content %}
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
 
-        header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
+.stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
 
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 700;
-        }
+body.dark-theme .stat-card {
+    background: #2d2d2d;
+}
 
-        .subtitle {
-            font-size: 1.1rem;
-            color: #b3d1ff;
-            margin-bottom: 1rem;
-        }
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin-bottom: 0.25rem;
+}
 
-        .date-selector {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 1rem;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
+body.dark-theme .stat-value {
+    color: #3b82f6;
+}
 
-        .date-selector button {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
+.stat-label {
+    font-size: 0.9rem;
+    color: #666;
+}
 
-        .date-selector button:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
+body.dark-theme .stat-label {
+    color: #9ca3af;
+}
 
-        .date-selector button.active {
-            background: #4CAF50;
-        }
+.filter-bar {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
+body.dark-theme .filter-bar {
+    background: #2d2d2d;
+}
 
-        .stat-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 1.5rem;
-            border-radius: 12px;
-            text-align: center;
-        }
+.filter-bar button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
 
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-        }
+.filter-bar button.active {
+    background: #1e3a8a;
+    color: white;
+    border-color: #1e3a8a;
+}
 
-        .stat-label {
-            font-size: 0.9rem;
-            color: #b3d1ff;
-        }
+.filter-bar button:not(.active) {
+    background: #f3f4f6;
+    color: #374151;
+}
 
-        .section {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
+body.dark-theme .filter-bar button:not(.active) {
+    background: #1a1a1a;
+    color: #e8e8e8;
+    border-color: #444;
+}
 
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-        }
+.section {
+    margin-bottom: 2rem;
+}
 
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e5e7eb;
+}
 
-        .risk-badge {
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
+body.dark-theme .section-header {
+    border-bottom-color: #374151;
+}
 
-        .risk-very-low {
-            background: #4CAF50;
-            color: white;
-        }
+.section-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1e3a8a;
+}
 
-        .risk-low {
-            background: #8BC34A;
-            color: white;
-        }
+body.dark-theme .section-title {
+    color: #3b82f6;
+}
 
-        .risk-moderate {
-            background: #FFC107;
-            color: #000;
-        }
+.risk-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
 
-        .risk-high {
-            background: #F44336;
-            color: white;
-        }
+.risk-very-low {
+    background: #10b981;
+    color: white;
+}
 
-        .bet-card {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            border-left: 4px solid;
-            transition: all 0.3s;
-        }
+.risk-low {
+    background: #6ee7b7;
+    color: #065f46;
+}
 
-        .bet-card:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateX(5px);
-        }
+.risk-moderate {
+    background: #fbbf24;
+    color: #78350f;
+}
 
-        .bet-card.very-low-risk {
-            border-left-color: #4CAF50;
-        }
+.bet-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+}
 
-        .bet-card.low-risk {
-            border-left-color: #8BC34A;
-        }
+body.dark-theme .bet-card {
+    background: #2d2d2d;
+}
 
-        .bet-card.moderate-risk {
-            border-left-color: #FFC107;
-        }
+.bet-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
 
-        .bet-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
+body.dark-theme .bet-card:hover {
+    box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+}
 
-        .matchup {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
+.bet-card.very-low-risk {
+    border-left-color: #10b981;
+}
 
-        .bet-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-        }
+.bet-card.low-risk {
+    border-left-color: #6ee7b7;
+}
 
-        .detail-item {
-            display: flex;
-            flex-direction: column;
-        }
+.bet-card.moderate-risk {
+    border-left-color: #fbbf24;
+}
 
-        .detail-label {
-            font-size: 0.85rem;
-            color: #b3d1ff;
-            margin-bottom: 0.25rem;
-        }
+.bet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
 
-        .detail-value {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
+.matchup {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
 
-        .recommended-team {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: #4CAF50;
-        }
+.bet-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
 
-        .probability-bar {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
+.detail-item {
+    display: flex;
+    flex-direction: column;
+}
 
-        .probability-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50 0%, #8BC34A 100%);
-            transition: width 0.5s ease;
-        }
+.detail-label {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
 
-        .parlay-card {
-            background: rgba(76, 175, 80, 0.1);
-            border: 2px solid #4CAF50;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-        }
+body.dark-theme .detail-label {
+    color: #9ca3af;
+}
 
-        .parlay-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
+.detail-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
 
-        .parlay-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
+.recommended-team {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #10b981;
+}
 
-        .parlay-bets {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
+.probability-bar {
+    width: 100%;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
 
-        .parlay-bet-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-        }
+body.dark-theme .probability-bar {
+    background: #374151;
+}
 
-        .loading {
-            text-align: center;
-            padding: 3rem;
-            font-size: 1.2rem;
-        }
+.probability-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #6ee7b7 100%);
+    transition: width 0.5s ease;
+}
 
-        .loading-spinner {
-            display: inline-block;
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+.odds-display {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e3a8a;
+}
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+body.dark-theme .odds-display {
+    color: #3b82f6;
+}
 
-        .no-bets {
-            text-align: center;
-            padding: 3rem;
-            font-size: 1.2rem;
-            color: #b3d1ff;
-        }
+.parlay-card {
+    background: #ecfdf5;
+    border: 2px solid #10b981;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
 
-        .nav-link {
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            color: white;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
+body.dark-theme .parlay-card {
+    background: #064e3b;
+    border-color: #10b981;
+}
 
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-        }
+.parlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(16, 185, 129, 0.3);
+}
 
-        .odds-display {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #8BC34A;
-        }
-    </style>
-</head>
-<body>
-    <a href="/" class="nav-link">← Back to Dashboard</a>
+.parlay-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
 
-    <div class="container">
-        <header>
-            <h1>🎯 Daily Betting Recommendations</h1>
-            <p class="subtitle">Low-risk opportunities powered by our ELO prediction model</p>
-        </header>
+.parlay-bets {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
 
-        <div class="date-selector">
-            <button class="active" onclick="loadRecommendations('today', this)">Today</button>
-            <button onclick="loadRecommendations('tomorrow', this)">Tomorrow</button>
-        </div>
+.parlay-bet-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+}
 
-        <div id="statsContainer"></div>
-        <div id="recommendationsContainer" class="loading">
+body.dark-theme .parlay-bet-item {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.loading {
+    text-align: center;
+    padding: 3rem;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(30, 58, 138, 0.3);
+    border-top-color: #1e3a8a;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.no-bets {
+    text-align: center;
+    padding: 3rem;
+    color: #666;
+}
+
+body.dark-theme .no-bets {
+    color: #9ca3af;
+}
+</style>
+
+<div class="filter-bar">
+    <span style="font-weight: 600;">Select Date:</span>
+    <button class="active" onclick="loadRecommendations('today', this)">Today</button>
+    <button onclick="loadRecommendations('tomorrow', this)">Tomorrow</button>
+</div>
+
+<div id="statsContainer"></div>
+<div id="recommendationsContainer" class="loading">
+    <div class="loading-spinner"></div>
+    <p>Loading betting recommendations...</p>
+</div>
+
+<script>
+let currentDate = 'today';
+
+async function loadRecommendations(date, buttonEl) {
+    currentDate = date;
+
+    // Update active button
+    document.querySelectorAll('.filter-bar button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    if (buttonEl) {
+        buttonEl.classList.add('active');
+    }
+
+    const container = document.getElementById('recommendationsContainer');
+    const statsContainer = document.getElementById('statsContainer');
+
+    container.innerHTML = `
+        <div class="loading">
             <div class="loading-spinner"></div>
-            <p>Loading betting recommendations...</p>
+            <p>Analyzing games and calculating probabilities...</p>
         </div>
-    </div>
+    `;
+    statsContainer.innerHTML = '';
 
-    <script>
-        let currentDate = 'today';
+    try {
+        const response = await fetch(`/api/betting/daily-recommendations?date=${date}`);
+        const data = await response.json();
 
-        async function loadRecommendations(date, buttonEl) {
-            currentDate = date;
+        if (data.error) {
+            container.innerHTML = `<div class="card"><div class="no-bets">${data.error}</div></div>`;
+            return;
+        }
 
-            // Update active button
-            document.querySelectorAll('.date-selector button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            if (buttonEl) {
-                buttonEl.classList.add('active');
-            }
+        displayStatistics(data);
+        displayRecommendations(data);
 
-            const container = document.getElementById('recommendationsContainer');
-            const statsContainer = document.getElementById('statsContainer');
+    } catch (error) {
+        console.error('Error loading recommendations:', error);
+        container.innerHTML = `<div class="card"><div class="no-bets">Error loading recommendations: ${error.message}</div></div>`;
+    }
+}
 
-            container.innerHTML = `
-                <div class="loading">
-                    <div class="loading-spinner"></div>
-                    <p>Analyzing games and calculating probabilities...</p>
+function displayStatistics(data) {
+    const stats = data.statistics;
+    const html = `
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">${data.total_games}</div>
+                <div class="stat-label">Total Games</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${data.total_recommended}</div>
+                <div class="stat-label">Recommended Bets</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${stats.very_low_risk_count}</div>
+                <div class="stat-label">Very Low Risk</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${stats.low_risk_count}</div>
+                <div class="stat-label">Low Risk</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${Math.round(data.avg_confidence)}%</div>
+                <div class="stat-label">Avg Confidence</div>
+            </div>
+        </div>
+    `;
+    document.getElementById('statsContainer').innerHTML = html;
+}
+
+function displayRecommendations(data) {
+    const container = document.getElementById('recommendationsContainer');
+    let html = '';
+
+    // Top 5 Recommendations
+    if (data.top_5_recommendations && data.top_5_recommendations.length > 0) {
+        html += `
+            <div class="card">
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Top Recommendations</h2>
+                    </div>
+        `;
+
+        data.top_5_recommendations.forEach(bet => {
+            html += createBetCard(bet);
+        });
+
+        html += '</div></div>';
+    }
+
+    // Best Parlays
+    if (data.best_parlays && data.best_parlays.length > 0) {
+        html += `
+            <div class="card">
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Best Parlay Opportunities</h2>
+                    </div>
+        `;
+
+        data.best_parlays.forEach(parlay => {
+            html += createParlayCard(parlay);
+        });
+
+        html += '</div></div>';
+    }
+
+    // Very Low Risk Bets
+    if (data.very_low_risk_bets && data.very_low_risk_bets.length > 0) {
+        html += `
+            <div class="card">
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Very Low Risk Bets (75%+ Win Probability)</h2>
+                        <span class="risk-badge risk-very-low">${data.very_low_risk_bets.length} Available</span>
+                    </div>
+        `;
+
+        data.very_low_risk_bets.forEach(bet => {
+            html += createBetCard(bet);
+        });
+
+        html += '</div></div>';
+    }
+
+    // Low Risk Bets
+    if (data.low_risk_bets && data.low_risk_bets.length > 0) {
+        html += `
+            <div class="card">
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Low Risk Bets (65-75% Win Probability)</h2>
+                        <span class="risk-badge risk-low">${data.low_risk_bets.length} Available</span>
+                    </div>
+        `;
+
+        data.low_risk_bets.forEach(bet => {
+            html += createBetCard(bet);
+        });
+
+        html += '</div></div>';
+    }
+
+    if (html === '') {
+        html = `<div class="card"><div class="no-bets">No recommended bets available for ${currentDate}.<br>Check back when games are scheduled!</div></div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function createBetCard(bet) {
+    const riskClass = bet.risk_level.toLowerCase().replace(/ /g, '-');
+    const probabilityPercent = Math.round(bet.win_probability * 100);
+    const oddsDisplay = bet.implied_odds > 0 ? `+${bet.implied_odds}` : bet.implied_odds;
+
+    return `
+        <div class="bet-card ${riskClass}">
+            <div class="bet-header">
+                <div class="matchup">${bet.matchup}</div>
+                <span class="risk-badge risk-${riskClass}">${bet.risk_level}</span>
+            </div>
+            <div class="bet-details">
+                <div class="detail-item">
+                    <span class="detail-label">Recommended Pick</span>
+                    <span class="recommended-team">${bet.recommended_team}</span>
                 </div>
-            `;
-            statsContainer.innerHTML = '';
-
-            try {
-                const response = await fetch(`/api/betting/daily-recommendations?date=${date}`);
-                const data = await response.json();
-
-                if (data.error) {
-                    container.innerHTML = `<div class="no-bets">${data.error}</div>`;
-                    return;
-                }
-
-                displayStatistics(data);
-                displayRecommendations(data);
-
-            } catch (error) {
-                console.error('Error loading recommendations:', error);
-                container.innerHTML = `<div class="no-bets">Error loading recommendations</div>`;
-            }
-        }
-
-        function displayStatistics(data) {
-            const stats = data.statistics;
-            const html = `
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value">${data.total_games}</div>
-                        <div class="stat-label">Total Games</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${data.total_recommended}</div>
-                        <div class="stat-label">Recommended Bets</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.very_low_risk_count}</div>
-                        <div class="stat-label">Very Low Risk</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.low_risk_count}</div>
-                        <div class="stat-label">Low Risk</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${Math.round(data.avg_confidence)}%</div>
-                        <div class="stat-label">Avg Confidence</div>
-                    </div>
-                </div>
-            `;
-            document.getElementById('statsContainer').innerHTML = html;
-        }
-
-        function displayRecommendations(data) {
-            const container = document.getElementById('recommendationsContainer');
-            let html = '';
-
-            // Top 5 Recommendations
-            if (data.top_5_recommendations && data.top_5_recommendations.length > 0) {
-                html += `
-                    <div class="section">
-                        <div class="section-header">
-                            <h2 class="section-title">🌟 Top Recommendations</h2>
-                        </div>
-                `;
-
-                data.top_5_recommendations.forEach(bet => {
-                    html += createBetCard(bet);
-                });
-
-                html += '</div>';
-            }
-
-            // Best Parlays
-            if (data.best_parlays && data.best_parlays.length > 0) {
-                html += `
-                    <div class="section">
-                        <div class="section-header">
-                            <h2 class="section-title">💰 Best Parlay Opportunities</h2>
-                        </div>
-                `;
-
-                data.best_parlays.forEach(parlay => {
-                    html += createParlayCard(parlay);
-                });
-
-                html += '</div>';
-            }
-
-            // Very Low Risk Bets
-            if (data.very_low_risk_bets && data.very_low_risk_bets.length > 0) {
-                html += `
-                    <div class="section">
-                        <div class="section-header">
-                            <h2 class="section-title">✅ Very Low Risk Bets (75%+ Win Probability)</h2>
-                            <span class="risk-badge risk-very-low">${data.very_low_risk_bets.length} Available</span>
-                        </div>
-                `;
-
-                data.very_low_risk_bets.forEach(bet => {
-                    html += createBetCard(bet);
-                });
-
-                html += '</div>';
-            }
-
-            // Low Risk Bets
-            if (data.low_risk_bets && data.low_risk_bets.length > 0) {
-                html += `
-                    <div class="section">
-                        <div class="section-header">
-                            <h2 class="section-title">✔️ Low Risk Bets (65-75% Win Probability)</h2>
-                            <span class="risk-badge risk-low">${data.low_risk_bets.length} Available</span>
-                        </div>
-                `;
-
-                data.low_risk_bets.forEach(bet => {
-                    html += createBetCard(bet);
-                });
-
-                html += '</div>';
-            }
-
-            if (html === '') {
-                html = `<div class="no-bets">No recommended bets available for ${currentDate}.<br>Check back when games are scheduled!</div>`;
-            }
-
-            container.innerHTML = html;
-        }
-
-        function createBetCard(bet) {
-            const riskClass = bet.risk_level.toLowerCase().replace(/ /g, '-');
-            const probabilityPercent = Math.round(bet.win_probability * 100);
-            const oddsDisplay = bet.implied_odds > 0 ? `+${bet.implied_odds}` : bet.implied_odds;
-
-            return `
-                <div class="bet-card ${riskClass}">
-                    <div class="bet-header">
-                        <div class="matchup">${bet.matchup}</div>
-                        <span class="risk-badge risk-${riskClass}">${bet.risk_level}</span>
-                    </div>
-                    <div class="bet-details">
-                        <div class="detail-item">
-                            <span class="detail-label">Recommended Pick</span>
-                            <span class="recommended-team">${bet.recommended_team}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Win Probability</span>
-                            <span class="detail-value">${probabilityPercent}%</span>
-                            <div class="probability-bar">
-                                <div class="probability-fill" style="width: ${probabilityPercent}%"></div>
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Confidence Score</span>
-                            <span class="detail-value">${bet.confidence_score}/100</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Implied Odds</span>
-                            <span class="odds-display">${oddsDisplay}</span>
-                        </div>
+                <div class="detail-item">
+                    <span class="detail-label">Win Probability</span>
+                    <span class="detail-value">${probabilityPercent}%</span>
+                    <div class="probability-bar">
+                        <div class="probability-fill" style="width: ${probabilityPercent}%"></div>
                     </div>
                 </div>
-            `;
-        }
-
-        function createParlayCard(parlay) {
-            const probabilityPercent = Math.round(parlay.combined_probability * 100);
-            const oddsDisplay = parlay.combined_odds > 0 ? `+${parlay.combined_odds}` : parlay.combined_odds;
-            const riskClass = parlay.risk_level.toLowerCase().replace(/ /g, '-');
-
-            let betsHtml = '';
-            parlay.individual_bets.forEach(bet => {
-                const betProb = Math.round(bet.probability * 100);
-                betsHtml += `
-                    <div class="parlay-bet-item">
-                        <span><strong>${bet.team}</strong> - ${bet.matchup}</span>
-                        <span>${betProb}%</span>
-                    </div>
-                `;
-            });
-
-            return `
-                <div class="parlay-card">
-                    <div class="parlay-header">
-                        <div>
-                            <div class="parlay-title">${parlay.num_bets}-Leg Parlay</div>
-                            <span class="risk-badge risk-${riskClass}">${parlay.risk_level}</span>
-                        </div>
-                        <div style="text-align: right;">
-                            <div class="detail-label">Combined Probability</div>
-                            <div style="font-size: 1.5rem; font-weight: 700;">${probabilityPercent}%</div>
-                            <div class="odds-display">${oddsDisplay}</div>
-                        </div>
-                    </div>
-                    <div class="parlay-bets">
-                        ${betsHtml}
-                    </div>
+                <div class="detail-item">
+                    <span class="detail-label">Confidence Score</span>
+                    <span class="detail-value">${bet.confidence_score}/100</span>
                 </div>
-            `;
-        }
+                <div class="detail-item">
+                    <span class="detail-label">Implied Odds</span>
+                    <span class="odds-display">${oddsDisplay}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
 
-        // Load today's recommendations on page load
-        loadRecommendations('today');
-    </script>
-</body>
-</html>
+function createParlayCard(parlay) {
+    const probabilityPercent = Math.round(parlay.combined_probability * 100);
+    const oddsDisplay = parlay.combined_odds > 0 ? `+${parlay.combined_odds}` : parlay.combined_odds;
+    const riskClass = parlay.risk_level.toLowerCase().replace(/ /g, '-');
+
+    let betsHtml = '';
+    parlay.individual_bets.forEach(bet => {
+        const betProb = Math.round(bet.probability * 100);
+        betsHtml += `
+            <div class="parlay-bet-item">
+                <span><strong>${bet.team}</strong> - ${bet.matchup}</span>
+                <span>${betProb}%</span>
+            </div>
+        `;
+    });
+
+    return `
+        <div class="parlay-card">
+            <div class="parlay-header">
+                <div>
+                    <div class="parlay-title">${parlay.num_bets}-Leg Parlay</div>
+                    <span class="risk-badge risk-${riskClass}">${parlay.risk_level}</span>
+                </div>
+                <div style="text-align: right;">
+                    <div class="detail-label">Combined Probability</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">${probabilityPercent}%</div>
+                    <div class="odds-display">${oddsDisplay}</div>
+                </div>
+            </div>
+            <div class="parlay-bets">
+                ${betsHtml}
+            </div>
+        </div>
+    `;
+}
+
+// Load today's recommendations on page load
+loadRecommendations('today');
+</script>
+{% endblock %}

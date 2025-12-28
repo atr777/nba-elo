@@ -816,7 +816,9 @@ def get_daily_betting_recommendations():
 
         # Get predictions for target date
         predictions = []
-        for game in DATA['games_df'].itertuples():
+        games_df = pd.read_csv('data/raw/nba_games_all.csv')
+
+        for game in games_df.itertuples():
             game_date = pd.to_datetime(str(game.date), format='%Y%m%d').date()
 
             if game_date == target_date.date():

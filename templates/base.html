@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NBA ELO Dashboard{% endblock %}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* Dark theme styles */
+        body.dark-theme {
+            background: #1a1a1a;
+            color: #e8e8e8;
+        }
+
+        header {
+            background: #1e3a8a;
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        nav {
+            background: white;
+            padding: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        body.dark-theme nav {
+            background: #2d2d2d;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        nav li {
+            margin: 0;
+        }
+
+        nav a {
+            display: block;
+            padding: 1rem 1.5rem;
+            color: #333;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+
+        body.dark-theme nav a {
+            color: #e8e8e8;
+        }
+
+        nav a:hover {
+            background: #f8f9fa;
+            border-bottom-color: #1e3a8a;
+        }
+
+        body.dark-theme nav a:hover {
+            background: #3d3d3d;
+            border-bottom-color: #3b82f6;
+        }
+
+        nav a.active {
+            color: #1e3a8a;
+            border-bottom-color: #1e3a8a;
+            font-weight: 600;
+        }
+
+        body.dark-theme nav a.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        body.dark-theme .card {
+            background: #2d2d2d;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .card h2 {
+            color: #1e3a8a;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        body.dark-theme .card h2 {
+            color: #60a5fa;
+        }
+
+        body.dark-theme .card h3,
+        body.dark-theme .card h4 {
+            color: #e8e8e8;
+        }
+
+        body.dark-theme .card p,
+        body.dark-theme .card li,
+        body.dark-theme .card label,
+        body.dark-theme .card strong {
+            color: #d1d1d1;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-box {
+            background: #1e3a8a;
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        body.dark-theme .stat-box {
+            background: #1e40af;
+        }
+
+        .stat-box h3 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-box p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        button {
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1e40af;
+        }
+
+        body.dark-theme button {
+            background: #3b82f6;
+        }
+
+        body.dark-theme button:hover {
+            background: #2563eb;
+        }
+
+        select, input[type="text"], input[type="number"] {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            width: 100%;
+            margin-bottom: 1rem;
+            background: white;
+            color: #333;
+        }
+
+        body.dark-theme select,
+        body.dark-theme input[type="text"],
+        body.dark-theme input[type="number"] {
+            background: #1a1a1a;
+            color: #e8e8e8;
+            border-color: #555;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        body.dark-theme th,
+        body.dark-theme td {
+            border-bottom-color: #444;
+            color: #d1d1d1;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+
+        body.dark-theme th {
+            background: #1a1a1a;
+            color: #3b82f6;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        body.dark-theme tr:hover {
+            background: #3d3d3d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+
+        .result-box {
+            background: #f8f9fa;
+            border-left: 4px solid #1e3a8a;
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 4px;
+        }
+
+        body.dark-theme .result-box {
+            background: #1a1a1a;
+            border-left-color: #60a5fa;
+        }
+
+        footer {
+            background: #1a1a1a;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 4rem;
+        }
+
+        body.dark-theme footer {
+            background: #0f0f0f;
+        }
+
+        /* Feature boxes */
+        .feature-box {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 4px;
+        }
+
+        body.dark-theme .feature-box {
+            background: #1a1a1a;
+            border: 1px solid #333;
+        }
+
+        .feature-box h4 {
+            color: #1e3a8a;
+            margin-bottom: 0.5rem;
+        }
+
+        body.dark-theme .feature-box h4 {
+            color: #60a5fa;
+        }
+
+        .feature-box p {
+            color: #333;
+        }
+
+        body.dark-theme .feature-box p {
+            color: #d1d1d1;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>NBA ELO Dashboard</h1>
+            <p>Interactive data exploration and game prediction system</p>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a></li>
+            <li><a href="/predict" class="{% if request.path == '/predict' %}active{% endif %}">Predict Games</a></li>
+            <li><a href="/betting" class="{% if request.path == '/betting' %}active{% endif %}">Betting</a></li>
+            <li><a href="/past-games" class="{% if request.path == '/past-games' %}active{% endif %}">Past Games</a></li>
+            <li><a href="/predict/season" class="{% if request.path == '/predict/season' %}active{% endif %}">Season Predictions</a></li>
+            <li><a href="/newsletter" class="{% if request.path == '/newsletter' %}active{% endif %}">Newsletter</a></li>
+            <li><a href="/players" class="{% if request.path == '/players' %}active{% endif %}">Players</a></li>
+            <li><a href="/teams" class="{% if request.path == '/teams' %}active{% endif %}">Teams</a></li>
+            <li><a href="/visualize" class="{% if request.path == '/visualize' %}active{% endif %}">Visualize</a></li>
+            <li><a href="/performance" class="{% if request.path == '/performance' %}active{% endif %}">Performance</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>NBA ELO Engine - Hybrid Team & Player Rating System - 69.96% Prediction Accuracy</p>
+        <p>Built with Flask, Python, and advanced statistical models</p>
+    </footer>
+
+    <script>
+        // Theme toggle functionality
+        function toggleTheme() {
+            const body = document.body;
+            const isDark = body.classList.toggle('dark-theme');
+            localStorage.setItem('darkTheme', isDark ? 'enabled' : 'disabled');
+        }
+
+        // Check for saved theme preference or default to light mode
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('darkTheme');
+            if (savedTheme === 'enabled') {
+                document.body.classList.add('dark-theme');
+            }
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
