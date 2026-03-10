@@ -62,6 +62,9 @@ class TeamELOEngine:
         # History tracking
         self.rating_history = []
 
+        # Games played tracking for dynamic K-factor
+        self.games_played = {}  # {team_id: count}
+
         # Player data for top player concentration
         self.player_ratings = player_ratings if player_ratings is not None else pd.DataFrame()
         self.player_team_mapping = player_team_mapping if player_team_mapping is not None else pd.DataFrame()
@@ -87,40 +90,156 @@ class TeamELOEngine:
         """Reset all team ratings to base rating."""
         self.current_ratings = {}
         self.rating_history = []
+        self.games_played = {}
         logger.info("Ratings reset to base")
-    
+
+    def _apply_season_reversion(self, reversion_factor: float = 0.75):
+        """
+        Apply FiveThirtyEight-style mean reversion between seasons.
+
+        Formula: new_rating = reversion_factor * prior_rating + (1 - reversion_factor) * base_rating
+        Default: 0.75 * prior + 0.25 * 1500
+
+        This prevents ratings from drifting too far from the mean over multiple seasons
+        and reflects uncertainty at season start (new rosters, coaching changes, etc.).
+
+        Args:
+            reversion_factor: Weight on prior season rating (default 0.75)
+        """
+        if not self.current_ratings:
+            return
+
+        reverted = {}
+        for team_id, rating in self.current_ratings.items():
+            reverted[team_id] = reversion_factor * rating + (1 - reversion_factor) * self.base_rating
+
+        self.current_ratings = reverted
+        logger.info(
+            f"Season reversion applied: {reversion_factor:.0%} prior + "
+            f"{1-reversion_factor:.0%} mean ({self.base_rating}). "
+            f"{len(reverted)} teams reverted."
+        )
+
     def _ensure_team_exists(self, team_id: str, team_name: str):
         """Ensure a team has an initialized rating."""
         if team_id not in self.current_ratings:
             self.current_ratings[team_id] = self.base_rating
             logger.debug(f"Initialized {team_name} (ID: {team_id}) at {self.base_rating}")
-    
+
+    def _calculate_dynamic_k_factor(
+        self,
+        base_k: float,
+        home_team_id: str,
+        away_team_id: str,
+        home_elo: float,
+        away_elo: float,
+        games_played_home: int = 0,
+        games_played_away: int = 0,
+        total_season_games: int = 82
+    ) -> float:
+        """
+        Calculate dynamic K-factor with season-based decay and opponent quality modulation.
+
+        Priority 2 Enhancement: Dynamic K-Factor
+
+        Research-backed adjustments:
+        1. Season-based decay: Higher K early season (teams still finding form)
+        2. Opponent quality modulation: Higher K against strong opponents
+        3. Margin of victory handled separately (already in process_game_elo_update)
+
+        Formula:
+            K = base_K * season_decay * opponent_quality_multiplier
+
+        Where:
+        - season_decay: 1.2 early season → 1.0 mid-season
+        - opponent_quality_multiplier: 1.0 to 1.1 based on opponent ELO
+
+        Args:
+            base_k: Base K-factor
+            home_team_id: Home team ID
+            away_team_id: Away team ID
+            home_elo: Home team ELO
+            away_elo: Away team ELO
+            games_played_home: Games played by home team
+            games_played_away: Games played by away team
+            total_season_games: Total games in season (default: 82)
+
+        Returns:
+            Adjusted K-factor
+        """
+        # 1. Season-based decay
+        # Use average of both teams' games played
+        avg_games_played = (games_played_home + games_played_away) / 2.0
+
+        # Decay from 1.2 to 1.0 over course of season
+        # First 20 games: K = 1.2
+        # Mid-season (40 games): K = 1.1
+        # Late season (80 games): K = 1.0
+        season_progress = avg_games_played / total_season_games
+        season_decay = 1.2 - (season_progress * 0.2)
+        season_decay = max(1.0, min(1.2, season_decay))  # Clamp to [1.0, 1.2]
+
+        # 2. Opponent quality modulation
+        # Higher K when facing strong opponents (more to learn)
+        avg_opponent_elo = (home_elo + away_elo) / 2.0
+        elo_diff_from_average = avg_opponent_elo - 1500  # Deviation from league average
+
+        # Scale: ELO 1600+ → 1.1x multiplier, ELO 1400- → 0.95x multiplier
+        opponent_quality_multiplier = 1.0 + (0.1 * (elo_diff_from_average / 500))
+        opponent_quality_multiplier = max(0.9, min(1.15, opponent_quality_multiplier))  # Clamp
+
+        # Combine factors
+        dynamic_k = base_k * season_decay * opponent_quality_multiplier
+
+        logger.debug(
+            f"Dynamic K-factor: base={base_k:.1f}, "
+            f"season_decay={season_decay:.2f} (games={avg_games_played:.0f}), "
+            f"opp_quality={opponent_quality_multiplier:.2f} → K={dynamic_k:.1f}"
+        )
+
+        return dynamic_k
+
     def process_game(self, game: Dict) -> Dict:
         """
         Process a single game and update team ratings.
-        
+
         Args:
             game: Dictionary with keys: game_id, date, home_team_id, home_team_name,
                   away_team_id, away_team_name, home_score, away_score
-                  
+
         Returns:
             Dictionary with game results and rating changes
         """
         # Ensure teams exist
         self._ensure_team_exists(game['home_team_id'], game['home_team_name'])
         self._ensure_team_exists(game['away_team_id'], game['away_team_name'])
-        
+
         # Get current ratings
         home_rating = self.current_ratings[game['home_team_id']]
         away_rating = self.current_ratings[game['away_team_id']]
+
+        # Get games played for dynamic K-factor
+        home_games = self.games_played.get(game['home_team_id'], 0)
+        away_games = self.games_played.get(game['away_team_id'], 0)
+
+        # Calculate dynamic K-factor (Priority 2 Enhancement)
+        dynamic_k = self._calculate_dynamic_k_factor(
+            base_k=self.k_factor,
+            home_team_id=game['home_team_id'],
+            away_team_id=game['away_team_id'],
+            home_elo=home_rating,
+            away_elo=away_rating,
+            games_played_home=home_games,
+            games_played_away=away_games
+        )
         
-        # Calculate new ratings
+        # Calculate new ratings with dynamic K-factor
         result = process_game_elo_update(
             home_rating=home_rating,
             away_rating=away_rating,
             home_score=game['home_score'],
             away_score=game['away_score'],
-            k_factor=self.k_factor,
+            k_factor=dynamic_k,  # Use dynamic K instead of static
             home_advantage=self.home_advantage,
             use_mov=self.use_mov
         )
@@ -128,6 +247,10 @@ class TeamELOEngine:
         # Update current ratings
         self.current_ratings[game['home_team_id']] = result['home_new_rating']
         self.current_ratings[game['away_team_id']] = result['away_new_rating']
+        
+        # Increment games played
+        self.games_played[game['home_team_id']] = home_games + 1
+        self.games_played[game['away_team_id']] = away_games + 1
 
         # Update enhanced features trackers
         if self.use_enhanced_features:
@@ -186,7 +309,8 @@ class TeamELOEngine:
     
     def compute_season_elo(self, games_df: pd.DataFrame, reset: bool = True) -> pd.DataFrame:
         """
-        Compute ELO ratings for all games in a season.
+        Compute ELO ratings for all games, applying FiveThirtyEight-style season reversion
+        at each season boundary (when the NBA season year changes).
 
         Args:
             games_df: DataFrame with game data (must be sorted by date)
@@ -215,8 +339,30 @@ class TeamELOEngine:
         # Ensure games are sorted by date
         games_df = games_df.sort_values('date').reset_index(drop=True)
 
-        # Process each game
-        for _, game in games_df.iterrows():
+        # Detect season year for each game (NBA season starts in October)
+        # A game in month >= 10 belongs to that calendar year's season;
+        # a game in month < 10 (Jan-Sep) belongs to the prior year's season.
+        dates = pd.to_datetime(games_df['date'].astype(str), format='%Y%m%d', errors='coerce')
+        season_years = dates.apply(
+            lambda d: d.year if d.month >= 10 else d.year - 1
+        )
+
+        current_season_year = None
+
+        # Process each game — detect season boundaries for mean reversion
+        for idx, game in games_df.iterrows():
+            game_season = season_years.iloc[idx]
+
+            # Apply 75/25 mean reversion at each season boundary.
+            # Only when prior season data exists (current_ratings non-empty).
+            if current_season_year is not None and game_season != current_season_year:
+                logger.info(
+                    f"Season boundary: {current_season_year} -> {game_season}. "
+                    f"Applying 75/25 mean reversion."
+                )
+                self._apply_season_reversion(reversion_factor=0.75)
+
+            current_season_year = game_season
             self.process_game(game.to_dict())
 
         # Convert history to DataFrame
