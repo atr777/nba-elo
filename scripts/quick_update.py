@@ -8,6 +8,9 @@ import os
 from datetime import datetime, timedelta
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Also add scripts/ directory so `import daily_update` resolves correctly
+# regardless of the working directory the caller uses.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def main():
     parser = argparse.ArgumentParser(description='Quick database update for last N days')
@@ -19,11 +22,12 @@ def main():
     print(f"QUICK UPDATE: Processing last {args.days} days")
     print(f"="*80)
 
-    # Import the daily update script
-    from daily_update import update_database, get_last_processed_date
+    # Import status helpers from daily_update (importable because scripts/ is on sys.path)
+    from daily_update import get_data_stats
 
     # Check current status
-    last_date = get_last_processed_date()
+    stats = get_data_stats()
+    last_date = stats['latest_game_date'] if stats else None
     print(f"\nDatabase currently updated through: {last_date}")
 
     # Calculate target date range
@@ -38,14 +42,23 @@ def main():
     print(f"Expected games: ~{args.days * 12} games")
     print(f"Estimated time: ~{args.days * 2} minutes\n")
 
-    # Run update with date limit
+    # Run update via subprocess (daily_update.main() orchestrates via subprocess internally
+    # and does not accept a max_date parameter — delegate the full pipeline to it)
     try:
-        update_database(max_date=end_date.strftime('%Y%m%d'))
+        import subprocess
+        scripts_dir = os.path.join(os.path.dirname(__file__))
+        result = subprocess.run(
+            [sys.executable, os.path.join(scripts_dir, 'daily_update.py')],
+            cwd=os.path.join(os.path.dirname(__file__), '..'),
+        )
+        if result.returncode != 0:
+            print(f"\nUpdate process exited with code {result.returncode}")
+            return result.returncode
         print(f"\n{'='*80}")
-        print(f"✓ Quick update complete!")
+        print(f"Quick update complete!")
         print(f"{'='*80}")
     except Exception as e:
-        print(f"\n✗ Error during update: {e}")
+        print(f"\nError during update: {e}")
         return 1
 
     return 0

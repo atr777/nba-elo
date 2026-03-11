@@ -73,7 +73,8 @@ def fetch_games_between_dates(start_date_str, end_date_str):
             date_from_nullable=start_date_str,
             date_to_nullable=end_date_str,
             league_id_nullable='00',  # NBA
-            season_type_nullable='Regular Season'
+            season_type_nullable='Regular Season',
+            timeout=15  # Fail fast — CDN fallback is reliable
         )
 
         games_df = game_finder.get_data_frames()[0]
