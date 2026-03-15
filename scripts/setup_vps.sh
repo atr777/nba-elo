@@ -25,7 +25,25 @@
 
 set -e  # Exit on any unexpected error
 
-REPO_URL="https://github.com/atr777/nba-elo.git"
+# GitHub token — passed via: export GITHUB_TOKEN=xxx && bash setup_vps.sh
+# Required because the nba-elo repo is private.
+if [ -z "$GITHUB_TOKEN" ]; then
+  echo ""
+  echo "ERROR: GITHUB_TOKEN is not set."
+  echo ""
+  echo "Create a token at: https://github.com/settings/tokens/new"
+  echo "  - Note: nba-elo-vps"
+  echo "  - Expiration: No expiration (or 1 year)"
+  echo "  - Scope: check 'repo' (top checkbox)"
+  echo ""
+  echo "Then run:"
+  echo "  export GITHUB_TOKEN=your_token_here"
+  echo "  curl -fsSL -H \"Authorization: token \$GITHUB_TOKEN\" \\"
+  echo "    https://raw.githubusercontent.com/atr777/nba-elo/master/nba-elo-engine/scripts/setup_vps.sh | bash"
+  exit 1
+fi
+
+REPO_URL="https://${GITHUB_TOKEN}@github.com/atr777/nba-elo.git"
 INSTALL_DIR="/opt/nba-elo"
 PROJECT_DIR="$INSTALL_DIR/nba-elo-engine"
 VENV_DIR="$INSTALL_DIR/venv"

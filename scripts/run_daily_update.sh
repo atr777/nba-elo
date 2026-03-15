@@ -22,9 +22,9 @@ cd "$PROJECT_DIR" || exit 1
   echo "============================================================"
 
   # Auto-pull latest code from GitHub
-  # Any changes pushed from the Windows PC are picked up here automatically
+  # Remote URL already contains the token (set during setup_vps.sh)
   echo "[$(date '+%H:%M:%S')] Pulling latest code from GitHub..."
-  git pull origin master 2>&1 || echo "WARNING: git pull failed, continuing with current code"
+  git -C "$PROJECT_DIR" pull origin master 2>&1 || echo "WARNING: git pull failed, continuing with current code"
 
   # Check data freshness
   python3 -c "
