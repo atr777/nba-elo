@@ -1,9 +1,30 @@
 """
-Hybrid Prediction Engine
+Hybrid Prediction Engine with Adaptive Weighting
+==================================================
+
 Combines team-level and player-level ELO ratings for improved prediction accuracy.
 
-Uses a weighted blend of team ELO (Phase 1.5) and player ELO (Phase 3) to predict game outcomes.
-Target accuracy: 66-68% (vs 65.69% baseline from team ELO only)
+Features:
+- Weighted blend of team ELO and player ELO
+- Adaptive weighting for close games vs non-close games
+- Integration with form and rest factors
+- H2H history support
+
+Adaptive Weighting Strategy:
+-----------------------------
+Close Games (ELO diff < 100):
+  - Team: 50%, Player: 20%, Form: 20%, Rest: 10%
+  - Rationale: Close matchups benefit from recent momentum and fatigue factors
+
+Non-Close Games (ELO diff >= 100):
+  - Team: 70%, Player: 30%, Form: 0%, Rest: 0%
+  - Rationale: Clear favorites - fundamental ratings dominate
+
+Expected Impact:
+- Close game accuracy: 53.85% → 58-60% (+5%)
+- Overall accuracy: 63.39% → 65-67% (+1.5-3.5%)
+
+Target accuracy: 68-70% (vs 65.93% baseline from team ELO only)
 """
 
 import pandas as pd
@@ -31,27 +52,55 @@ class HybridPredictor:
     Default blend_weight = 0.7 (70% team, 30% player)
     """
 
-    def __init__(self, blend_weight: float = 0.7, home_advantage: float = 30  # Calibrated):
+    def __init__(
+        self,
+        blend_weight: float = 0.7,
+        home_advantage: float = 30,  # Calibrated
+        use_adaptive_weighting: bool = True,
+        close_game_threshold: float = 100.0
+    ):
         """
         Initialize the Hybrid Predictor.
 
         Args:
             blend_weight: Weight for team ELO (0-1). Player weight = 1 - blend_weight
             home_advantage: Home court advantage in rating points
+            use_adaptive_weighting: If True, use different weights for close games
+            close_game_threshold: ELO difference threshold to classify as "close game"
         """
         if not 0 <= blend_weight <= 1:
             raise ValueError("blend_weight must be between 0 and 1")
 
         self.blend_weight = blend_weight
         self.home_advantage = home_advantage
+        self.use_adaptive_weighting = use_adaptive_weighting
+        self.close_game_threshold = close_game_threshold
 
         # Load team and player ratings
         self.team_ratings = {}
         self.player_ratings = {}
 
+        # Adaptive weighting configurations
+        # Close games: More emphasis on momentum, rest, recent form
+        self.close_game_weights = {
+            'team': 0.50,
+            'player': 0.20,
+            'form': 0.20,
+            'rest': 0.10
+        }
+
+        # Non-close games: Traditional team/player weighting
+        self.default_weights = {
+            'team': 0.70,
+            'player': 0.30,
+            'form': 0.0,
+            'rest': 0.0
+        }
+
         logger.info(f"Hybrid Predictor initialized: blend={blend_weight:.2f} "
                    f"(team={blend_weight:.0%}, player={1-blend_weight:.0%}), "
-                   f"home_adv={home_advantage}")
+                   f"home_adv={home_advantage}, "
+                   f"adaptive_weighting={use_adaptive_weighting}")
 
     def load_team_ratings(self, team_elo_file: str, date: Optional[int] = None):
         """
@@ -140,11 +189,45 @@ class HybridPredictor:
 
         return total_weighted_rating / total_minutes
 
+    def is_close_game(self, home_rating: float, away_rating: float) -> bool:
+        """
+        Determine if a game should be classified as "close" based on ELO difference.
+
+        Args:
+            home_rating: Home team rating
+            away_rating: Away team rating
+
+        Returns:
+            True if ELO difference is below threshold
+        """
+        elo_diff = abs(home_rating - away_rating)
+        return elo_diff < self.close_game_threshold
+
+    def get_adaptive_weights(self, home_rating: float, away_rating: float) -> Dict[str, float]:
+        """
+        Get weights based on whether this is a close game.
+
+        Args:
+            home_rating: Home team rating
+            away_rating: Away team rating
+
+        Returns:
+            Dictionary with weights for team, player, form, rest
+        """
+        if not self.use_adaptive_weighting:
+            return self.default_weights
+
+        if self.is_close_game(home_rating, away_rating):
+            return self.close_game_weights
+        else:
+            return self.default_weights
+
     def get_hybrid_rating(
         self,
         team_id: str,
         player_boxscores: pd.DataFrame,
-        game_id: str
+        game_id: str,
+        blend_weight: Optional[float] = None
     ) -> float:
         """
         Calculate hybrid rating combining team and player ELO.
@@ -153,6 +236,7 @@ class HybridPredictor:
             team_id: Team ID
             player_boxscores: DataFrame with player boxscore data
             game_id: Game ID
+            blend_weight: Optional override for blend weight
 
         Returns:
             Hybrid rating = (blend_weight × Team_ELO) + ((1-blend_weight) × Player_ELO)
@@ -160,7 +244,8 @@ class HybridPredictor:
         team_rating = self.get_team_rating_from_team_elo(team_id)
         player_rating = self.get_team_rating_from_players(player_boxscores, game_id, team_id)
 
-        hybrid_rating = (self.blend_weight * team_rating) + ((1 - self.blend_weight) * player_rating)
+        weight = blend_weight if blend_weight is not None else self.blend_weight
+        hybrid_rating = (weight * team_rating) + ((1 - weight) * player_rating)
 
         return hybrid_rating
 
@@ -169,16 +254,24 @@ class HybridPredictor:
         home_team_id: str,
         away_team_id: str,
         player_boxscores: pd.DataFrame,
-        game_id: str
+        game_id: str,
+        form_factor_home: float = 0.0,
+        form_factor_away: float = 0.0,
+        rest_factor_home: float = 0.0,
+        rest_factor_away: float = 0.0
     ) -> Dict:
         """
-        Predict game outcome using hybrid ratings.
+        Predict game outcome using hybrid ratings with adaptive weighting.
 
         Args:
             home_team_id: Home team ID
             away_team_id: Away team ID
             player_boxscores: DataFrame with player boxscore data
             game_id: Game ID
+            form_factor_home: Home team form adjustment (ELO points, default 0)
+            form_factor_away: Away team form adjustment (ELO points, default 0)
+            rest_factor_home: Home team rest adjustment (ELO points, default 0)
+            rest_factor_away: Away team rest adjustment (ELO points, default 0)
 
         Returns:
             Dictionary with:
@@ -187,10 +280,37 @@ class HybridPredictor:
                 - home_hybrid_rating: Home team hybrid rating
                 - away_hybrid_rating: Away team hybrid rating
                 - predicted_winner: 'home' or 'away'
+                - is_close_game: Boolean indicating if game is close
+                - weights_used: Dict with weights applied
         """
-        home_rating = self.get_hybrid_rating(home_team_id, player_boxscores, game_id)
-        away_rating = self.get_hybrid_rating(away_team_id, player_boxscores, game_id)
+        # Get base hybrid ratings
+        home_team_rating = self.get_team_rating_from_team_elo(home_team_id)
+        away_team_rating = self.get_team_rating_from_team_elo(away_team_id)
 
+        # Determine adaptive weights based on ELO difference
+        weights = self.get_adaptive_weights(home_team_rating, away_team_rating)
+        is_close = self.is_close_game(home_team_rating, away_team_rating)
+
+        # Calculate hybrid ratings with adaptive blending
+        home_player_rating = self.get_team_rating_from_players(player_boxscores, game_id, home_team_id)
+        away_player_rating = self.get_team_rating_from_players(player_boxscores, game_id, away_team_id)
+
+        # Apply adaptive weights
+        home_rating = (
+            weights['team'] * home_team_rating +
+            weights['player'] * home_player_rating +
+            weights['form'] * form_factor_home +
+            weights['rest'] * rest_factor_home
+        )
+
+        away_rating = (
+            weights['team'] * away_team_rating +
+            weights['player'] * away_player_rating +
+            weights['form'] * form_factor_away +
+            weights['rest'] * rest_factor_away
+        )
+
+        # Calculate win probability
         home_win_prob = calculate_win_probability(home_rating, away_rating, self.home_advantage)
         away_win_prob = 1 - home_win_prob
 
@@ -201,7 +321,10 @@ class HybridPredictor:
             'away_win_prob': away_win_prob,
             'home_hybrid_rating': home_rating,
             'away_hybrid_rating': away_rating,
-            'predicted_winner': predicted_winner
+            'predicted_winner': predicted_winner,
+            'is_close_game': is_close,
+            'weights_used': weights,
+            'elo_diff': abs(home_team_rating - away_team_rating)
         }
 
 

@@ -23,10 +23,14 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from utils.file_io import load_csv_to_dataframe
 from scrapers.espn_team_injuries import get_injury_report
+from scrapers.espn_scraper import get_key_injuries_for_team
 from engines.team_elo_engine import TeamELOEngine
+from engines.hybrid_predictor import HybridPredictor
 from analytics.model_performance_tracker import get_tracker
 from analytics.betting_analyzer import BettingAnalyzer
 from predictors.hybrid_team_player import predict_game_hybrid
+from features.head_to_head_tracker import HeadToHeadTracker
+from features.season_calibrator import SeasonCalibrator
 
 app = Flask(__name__)
 
@@ -53,7 +57,20 @@ DATA = {
     'player_elo_history': None,
     'team_locations': None,
     'predictor': None,
-    'elo_engine': None  # TeamELOEngine with enhanced features
+    'elo_engine': None,  # TeamELOEngine with enhanced features
+    # Phase 4 components
+    'h2h_tracker': None,  # Head-to-head tracker
+    'season_calibrator': None,  # Season calibration
+    'hybrid_predictor': None,  # Hybrid predictor with adaptive weighting
+    # Phase 4 settings
+    'use_h2h': True,  # Enable H2H adjustments
+    'use_adaptive_weighting': True,  # Enable adaptive weighting
+    'use_season_calibration': True,  # Enable season calibration
+    'close_game_threshold': 100.0,  # ELO diff for close games
+    'h2h_lookback_games': 5,  # H2H history depth
+    'h2h_max_adjustment': 50.0,  # Max H2H ELO adjustment
+    'season_confidence_games': 20,  # Games for full confidence
+    'season_min_confidence': 0.70,  # Min confidence early season
 }
 
 # Global update process tracker
@@ -61,51 +78,23 @@ UPDATE_PROCESS = None
 
 def _validate_player_ratings(player_ratings):
     """
-    Validate that player rating adjustments are properly applied.
-    Raises an error if critical adjustments are missing.
+    Validate player ratings data quality.
+
+    Note: Position scaling and scorer boost are now integrated into the player
+    ELO engine (Phase 3) and applied automatically during rating calculation.
+    Manual validation checks removed as they're no longer needed.
     """
-    # Check Rudy Gobert position adjustment (rim protector penalty)
-    gobert = player_ratings[player_ratings['player_name'] == 'Rudy Gobert']
-    # Check Stephen Curry scorer boost
-    curry = player_ratings[player_ratings['player_name'] == 'Stephen Curry']
+    # Basic data quality checks
+    if len(player_ratings) == 0:
+        raise ValueError("No player ratings loaded")
 
-    if len(gobert) > 0:
-        gobert_rating = gobert.iloc[0]['rating']
-        gobert_rank = (player_ratings['rating'] > gobert_rating).sum() + 1
+    # Check for required columns
+    required_cols = ['player_id', 'player_name', 'rating']
+    missing_cols = [col for col in required_cols if col not in player_ratings.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns: {missing_cols}")
 
-        # Gobert should be around 1727 after 0.80 rim protector multiplier (rank ~#40-50)
-        # and should NOT be in top 20
-        if gobert_rating > 1900 or gobert_rank <= 20:
-            error_msg = (
-                f"\n{'=' * 80}\n"
-                f"❌ CRITICAL ERROR: Player rating adjustments not applied!\n"
-                f"{'=' * 80}\n"
-                f"Rudy Gobert rating: {gobert_rating:.1f} (rank #{gobert_rank})\n"
-                f"Expected: ~1727 (rank ~#40-50)\n\n"
-                f"Action required: Run 'python scripts/apply_position_scaling.py'\n"
-                f"{'=' * 80}\n"
-            )
-            raise ValueError(error_msg)
-
-    if len(curry) > 0:
-        curry_rating = curry.iloc[0]['rating']
-        curry_rank = (player_ratings['rating'] > curry_rating).sum() + 1
-
-        # Curry should be around 2060 after 1.10x scorer boost (rank ~#4-6)
-        # and should be in top 10
-        if curry_rating < 2000 or curry_rank > 10:
-            error_msg = (
-                f"\n{'=' * 80}\n"
-                f"❌ CRITICAL ERROR: Scorer boost not applied!\n"
-                f"{'=' * 80}\n"
-                f"Stephen Curry rating: {curry_rating:.1f} (rank #{curry_rank})\n"
-                f"Expected: ~2060 (rank ~#4-6)\n\n"
-                f"Action required: Run 'python scripts/apply_scorer_boost.py'\n"
-                f"{'=' * 80}\n"
-            )
-            raise ValueError(error_msg)
-
-        print(f"[OK] Player ratings validated (Gobert: #{gobert_rank}, Curry: #{curry_rank})")
+    print(f"[OK] Player ratings validated ({len(player_ratings)} players)")
 
 def load_data():
     """Load all necessary data files on startup."""
@@ -165,6 +154,38 @@ def load_data():
     DATA['blend_weight'] = 0.7  # Optimal from Phase 4D
     DATA['home_advantage'] = 30  # Calibrated to actual 2024-25 home win rate (54.33%)
 
+    # Initialize Phase 4 components
+    print("Initializing Phase 4 accuracy features...")
+
+    # 1. Head-to-Head Tracker
+    DATA['h2h_tracker'] = HeadToHeadTracker(
+        lookback_games=DATA['h2h_lookback_games'],
+        max_adjustment=DATA['h2h_max_adjustment']
+    )
+    print(f"  [OK] H2H Tracker (lookback={DATA['h2h_lookback_games']}, max_adj={DATA['h2h_max_adjustment']})")
+
+    # 2. Season Calibrator
+    DATA['season_calibrator'] = SeasonCalibrator(
+        games_for_full_confidence=DATA['season_confidence_games'],
+        min_confidence=DATA['season_min_confidence']
+    )
+    print(f"  [OK] Season Calibrator (games={DATA['season_confidence_games']}, min_conf={DATA['season_min_confidence']})")
+
+    # 3. Hybrid Predictor with Adaptive Weighting
+    DATA['hybrid_predictor'] = HybridPredictor(
+        blend_weight=DATA['blend_weight'],
+        home_advantage=DATA['home_advantage'],
+        use_adaptive_weighting=DATA['use_adaptive_weighting'],
+        close_game_threshold=DATA['close_game_threshold']
+    )
+
+    # Load ratings into hybrid predictor
+    DATA['hybrid_predictor'].load_team_ratings('data/exports/team_elo_history_phase_1_6.csv')
+    DATA['hybrid_predictor'].load_player_ratings('data/exports/player_ratings_bpm_adjusted.csv')
+    print(f"  [OK] Hybrid Predictor (adaptive={DATA['use_adaptive_weighting']}, threshold={DATA['close_game_threshold']})")
+
+    print("Phase 4 features initialized!")
+
     print(f"Loaded {len(DATA['team_ratings'])} teams")
     print(f"Loaded {len(DATA['player_ratings'])} players")
     print(f"Loaded {len(DATA['games'])} games")
@@ -183,9 +204,20 @@ def index():
         seasons = f"{min_year}-{max_year}"
         # Convert date to proper string format (YYYYMMDD -> YYYY-MM-DD)
         latest_date = games['date'].max()
-        latest_date_str = str(latest_date).split()[0]  # Handle datetime/Timestamp objects
-        # Ensure it's 8 digits (YYYYMMDD format)
-        if len(latest_date_str) >= 8:
+
+        # Handle different date types (int, numpy int, Timestamp, datetime)
+        if isinstance(latest_date, (int, np.integer)):
+            latest_date_str = str(latest_date)
+        elif hasattr(latest_date, 'strftime'):
+            # It's a datetime/Timestamp, format it properly
+            latest_date_str = latest_date.strftime('%Y%m%d')
+        else:
+            # Try converting to string and cleaning
+            latest_date_str = str(latest_date).replace('-', '').split()[0]
+
+        # Ensure it's exactly 8 digits (YYYYMMDD format)
+        latest_date_str = latest_date_str.strip()
+        if len(latest_date_str) == 8 and latest_date_str.isdigit():
             last_updated = f"{latest_date_str[:4]}-{latest_date_str[4:6]}-{latest_date_str[6:8]}"
         else:
             last_updated = "Unknown"
@@ -548,6 +580,115 @@ def performance_page():
     return render_template('performance.html')
 
 
+@app.route('/performance/settings')
+def performance_settings_page():
+    """Phase 4 model parameters and settings monitoring."""
+    return render_template('performance_settings.html')
+
+
+@app.route('/api/model-settings')
+def get_model_settings():
+    """Get current Phase 4 model parameters and settings."""
+    try:
+        # Get current accuracy from prediction tracking
+        tracking_file = Path('data/exports/prediction_tracking.csv')
+        current_accuracy = None
+        total_predictions = 0
+
+        if tracking_file.exists():
+            df = pd.read_csv(tracking_file)
+            completed = df[df['actual_winner'].notna()]
+            if len(completed) > 0:
+                correct = completed['correct'].sum()
+                total_predictions = len(completed)
+                current_accuracy = (correct / total_predictions * 100)
+
+        settings = {
+            'phase4_features': {
+                'h2h_tracker': {
+                    'enabled': DATA['use_h2h'],
+                    'lookback_games': DATA['h2h_lookback_games'],
+                    'max_adjustment': DATA['h2h_max_adjustment'],
+                    'description': 'Tracks recent head-to-head matchups between teams'
+                },
+                'adaptive_weighting': {
+                    'enabled': DATA['use_adaptive_weighting'],
+                    'close_game_threshold': DATA['close_game_threshold'],
+                    'close_weights': DATA['hybrid_predictor'].close_game_weights if DATA['hybrid_predictor'] else {},
+                    'default_weights': DATA['hybrid_predictor'].default_weights if DATA['hybrid_predictor'] else {},
+                    'description': 'Different weights for close vs non-close games'
+                },
+                'season_calibration': {
+                    'enabled': DATA['use_season_calibration'],
+                    'games_for_full_confidence': DATA['season_confidence_games'],
+                    'min_confidence': DATA['season_min_confidence'],
+                    'description': 'Reduces confidence early in season'
+                }
+            },
+            'core_parameters': {
+                'blend_weight': DATA['blend_weight'],
+                'home_advantage': DATA['home_advantage'],
+                'team_elo_k_factor': DATA['elo_engine'].k_factor if DATA['elo_engine'] else 20,
+                'use_mov': DATA['elo_engine'].use_mov if DATA['elo_engine'] else True,
+                'use_enhanced_features': DATA['elo_engine'].use_enhanced_features if DATA['elo_engine'] else True
+            },
+            'performance_metrics': {
+                'current_accuracy': f"{current_accuracy:.2f}%" if current_accuracy else "N/A",
+                'total_predictions': total_predictions,
+                'target_accuracy': "68-70%",
+                'industry_baseline': "68-72%"
+            },
+            'data_status': {
+                'teams_tracked': len(DATA['team_ratings']) if DATA['team_ratings'] is not None else 0,
+                'players_tracked': len(DATA['player_ratings']) if DATA['player_ratings'] is not None else 0,
+                'games_in_database': len(DATA['games']) if DATA['games'] is not None else 0,
+                'latest_game_date': str(DATA['games']['date'].max()) if DATA['games'] is not None and len(DATA['games']) > 0 else 'Unknown'
+            }
+        }
+
+        return jsonify(settings)
+
+    except Exception as e:
+        print(f"[ERROR] Failed to get model settings: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/model-settings/update', methods=['POST'])
+def update_model_settings():
+    """Update Phase 4 model settings (feature toggles only, not parameters)."""
+    try:
+        data = request.json
+
+        # Update feature toggles
+        if 'use_h2h' in data:
+            DATA['use_h2h'] = bool(data['use_h2h'])
+
+        if 'use_adaptive_weighting' in data:
+            DATA['use_adaptive_weighting'] = bool(data['use_adaptive_weighting'])
+            # Update hybrid predictor
+            if DATA['hybrid_predictor']:
+                DATA['hybrid_predictor'].use_adaptive_weighting = DATA['use_adaptive_weighting']
+
+        if 'use_season_calibration' in data:
+            DATA['use_season_calibration'] = bool(data['use_season_calibration'])
+
+        return jsonify({
+            'success': True,
+            'message': 'Settings updated successfully',
+            'settings': {
+                'use_h2h': DATA['use_h2h'],
+                'use_adaptive_weighting': DATA['use_adaptive_weighting'],
+                'use_season_calibration': DATA['use_season_calibration']
+            }
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Failed to update settings: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/past-games')
 def past_games_page():
     """View past games with predictions and results."""
@@ -580,7 +721,12 @@ def get_past_games():
         # Filter by days if not "all"
         if days != 'all':
             days_int = int(days)
-            cutoff_date = datetime.now() - timedelta(days=days_int)
+            # For "yesterday" (days=1), we want games from yesterday specifically
+            # So we look at games from the last 2 days to ensure we catch yesterday's games
+            if days_int == 1:
+                cutoff_date = datetime.now() - timedelta(days=2)
+            else:
+                cutoff_date = datetime.now() - timedelta(days=days_int)
             filtered = completed[completed['date'] >= cutoff_date].copy()
         else:
             filtered = completed.copy()
@@ -667,11 +813,44 @@ def get_game_players():
 
         boxscores_df = pd.read_csv(boxscore_file, low_memory=False)
 
-        # Filter for this specific game
+        # Filter for this specific game by game_id
         game_boxscores = boxscores_df[boxscores_df['game_id'] == game_id]
 
+        # If not found by game_id, try matching by date and teams
+        # (older games may have different game_id format)
         if game_boxscores.empty:
-            print(f"[WARNING] No box scores found for game_id={game_id}")
+            print(f"[INFO] No box scores found for game_id={game_id}, trying date/team match...")
+
+            # Load all games with dates to find matching game_id in boxscores
+            # We need to find the NBA API game_id that corresponds to this date/matchup
+            from nba_api.stats.endpoints import scoreboardv2
+            try:
+                # Try to fetch the scoreboard for this specific date
+                game_date_obj = pd.to_datetime(game_date, format='%Y%m%d')
+                scoreboard = scoreboardv2.ScoreboardV2(
+                    game_date=game_date_obj.strftime('%m/%d/%Y'),
+                    timeout=10
+                )
+                line_score = scoreboard.get_data_frames()[1]
+
+                # Find the matching game in the scoreboard
+                for nba_game_id in line_score['GAME_ID'].unique():
+                    game_teams = line_score[line_score['GAME_ID'] == nba_game_id]
+                    if len(game_teams) >= 2:
+                        # Check if teams match (first row is away, second is home)
+                        nba_home_team = game_teams.iloc[1]['TEAM_CITY_NAME'] + ' ' + game_teams.iloc[1]['TEAM_NAME']
+                        nba_away_team = game_teams.iloc[0]['TEAM_CITY_NAME'] + ' ' + game_teams.iloc[0]['TEAM_NAME']
+
+                        if nba_home_team == home_team_name and nba_away_team == away_team_name:
+                            # Found the matching game! Use this game_id
+                            print(f"[INFO] Found NBA API game_id: {nba_game_id} for {away_team_name} @ {home_team_name}")
+                            game_boxscores = boxscores_df[boxscores_df['game_id'] == int(nba_game_id)]
+                            break
+            except Exception as e:
+                print(f"[WARNING] Could not fetch live game_id: {e}")
+
+        if game_boxscores.empty:
+            print(f"[WARNING] No box scores found for {away_team_name} @ {home_team_name} on {game_date}")
             return get_team_roster_fallback(home_team_id, away_team_id)
 
         # Create NBA API team abbreviation to our team name mapping
@@ -707,7 +886,44 @@ def get_game_players():
         home_dnp = home_boxscores[home_boxscores['didNotPlay'] == True]
         away_dnp = away_boxscores[away_boxscores['didNotPlay'] == True]
 
+        # Calculate team records up to this game date (current season only)
+        game_date_obj = pd.to_datetime(game_date, format='%Y%m%d')
+        games_df['date'] = pd.to_datetime(games_df['date'], format='%Y%m%d')
+
+        # Determine current season based on game date
+        # NBA season runs Oct-June, so if month >= 10, it's the start of season (year-year+1)
+        # Otherwise it's the end of season (year-1-year)
+        if game_date_obj.month >= 10:
+            season_start = pd.to_datetime(f"{game_date_obj.year}1001", format='%Y%m%d')
+        else:
+            season_start = pd.to_datetime(f"{game_date_obj.year - 1}1001", format='%Y%m%d')
+
+        # Get games from current season before this date, regular season only
+        games_before = games_df[
+            (games_df['date'] >= season_start) &
+            (games_df['date'] < game_date_obj) &
+            (games_df['season_type'] == 'regular')
+        ]
+
+        # Calculate home team record
+        home_games = games_before[
+            (games_before['home_team_id'] == home_team_id) |
+            (games_before['away_team_id'] == home_team_id)
+        ]
+        home_wins = len(home_games[home_games['winner_team_id'] == home_team_id])
+        home_losses = len(home_games[home_games['winner_team_id'].notna()]) - home_wins
+
+        # Calculate away team record
+        away_games = games_before[
+            (games_before['home_team_id'] == away_team_id) |
+            (games_before['away_team_id'] == away_team_id)
+        ]
+        away_wins = len(away_games[away_games['winner_team_id'] == away_team_id])
+        away_losses = len(away_games[away_games['winner_team_id'].notna()]) - away_wins
+
         response = {
+            'home_team_record': f"{home_wins}-{home_losses}",
+            'away_team_record': f"{away_wins}-{away_losses}",
             'home_top_scorers': [
                 {
                     'name': row['player_name'],
@@ -785,7 +1001,7 @@ def get_team_roster_fallback(home_team_id, away_team_id):
             ],
             'home_injuries': [],
             'away_injuries': [],
-            'note': 'Box score data not available for this game. Showing top 3 players by ELO rating.'
+            'note': 'Box scores for this game not yet fetched. Run Quick Update to fetch recent box scores (1-2 min) or Full Update for entire season (5-10 min). Showing top 3 players by ELO rating as fallback.'
         }
 
         return jsonify(response)
@@ -800,11 +1016,21 @@ def betting_page():
     return render_template('betting.html')
 
 
+@app.route('/api/betting/test')
+def test_endpoint():
+    """Test endpoint to debug routing."""
+    return jsonify({'status': 'ok', 'message': 'Test endpoint works!'})
+
+
 @app.route('/api/betting/daily-recommendations')
 def get_daily_betting_recommendations():
-    """Get daily low-risk betting recommendations."""
+    """Get daily low-risk betting recommendations using live NBA schedule data."""
+    print("[BETTING ENDPOINT] Called!", flush=True)
     try:
+        from nba_api.stats.endpoints import scoreboardv2
+
         date_str = request.args.get('date', 'today')
+        print(f"[BETTING] Requested date: {date_str}", flush=True)
 
         # Parse date
         if date_str == 'today':
@@ -814,38 +1040,127 @@ def get_daily_betting_recommendations():
         else:
             target_date = datetime.strptime(date_str, '%Y-%m-%d')
 
-        # Get predictions for target date
+        # Fetch live NBA schedule for target date with retry logic
+        print(f"[BETTING] Fetching NBA schedule for {target_date.strftime('%Y-%m-%d')}...", flush=True)
+
+        max_retries = 3
+        retry_delay = 2
+        line_score = None
+
+        for attempt in range(max_retries):
+            try:
+                scoreboard = scoreboardv2.ScoreboardV2(
+                    game_date=target_date.strftime('%m/%d/%Y'),
+                    timeout=30
+                )
+                print("[BETTING] Scoreboard fetched, getting dataframes...", flush=True)
+                line_score = scoreboard.get_data_frames()[1]  # LineScore has team details
+                print(f"[BETTING] Line score has {len(line_score)} rows", flush=True)
+                break  # Success!
+            except Exception as e:
+                print(f"[BETTING] Attempt {attempt + 1}/{max_retries} failed: {e}", flush=True)
+                if attempt < max_retries - 1:
+                    import time
+                    print(f"[BETTING] Retrying in {retry_delay} seconds...", flush=True)
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    raise Exception(f"NBA API connection failed after {max_retries} attempts. The NBA API may be temporarily unavailable. Please try again in a few minutes.")
+
+        # Create team name to ID mapping from our database
+        team_name_to_id = {}
+        for _, team in DATA['team_ratings'][['team_id', 'team_name']].drop_duplicates().iterrows():
+            team_name_to_id[team['team_name']] = team['team_id']
+
+        # Add team name variations (NBA API vs our database)
+        team_name_variations = {
+            'LA Clippers': 'Los Angeles Clippers',
+        }
+        for nba_name, db_name in team_name_variations.items():
+            if db_name in team_name_to_id:
+                team_name_to_id[nba_name] = team_name_to_id[db_name]
+
+        # Group by game_id to get matchups (each game has 2 rows - home and away)
+        games = []
+        for game_id in line_score['GAME_ID'].unique():
+            game_teams = line_score[line_score['GAME_ID'] == game_id]
+
+            # Only process if game hasn't been played (PTS is None for scheduled games)
+            if game_teams.iloc[0]['PTS'] is None:
+                # First row is away team, second is home team in NBA API
+                away_team = game_teams.iloc[0]
+                home_team = game_teams.iloc[1]
+
+                # Build team names
+                home_team_name = home_team['TEAM_CITY_NAME'] + ' ' + home_team['TEAM_NAME']
+                away_team_name = away_team['TEAM_CITY_NAME'] + ' ' + away_team['TEAM_NAME']
+
+                # Map to our database team IDs
+                home_team_id = team_name_to_id.get(home_team_name)
+                away_team_id = team_name_to_id.get(away_team_name)
+
+                if home_team_id is None or away_team_id is None:
+                    print(f"[WARNING] Team not found in database: {home_team_name if home_team_id is None else away_team_name}", flush=True)
+                    continue
+
+                games.append({
+                    'game_id': game_id,
+                    'home_team_id': int(home_team_id),
+                    'home_team_name': home_team_name,
+                    'away_team_id': int(away_team_id),
+                    'away_team_name': away_team_name,
+                })
+
+        print(f"[BETTING] Found {len(games)} scheduled games")
+
+        # Fetch injury data once for all games
+        print("[BETTING] Fetching injury data from ESPN...", flush=True)
+        injury_data = get_injury_report()
+
+        # Generate predictions for each game
         predictions = []
-        games_df = pd.read_csv('data/raw/nba_games_all.csv')
+        for game in games:
+            try:
+                # Get injuries for both teams
+                home_injuries = get_key_injuries_for_team(game['home_team_name'], injury_data)
+                away_injuries = get_key_injuries_for_team(game['away_team_name'], injury_data)
 
-        for game in games_df.itertuples():
-            game_date = pd.to_datetime(str(game.date), format='%Y%m%d').date()
+                # Extract just player names for the prediction function
+                home_injury_names = [inj['name'] for inj in home_injuries if inj.get('status') in ['Out', 'Questionable']]
+                away_injury_names = [inj['name'] for inj in away_injuries if inj.get('status') in ['Out', 'Questionable']]
 
-            if game_date == target_date.date():
-                # Only predict if game hasn't been played yet
-                if pd.isna(game.home_score) or game.home_score == 0:
-                    try:
-                        prediction = predict_game_hybrid(
-                            game.home_team_id,
-                            game.away_team_id,
-                            game.date
-                        )
+                prediction = predict_game_hybrid(
+                    home_team_id=game['home_team_id'],
+                    away_team_id=game['away_team_id'],
+                    team_ratings=DATA['team_ratings'],
+                    player_ratings=DATA['player_ratings'],
+                    player_team_mapping=DATA['player_team_mapping'],
+                    home_injuries=home_injury_names,
+                    away_injuries=away_injury_names,
+                    games_history=DATA['games'],
+                    team_locations=DATA['team_locations'],
+                    game_date=target_date
+                )
 
-                        predictions.append({
-                            'game_id': game.game_id,
-                            'date': game_date.strftime('%Y-%m-%d'),
-                            'home_team_id': game.home_team_id,
-                            'home_team_name': game.home_team_name,
-                            'away_team_id': game.away_team_id,
-                            'away_team_name': game.away_team_name,
-                            'predicted_home_prob': prediction['home_win_prob'],
-                            'predicted_away_prob': prediction['away_win_prob'],
-                            'predicted_winner': prediction['predicted_winner'],
-                            'confidence': prediction['confidence']
-                        })
-                    except Exception as e:
-                        print(f"Error predicting game {game.game_id}: {e}")
-                        continue
+                # Determine predicted winner
+                predicted_winner = game['home_team_name'] if prediction['home_win_probability'] > 0.5 else game['away_team_name']
+
+                predictions.append({
+                    'game_id': game['game_id'],
+                    'date': target_date.strftime('%Y-%m-%d'),
+                    'home_team_id': game['home_team_id'],
+                    'home_team_name': game['home_team_name'],
+                    'away_team_id': game['away_team_id'],
+                    'away_team_name': game['away_team_name'],
+                    'predicted_home_prob': prediction['home_win_probability'],
+                    'predicted_away_prob': prediction['away_win_probability'],
+                    'predicted_winner': predicted_winner,
+                    'confidence': prediction['confidence']
+                })
+                print(f"[BETTING] Predicted: {game['away_team_name']} @ {game['home_team_name']} -> {predicted_winner} ({prediction['home_win_probability']:.1%})", flush=True)
+            except Exception as e:
+                print(f"[ERROR] Failed to predict game {game['game_id']}: {e}")
+                continue
 
         # Generate betting analysis
         analyzer = BettingAnalyzer()
@@ -854,10 +1169,77 @@ def get_daily_betting_recommendations():
         return jsonify(report)
 
     except Exception as e:
-        print(f"[ERROR] Failed to generate betting recommendations: {e}")
+        print(f"[ERROR] Failed to generate betting recommendations: {e}", flush=True)
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Failed to generate recommendations: {str(e)}'}), 500
+
+
+@app.route('/api/betting/market-odds')
+def get_market_odds():
+    """Fetch live market odds from The Odds API."""
+    print("[MARKET ODDS] Fetching odds from The Odds API...", flush=True)
+    try:
+        from scrapers.odds_api_fetcher import fetch_nba_odds, get_consensus_probability
+
+        # API key from odds_api_fetcher.py
+        API_KEY = 'e1607aa8757797d0b22b442b975b781b'
+
+        # Fetch odds
+        result = fetch_nba_odds(API_KEY)
+
+        if not result['success']:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to fetch odds')
+            }), 500
+
+        games = result['games']
+        print(f"[MARKET ODDS] Found {len(games)} games with odds", flush=True)
+
+        # Transform odds data for frontend
+        odds_by_team = {}
+        for game in games:
+            home_team = game.get('home_team', '')
+            away_team = game.get('away_team', '')
+
+            # Get consensus probabilities
+            home_consensus = get_consensus_probability(game, home_team)
+            away_consensus = get_consensus_probability(game, away_team)
+
+            if home_consensus and away_consensus:
+                # Store by team name for easy lookup
+                odds_by_team[home_team] = {
+                    'probability': home_consensus['probability'],
+                    'american_odds': home_consensus['odds'],
+                    'decimal_odds': 1 / home_consensus['probability'] if home_consensus['probability'] > 0 else 0,
+                    'num_bookmakers': home_consensus['num_books'],
+                    'opponent': away_team
+                }
+                odds_by_team[away_team] = {
+                    'probability': away_consensus['probability'],
+                    'american_odds': away_consensus['odds'],
+                    'decimal_odds': 1 / away_consensus['probability'] if away_consensus['probability'] > 0 else 0,
+                    'num_bookmakers': away_consensus['num_books'],
+                    'opponent': home_team
+                }
+
+        return jsonify({
+            'success': True,
+            'games_count': len(games),
+            'odds_by_team': odds_by_team,
+            'credits_used': result.get('credits_used', 'unknown'),
+            'credits_remaining': result.get('credits_remaining', 'unknown')
+        })
+
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch market odds: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @app.route('/newsletter')
@@ -1051,8 +1433,26 @@ def predict_season():
 def api_predict_today():
     """API endpoint to get today's game predictions with injury impact analysis."""
     try:
-        from datetime import datetime
+        from datetime import datetime, timedelta
         from src.scrapers.nba_api_data_fetcher import get_todays_games
+
+        # Get date parameter (default to 'today')
+        date_str = request.args.get('date', 'today')
+
+        # Calculate target date
+        if date_str == 'today':
+            target_date = datetime.now()
+        elif date_str == 'tomorrow':
+            target_date = datetime.now() + timedelta(days=1)
+        else:
+            # Custom date format (YYYY-MM-DD)
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'error': 'Invalid date format. Use "today", "tomorrow", or YYYY-MM-DD'}), 400
+
+        # Format date for NBA API (expects YYYY-MM-DD)
+        formatted_date = target_date.strftime('%Y-%m-%d')
 
         # Helper function for injury impact using real ESPN injury data
         def get_injury_impact_analysis(team_name, player_ratings, player_team_mapping, injury_data=None):
@@ -1143,13 +1543,13 @@ def api_predict_today():
                 print(f"[ERROR] Injury impact analysis failed for {team_name}: {str(e)}")
                 return []
 
-        # Get today's games from NBA API
+        # Get games from NBA API for the specified date
         try:
-            games = get_todays_games()
+            games = get_todays_games(formatted_date)
             if len(games) == 0:
-                print("[INFO] No games scheduled for today")
+                print(f"[INFO] No games scheduled for {date_str}")
         except Exception as e:
-            print(f"[ERROR] Failed to fetch today's games from NBA API: {e}")
+            print(f"[ERROR] Failed to fetch games from NBA API for {date_str}: {e}")
             print("[INFO] Returning empty game list")
             games = []
 
@@ -1245,12 +1645,105 @@ def api_predict_today():
 
 @app.route('/admin/update-database', methods=['POST'])
 def admin_update_database():
-    """Trigger daily database update (runs in background)."""
+    """Quick incremental update - fetch new games and update predictions (30-60 seconds)."""
+    try:
+        from datetime import datetime
+        import time
+
+        start_time = time.time()
+        results = []
+
+        # Step 1: Fetch new games from NBA API (fast)
+        results.append("[STEP 1/3] Fetching new games from NBA API...")
+        try:
+            from src.scrapers.nba_game_fetcher import fetch_missing_games
+            num_new = fetch_missing_games()
+            if num_new > 0:
+                results.append(f"[OK] Fetched {num_new} new games")
+            else:
+                results.append("[OK] No new games available")
+        except Exception as e:
+            results.append(f"[WARNING] Game fetch had issues: {str(e)}")
+
+        # Step 2: Fetch box scores for recent games (fast - only missing games)
+        results.append("\n[STEP 2/4] Fetching box scores for recent games...")
+        try:
+            import subprocess
+            boxscore_result = subprocess.run(
+                [sys.executable, 'scripts/fetch_recent_boxscores.py', '--days', '7'],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',  # Fix Unicode encoding on Windows
+                timeout=90  # Allow up to 90 seconds for box scores
+            )
+            if boxscore_result.returncode == 0:
+                # Extract summary line
+                for line in boxscore_result.stdout.split('\n'):
+                    if 'Successfully fetched' in line or 'Player records added' in line or 'already have box scores' in line:
+                        results.append(f"  {line.strip()}")
+            else:
+                results.append("[WARNING] Box score fetch had issues")
+        except Exception as e:
+            results.append(f"[WARNING] Box score fetch error: {str(e)}")
+
+        # Step 3: Update prediction tracking (fast)
+        results.append("\n[STEP 3/4] Updating prediction tracking...")
+        try:
+            import subprocess
+            tracking_result = subprocess.run(
+                [sys.executable, 'scripts/auto_track_predictions.py'],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if tracking_result.returncode == 0:
+                # Extract summary
+                for line in tracking_result.stdout.split('\n'):
+                    if 'Tracked' in line or 'Accuracy' in line:
+                        results.append(f"  {line.strip()}")
+            else:
+                results.append("[WARNING] Prediction tracking had issues")
+        except Exception as e:
+            results.append(f"[WARNING] Prediction tracking error: {str(e)}")
+
+        # Step 4: Reload data into Flask (fast)
+        results.append("\n[STEP 4/4] Reloading data into web interface...")
+        try:
+            load_data()
+            latest_date = DATA['games']['date'].max()
+            results.append(f"[OK] Data reloaded: {len(DATA['games'])} games, latest: {latest_date}")
+        except Exception as e:
+            results.append(f"[ERROR] Data reload failed: {str(e)}")
+
+        elapsed = time.time() - start_time
+        results.append(f"\n[OK] Quick update complete in {elapsed:.1f} seconds")
+        results.append("\nNote: ELO ratings will be recalculated on next full update.")
+
+        return jsonify({
+            'success': True,
+            'message': '\n'.join(results),
+            'elapsed_seconds': round(elapsed, 1),
+            'games_fetched': num_new if 'num_new' in locals() else 0
+        })
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'details': error_details
+        }), 500
+
+
+@app.route('/admin/full-update', methods=['POST'])
+def admin_full_update():
+    """Trigger full database update with ELO recalc (runs in background, 5-10 min)."""
     try:
         import subprocess
         import os
 
-        # Run daily update script in background (no timeout)
+        # Run daily update script in background
         process = subprocess.Popen(
             ['python', 'scripts/daily_update.py'],
             stdout=subprocess.PIPE,
@@ -1261,13 +1754,13 @@ def admin_update_database():
             cwd=os.path.dirname(os.path.abspath(__file__))
         )
 
-        # Store process in global dict for status checking
+        # Store process for status checking
         global UPDATE_PROCESS
         UPDATE_PROCESS = process
 
         return jsonify({
             'success': True,
-            'message': 'Update started in background. Check status for progress.',
+            'message': 'Full update started in background. Check status for progress.',
             'pid': process.pid
         })
 

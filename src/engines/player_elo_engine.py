@@ -20,6 +20,46 @@ from src.utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
+# ---------------------------------------------------------------------------
+# Position-based ELO adjustment multipliers
+#
+# BPM systematically OVERVALUES rim protectors (high rebounds, low turnovers,
+# team defense credit) and UNDERVALUES elite shot creators (gravity, spacing,
+# pick-and-roll mastery don't show in box score).
+#
+# Multipliers are applied post-hoc to stored ELO ratings.
+# To add a player: put their exact name and the multiplier.
+# ---------------------------------------------------------------------------
+
+# Rim protectors: BPM inflated by ~250-300 pts — reduce by 10%
+RIM_PROTECTORS = {
+    'Rudy Gobert', 'Jarrett Allen', 'Ivica Zubac', 'Brook Lopez',
+    'Mitchell Robinson', 'Clint Capela', 'Walker Kessler', 'Mark Williams',
+    'Isaiah Hartenstein', 'Onyeka Okongwu', 'Robert Williams III',
+    'Precious Achiuwa', 'Bismack Biyombo', 'Nerlens Noel',
+}
+RIM_PROTECTOR_MULTIPLIER = 0.90
+
+# Elite shot creators / playmakers: BPM undervalues gravity, spacing, creation
+# off the dribble. Boost by 8%.
+SHOT_CREATORS = {
+    'Stephen Curry', 'Steph Curry',
+    'James Harden',
+    'Damian Lillard',
+    'Trae Young',
+    'De\'Aaron Fox',
+    'Tyrese Haliburton',
+    'LaMelo Ball',
+}
+SHOT_CREATOR_MULTIPLIER = 1.08
+
+# Build a single lookup: name (lower) -> multiplier
+POSITION_MULTIPLIERS: Dict[str, float] = {}
+for _name in RIM_PROTECTORS:
+    POSITION_MULTIPLIERS[_name.lower()] = RIM_PROTECTOR_MULTIPLIER
+for _name in SHOT_CREATORS:
+    POSITION_MULTIPLIERS[_name.lower()] = SHOT_CREATOR_MULTIPLIER
+
 
 class PlayerELOEngine:
     """Engine for computing player-level ELO ratings."""
@@ -213,9 +253,16 @@ class PlayerELOEngine:
             'rating_change': rating_change
         })
 
+    def _get_position_multiplier(self, player_id: str) -> float:
+        """Return the position-adjustment multiplier for a player (default 1.0)."""
+        name = self.player_metadata[player_id].get('name', '').lower()
+        return POSITION_MULTIPLIERS.get(name, 1.0)
+
     def get_player_rating(self, player_id: str) -> float:
-        """Get current rating for a player."""
-        return self.current_ratings.get(player_id, self.base_rating)
+        """Get position-adjusted rating for a player."""
+        raw = self.current_ratings.get(player_id, self.base_rating)
+        multiplier = self._get_position_multiplier(player_id)
+        return raw * multiplier
 
     def get_team_rating(self, player_ids: List[str], minutes: List[float]) -> float:
         """
@@ -258,11 +305,12 @@ class PlayerELOEngine:
         """
         qualified_players = []
 
-        for player_id, rating in self.current_ratings.items():
+        for player_id, raw_rating in self.current_ratings.items():
             games = self.player_metadata[player_id]['games']
             if games >= min_games:
                 player_name = self.player_metadata[player_id]['name']
-                qualified_players.append((player_id, player_name, rating, games))
+                adjusted = raw_rating * self._get_position_multiplier(player_id)
+                qualified_players.append((player_id, player_name, adjusted, games))
 
         # Sort by rating descending
         qualified_players.sort(key=lambda x: x[2], reverse=True)
@@ -277,20 +325,23 @@ class PlayerELOEngine:
         return pd.DataFrame(self.rating_history)
 
     def export_current_ratings(self) -> pd.DataFrame:
-        """Export current player ratings as DataFrame."""
+        """Export current player ratings as DataFrame (position-adjusted)."""
         data = []
-        for player_id, rating in self.current_ratings.items():
+        for player_id, raw_rating in self.current_ratings.items():
             metadata = self.player_metadata[player_id]
+            multiplier = self._get_position_multiplier(player_id)
+            adjusted = raw_rating * multiplier
             data.append({
                 'player_id': player_id,
                 'player_name': metadata['name'],
-                'rating': rating,
+                'rating': adjusted,           # position-adjusted (used everywhere)
+                'raw_rating': raw_rating,     # pre-adjustment (for diagnostics)
+                'position_multiplier': multiplier,
                 'games_played': metadata['games'],
                 'last_season': metadata['last_season']
             })
 
         df = pd.DataFrame(data)
-        # Sort by rating descending
         df = df.sort_values('rating', ascending=False)
         return df
 

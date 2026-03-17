@@ -223,9 +223,7 @@ def get_todays_games(date_str=None):
             # gameStatus: 1=scheduled, 2=live, 3=final
             game_status = game.get('gameStatus', 0)
 
-            # Include scheduled and live games (exclude only final games)
-            if game_status == 3:
-                continue
+            # Include all games: scheduled (1), live (2), and final (3)
 
             # Filter by date using appropriate method for each API
             # Live API: use gameCode (format: YYYYMMDD/AWYHOME)
@@ -282,19 +280,20 @@ def get_todays_games(date_str=None):
             game_et = game.get('gameEt', '')
             game_status_text = game.get('gameStatusText', '')
 
-            # For scoreboardv2, the game time is in gameStatusText (e.g., "7:30 pm ET")
-            # For live API, we need to parse gameEt
-            if game_status_text and ('pm et' in game_status_text.lower() or 'am et' in game_status_text.lower()):
-                # scoreboardv2 format - use the status text directly as time
+            # Live games always use the clock/quarter text (e.g. "Q4 4:54")
+            # Final games use 'Final'; scheduled games parse the scheduled time
+            if game_status == 2:
+                time_str = game_status_text if game_status_text else 'LIVE'
+            elif game_status == 3:
+                time_str = 'Final'
+            elif game_status_text and ('pm et' in game_status_text.lower() or 'am et' in game_status_text.lower()):
                 time_str = game_status_text
             elif game_et:
                 try:
-                    # Try format with 'Z' (live API)
                     game_time_obj = datetime.strptime(game_et, '%Y-%m-%dT%H:%M:%SZ')
                     time_str = game_time_obj.strftime('%I:%M %p ET')
                 except ValueError:
                     try:
-                        # Try format without 'Z' (scoreboardv2)
                         game_time_obj = datetime.strptime(game_et, '%Y-%m-%dT%H:%M:%S')
                         time_str = game_time_obj.strftime('%I:%M %p ET')
                     except:
@@ -306,7 +305,6 @@ def get_todays_games(date_str=None):
             if game_status == 1:
                 status_text = 'Scheduled'
             elif game_status == 2:
-                # Get game clock info for live games
                 status_text = game_status_text if game_status_text else 'LIVE'
             else:
                 status_text = 'Final'
@@ -322,10 +320,12 @@ def get_todays_games(date_str=None):
                 'game_id': game.get('gameId', '')
             })
 
-        # If no games found and we're requesting a future date, try CDN fallback
-        if len(games) == 0 and date_str:
-            print(f"[INFO] No games found from API for {date_str}, trying NBA CDN fallback...")
-            cdn_games = fetch_games_from_nba_cdn(date_str)
+        # If no games found, try CDN fallback
+        if len(games) == 0:
+            # Use provided date or today's date
+            fallback_date = date_str if date_str else target_date.strftime('%Y-%m-%d')
+            print(f"[INFO] No games found from API for {fallback_date}, trying NBA CDN fallback...")
+            cdn_games = fetch_games_from_nba_cdn(fallback_date)
 
             if len(cdn_games) > 0:
                 print(f"[SUCCESS] Found {len(cdn_games)} games from NBA CDN")

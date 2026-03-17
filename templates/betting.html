@@ -168,6 +168,39 @@ body.dark-theme .bet-card:hover {
     border-left-color: #fbbf24;
 }
 
+.bet-card.bet-placed {
+    border: 4px solid #10b981 !important;
+    border-left: 8px solid #10b981 !important;
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.08), transparent);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25), 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+    transform: translateX(3px);
+}
+
+body.dark-theme .bet-card.bet-placed {
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05));
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4), 0 4px 16px rgba(16, 185, 129, 0.5) !important;
+}
+
+.bet-checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+    color: #666;
+}
+
+body.dark-theme .bet-checkbox-label {
+    color: #9ca3af;
+}
+
+.bet-placed-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #10b981;
+}
+
 .bet-header {
     display: flex;
     justify-content: space-between;
@@ -315,6 +348,300 @@ body.dark-theme .parlay-bet-item {
 body.dark-theme .no-bets {
     color: #9ca3af;
 }
+
+/* Budget Sidebar Styles */
+.betting-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+}
+
+.budget-sidebar {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    height: fit-content;
+}
+
+body.dark-theme .budget-sidebar {
+    background: #2d2d2d;
+}
+
+.budget-header {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+body.dark-theme .budget-header {
+    color: #3b82f6;
+    border-bottom-color: #374151;
+}
+
+.budget-input-group {
+    margin-bottom: 1.5rem;
+}
+
+.budget-input-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+body.dark-theme .budget-input-label {
+    color: #e8e8e8;
+}
+
+.budget-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+body.dark-theme .budget-input {
+    background: #1a1a1a;
+    border-color: #444;
+    color: #e8e8e8;
+}
+
+.budget-input:focus {
+    outline: none;
+    border-color: #1e3a8a;
+}
+
+.budget-strategy {
+    background: #f3f4f6;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+body.dark-theme .budget-strategy {
+    background: #1a1a1a;
+}
+
+.strategy-label {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+body.dark-theme .strategy-label {
+    color: #9ca3af;
+}
+
+.strategy-selector {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.strategy-option {
+    flex: 1;
+    padding: 0.5rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+body.dark-theme .strategy-option {
+    border-color: #444;
+    background: #2d2d2d;
+}
+
+.strategy-option.active {
+    background: #1e3a8a;
+    color: white;
+    border-color: #1e3a8a;
+}
+
+.strategy-info {
+    font-size: 0.8rem;
+    color: #666;
+    line-height: 1.4;
+}
+
+body.dark-theme .strategy-info {
+    color: #9ca3af;
+}
+
+.budget-summary {
+    background: #ecfdf5;
+    border: 2px solid #10b981;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+body.dark-theme .budget-summary {
+    background: #064e3b;
+    border-color: #10b981;
+}
+
+.budget-summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.budget-summary-item:last-child {
+    margin-bottom: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.budget-summary-label {
+    font-size: 0.9rem;
+    color: #065f46;
+}
+
+body.dark-theme .budget-summary-label {
+    color: #6ee7b7;
+}
+
+.budget-summary-value {
+    font-weight: 700;
+    color: #065f46;
+}
+
+body.dark-theme .budget-summary-value {
+    color: #10b981;
+}
+
+.bet-amount-display {
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+body.dark-theme .bet-amount-display {
+    background: #451a03;
+    border-color: #fbbf24;
+}
+
+.bet-amount-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #92400e;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+body.dark-theme .bet-amount-label {
+    color: #fcd34d;
+}
+
+.bet-amount-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #92400e;
+    margin-bottom: 0.5rem;
+}
+
+body.dark-theme .bet-amount-value {
+    color: #fbbf24;
+}
+
+.bet-amount-profit {
+    font-size: 0.85rem;
+    color: #92400e;
+    margin-top: 0.5rem;
+}
+
+body.dark-theme .bet-amount-profit {
+    color: #fcd34d;
+}
+
+.budget-disclaimer {
+    font-size: 0.75rem;
+    color: #666;
+    line-height: 1.4;
+}
+
+body.dark-theme .budget-disclaimer {
+    color: #9ca3af;
+}
+
+.fetch-odds-button {
+    width: 100%;
+    padding: 0.75rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.fetch-odds-button:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+.fetch-odds-button:active {
+    transform: translateY(0);
+}
+
+.fetch-odds-button:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+}
+
+body.dark-theme .fetch-odds-button {
+    background: #2563eb;
+}
+
+body.dark-theme .fetch-odds-button:hover {
+    background: #1d4ed8;
+}
+
+.min-bet-helper {
+    font-size: 0.7rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+body.dark-theme .min-bet-helper {
+    color: #9ca3af;
+}
+
+@media (max-width: 1024px) {
+    .betting-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .budget-sidebar {
+        position: relative;
+        top: 0;
+        order: -1;
+    }
+}
 </style>
 
 <div class="filter-bar">
@@ -324,13 +651,369 @@ body.dark-theme .no-bets {
 </div>
 
 <div id="statsContainer"></div>
-<div id="recommendationsContainer" class="loading">
-    <div class="loading-spinner"></div>
-    <p>Loading betting recommendations...</p>
+
+<div class="betting-layout">
+    <div id="recommendationsContainer" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading betting recommendations...</p>
+    </div>
+
+    <div class="budget-sidebar">
+        <div class="budget-header">Your Bankroll</div>
+
+        <div class="budget-input-group">
+            <label class="budget-input-label">Budget (Q)</label>
+            <input type="number" class="budget-input" id="budgetInput" placeholder="500" value="500" min="0" step="50" oninput="updateBudgetSummary()">
+        </div>
+
+        <div class="budget-input-group">
+            <label class="budget-input-label">BetCris Minimum Bet (Q)</label>
+            <input type="number" class="budget-input" id="minBetInput" placeholder="70.56" value="70.56" min="0" step="0.01" oninput="updateBudgetSummary()">
+            <div class="min-bet-helper">
+                Set this to match BetCris GT's minimum bet requirement
+            </div>
+        </div>
+
+        <div class="budget-strategy">
+            <div class="strategy-label">Bet Sizing Method</div>
+            <div class="strategy-selector" style="margin-bottom: 0.5rem;">
+                <div class="strategy-option active" onclick="selectBetMethod('fixed', this)" style="flex: 1;">
+                    Fixed %
+                </div>
+                <div class="strategy-option" onclick="selectBetMethod('kelly', this)" style="flex: 1;">
+                    Kelly Criterion
+                </div>
+            </div>
+
+            <div id="fixedPercentageOptions">
+                <div class="strategy-selector">
+                    <div class="strategy-option active" onclick="selectStrategy('conservative', this)">
+                        Conservative<br><small>2%</small>
+                    </div>
+                    <div class="strategy-option" onclick="selectStrategy('moderate', this)">
+                        Moderate<br><small>5%</small>
+                    </div>
+                    <div class="strategy-option" onclick="selectStrategy('aggressive', this)">
+                        Aggressive<br><small>10%</small>
+                    </div>
+                </div>
+                <div class="strategy-info" id="strategyInfo">
+                    Bet 2% of bankroll per game. Recommended for beginners and long-term consistency.
+                </div>
+            </div>
+
+            <div id="kellyOptions" style="display: none;">
+                <div class="strategy-selector">
+                    <div class="strategy-option active" onclick="selectKellyFraction('quarter', this)">
+                        1/4 Kelly<br><small>Conservative</small>
+                    </div>
+                    <div class="strategy-option" onclick="selectKellyFraction('half', this)">
+                        1/2 Kelly<br><small>Moderate</small>
+                    </div>
+                    <div class="strategy-option" onclick="selectKellyFraction('full', this)">
+                        Full Kelly<br><small>Aggressive</small>
+                    </div>
+                </div>
+                <div class="strategy-info" id="kellyInfo">
+                    1/4 Kelly: Optimal bet sizing based on your edge. Recommended for consistent growth.
+                </div>
+            </div>
+        </div>
+
+        <div class="budget-input-group">
+            <button onclick="fetchMarketOdds()" class="fetch-odds-button" id="fetchOddsBtn">
+                <span id="fetchOddsText">Fetch Live Market Odds</span>
+                <span id="fetchOddsSpinner" style="display: none;">⏳</span>
+            </button>
+            <div class="min-bet-helper" id="oddsStatus">
+                Click to get real-time odds from The Odds API
+            </div>
+        </div>
+
+        <div id="marketOddsSection" style="display: none; margin-bottom: 1.5rem;">
+            <div style="background: #eff6ff; border: 2px solid #3b82f6; border-radius: 6px; padding: 1rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #1e40af; margin-bottom: 0.5rem;">
+                    📊 Market Odds Active
+                </div>
+                <div style="font-size: 0.75rem; color: #1e40af; line-height: 1.4;">
+                    Using Kelly Criterion with live market odds for optimal bet sizing.
+                </div>
+                <div id="marketOddsStats" style="font-size: 0.75rem; color: #1e40af; margin-top: 0.5rem;">
+                </div>
+            </div>
+        </div>
+
+        <div class="budget-summary" id="budgetSummary">
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Total Bankroll</span>
+                <span class="budget-summary-value">Q500.00</span>
+            </div>
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Per Bet Amount</span>
+                <span class="budget-summary-value">Q10.00</span>
+            </div>
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Recommended Bets</span>
+                <span class="budget-summary-value">0</span>
+            </div>
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Total Wagered</span>
+                <span class="budget-summary-value">Q0.00</span>
+            </div>
+        </div>
+
+        <div class="budget-disclaimer">
+            <strong>Note:</strong> These are recommendations based on our model. Always gamble responsibly and never bet more than you can afford to lose.
+        </div>
+    </div>
 </div>
 
 <script>
 let currentDate = 'today';
+let currentData = null;
+let currentStrategy = 'conservative';
+let strategyPercentages = {
+    'conservative': 0.02,
+    'moderate': 0.05,
+    'aggressive': 0.10
+};
+let currentBetMethod = 'fixed'; // 'fixed' or 'kelly'
+let currentKellyFraction = 'quarter'; // 'quarter', 'half', 'full'
+let kellyFractions = {
+    'quarter': 0.25,
+    'half': 0.5,
+    'full': 1.0
+};
+let marketOddsData = null;
+
+function selectBetMethod(method, element) {
+    currentBetMethod = method;
+
+    // Update active button
+    const parent = element.parentElement;
+    parent.querySelectorAll('.strategy-option').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    element.classList.add('active');
+
+    // Show/hide appropriate options
+    if (method === 'fixed') {
+        document.getElementById('fixedPercentageOptions').style.display = 'block';
+        document.getElementById('kellyOptions').style.display = 'none';
+    } else {
+        document.getElementById('fixedPercentageOptions').style.display = 'none';
+        document.getElementById('kellyOptions').style.display = 'block';
+    }
+
+    // Update strategy info
+    updateStrategyInfo();
+
+    // Recalculate budget summary
+    updateBudgetSummary();
+}
+
+function selectKellyFraction(fraction, element) {
+    currentKellyFraction = fraction;
+
+    // Update active button
+    const parent = element.parentElement;
+    parent.querySelectorAll('.strategy-option').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    element.classList.add('active');
+
+    // Update strategy info
+    updateStrategyInfo();
+
+    // Recalculate budget summary
+    updateBudgetSummary();
+}
+
+function updateStrategyInfo() {
+    if (currentBetMethod === 'fixed') {
+        const strategyInfos = {
+            'conservative': 'Bet 2% of bankroll per game. Recommended for beginners and long-term consistency.',
+            'moderate': 'Bet 5% of bankroll per game. Balanced approach with higher potential returns.',
+            'aggressive': 'Bet 10% of bankroll per game. Higher risk, higher reward. Not recommended for beginners.'
+        };
+        document.getElementById('strategyInfo').textContent = strategyInfos[currentStrategy];
+    } else {
+        const kellyInfos = {
+            'quarter': 'Kelly Criterion with 1/4 fraction. Most conservative approach, recommended for most bettors. Minimizes risk of ruin.',
+            'half': 'Kelly Criterion with 1/2 fraction. Moderate approach, balances growth with bankroll protection.',
+            'full': 'Full Kelly Criterion. Aggressive approach that maximizes growth but has higher variance. Only for experienced bettors.'
+        };
+        document.getElementById('strategyInfo').textContent = kellyInfos[currentKellyFraction];
+    }
+}
+
+async function fetchMarketOdds() {
+    const button = document.getElementById('fetchOddsBtn');
+    const buttonText = document.getElementById('fetchOddsText');
+    const spinner = document.getElementById('fetchOddsSpinner');
+    const statusDiv = document.getElementById('oddsStatus');
+
+    // Disable button
+    button.disabled = true;
+    buttonText.style.display = 'none';
+    spinner.style.display = 'inline';
+    statusDiv.textContent = 'Fetching live odds from The Odds API...';
+
+    try {
+        const response = await fetch('/api/betting/market-odds');
+        const data = await response.json();
+
+        if (data.success) {
+            marketOddsData = data;
+
+            // Show success status
+            statusDiv.innerHTML = `<span style="color: #10b981;">Market odds loaded! ${data.games_count} games found. Credits remaining: ${data.credits_remaining}</span>`;
+
+            // Show market odds section
+            document.getElementById('marketOddsSection').style.display = 'block';
+            document.getElementById('marketOddsStats').innerHTML = `
+                Games with odds: ${data.games_count}<br>
+                API credits remaining: ${data.credits_remaining}
+            `;
+
+            // Switch to Kelly method if not already
+            if (currentBetMethod === 'fixed') {
+                const kellyButton = document.querySelector('[onclick*="kelly"]');
+                if (kellyButton) {
+                    selectBetMethod('kelly', kellyButton);
+                }
+            }
+
+            // Refresh recommendations with market odds
+            if (currentData) {
+                displayRecommendations(currentData);
+            }
+
+            // Re-enable button after 10 seconds
+            setTimeout(() => {
+                button.disabled = false;
+                buttonText.style.display = 'inline';
+                spinner.style.display = 'none';
+            }, 10000);
+        } else {
+            throw new Error(data.error || 'Failed to fetch market odds');
+        }
+    } catch (error) {
+        console.error('Error fetching market odds:', error);
+        statusDiv.innerHTML = `<span style="color: #dc2626;">Error: ${error.message}. Click to try again.</span>`;
+        button.disabled = false;
+        buttonText.style.display = 'inline';
+        spinner.style.display = 'none';
+        document.getElementById('marketOddsSection').style.display = 'none';
+    }
+}
+
+function selectStrategy(strategy, element) {
+    currentStrategy = strategy;
+
+    // Update active button
+    document.querySelectorAll('#fixedPercentageOptions .strategy-option').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    element.classList.add('active');
+
+    // Update strategy info
+    updateStrategyInfo();
+
+    // Recalculate budget summary
+    updateBudgetSummary();
+}
+
+function updateBudgetSummary() {
+    const budget = parseFloat(document.getElementById('budgetInput').value) || 0;
+    const minBet = parseFloat(document.getElementById('minBetInput').value) || 0;
+
+    let recommendedBetsCount = 0;
+    if (currentData) {
+        // Count only Very Low Risk and Low Risk bets
+        recommendedBetsCount = currentData.very_low_risk_bets.length + currentData.low_risk_bets.length;
+    }
+
+    let summaryHtml = '';
+
+    if (currentBetMethod === 'kelly') {
+        // Kelly Criterion mode - variable bet sizes
+        summaryHtml = `
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Total Bankroll</span>
+                <span class="budget-summary-value">Q${budget.toFixed(2)}</span>
+            </div>
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Bet Sizing</span>
+                <span class="budget-summary-value">Kelly ${currentKellyFraction === 'quarter' ? '1/4' : currentKellyFraction === 'half' ? '1/2' : 'Full'}</span>
+            </div>
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Recommended Bets</span>
+                <span class="budget-summary-value">${recommendedBetsCount}</span>
+            </div>
+            <div class="budget-summary-item" style="background: rgba(59, 130, 246, 0.1); padding: 0.5rem; border-radius: 4px;">
+                <span class="budget-summary-label" style="font-size: 0.75rem; color: #3b82f6;">ℹ️ Variable sizing</span>
+                <span class="budget-summary-value" style="font-size: 0.85rem; color: #3b82f6;">Bets sized by edge</span>
+            </div>
+        `;
+    } else {
+        // Fixed percentage mode
+        const betPercentage = strategyPercentages[currentStrategy];
+        let perBetAmount = budget * betPercentage;
+        const actualBetAmount = Math.max(perBetAmount, minBet);
+        const isAdjusted = actualBetAmount > perBetAmount;
+        const totalWagered = actualBetAmount * recommendedBetsCount;
+
+        summaryHtml = `
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Total Bankroll</span>
+                <span class="budget-summary-value">Q${budget.toFixed(2)}</span>
+            </div>
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Actual Bet Amount</span>
+                <span class="budget-summary-value">Q${actualBetAmount.toFixed(2)}</span>
+            </div>
+            ${isAdjusted ? `
+            <div class="budget-summary-item" style="background: rgba(251, 191, 36, 0.1); padding: 0.5rem; border-radius: 4px; margin-bottom: 0.75rem;">
+                <span class="budget-summary-label" style="font-size: 0.75rem;">⚠️ Adjusted to minimum</span>
+                <span class="budget-summary-value" style="font-size: 0.85rem;">${betPercentage*100}% = Q${perBetAmount.toFixed(2)}</span>
+            </div>
+            ` : ''}
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Recommended Bets</span>
+                <span class="budget-summary-value">${recommendedBetsCount}</span>
+            </div>
+            <div class="budget-summary-item">
+                <span class="budget-summary-label">Total Wagered</span>
+                <span class="budget-summary-value">Q${totalWagered.toFixed(2)}</span>
+            </div>
+            ${isAdjusted && totalWagered > budget ? `
+            <div class="budget-summary-item" style="background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; margin-top: 0.75rem;">
+                <span class="budget-summary-label" style="font-size: 0.75rem; color: #dc2626;">⚠️ Exceeds bankroll!</span>
+                <span class="budget-summary-value" style="font-size: 0.85rem; color: #dc2626;">-Q${(totalWagered - budget).toFixed(2)}</span>
+            </div>
+            ` : ''}
+        `;
+    }
+
+    document.getElementById('budgetSummary').innerHTML = summaryHtml;
+
+    // If we have data loaded, refresh the bet cards to show updated amounts
+    if (currentData) {
+        displayRecommendations(currentData);
+    }
+}
+
+function toggleBetPlaced(betId, isChecked) {
+    const betCard = document.getElementById(betId);
+    if (betCard) {
+        if (isChecked) {
+            betCard.classList.add('bet-placed');
+        } else {
+            betCard.classList.remove('bet-placed');
+        }
+    }
+}
 
 async function loadRecommendations(date, buttonEl) {
     currentDate = date;
@@ -363,12 +1046,31 @@ async function loadRecommendations(date, buttonEl) {
             return;
         }
 
+        currentData = data;
         displayStatistics(data);
         displayRecommendations(data);
+        updateBudgetSummary();
 
     } catch (error) {
         console.error('Error loading recommendations:', error);
-        container.innerHTML = `<div class="card"><div class="no-bets">Error loading recommendations: ${error.message}</div></div>`;
+        container.innerHTML = `
+            <div class="card">
+                <div class="no-bets">
+                    <h3 style="color: #dc2626; margin-bottom: 1rem;">Unable to Load Recommendations</h3>
+                    <p style="margin-bottom: 1rem;">The NBA API connection was interrupted. This happens occasionally due to API rate limits or network issues.</p>
+                    <p style="margin-bottom: 1rem;"><strong>What to do:</strong></p>
+                    <ul style="text-align: left; display: inline-block; margin-bottom: 1rem;">
+                        <li>Wait 30-60 seconds and refresh the page</li>
+                        <li>Try selecting a different date (Today/Tomorrow)</li>
+                        <li>Check your internet connection</li>
+                    </ul>
+                    <p style="font-size: 0.9rem; color: #666;">Error details: ${error.message}</p>
+                    <button onclick="loadRecommendations('${currentDate}', null)" style="margin-top: 1rem; padding: 0.75rem 1.5rem; background: #1e3a8a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        `;
     }
 }
 
@@ -487,11 +1189,110 @@ function createBetCard(bet) {
     const probabilityPercent = Math.round(bet.win_probability * 100);
     const oddsDisplay = bet.implied_odds > 0 ? `+${bet.implied_odds}` : bet.implied_odds;
 
+    // Calculate bet amount and potential payout
+    const budget = parseFloat(document.getElementById('budgetInput').value) || 0;
+    const minBet = parseFloat(document.getElementById('minBetInput').value) || 0;
+
+    let suggestedAmount = 0;
+    let betAmount = 0;
+    let isAdjusted = false;
+    let marketOddsInfo = '';
+    let kellyInfo = '';
+    let expectedValue = 0;
+
+    // Check if we're using Kelly Criterion with market odds
+    if (currentBetMethod === 'kelly' && marketOddsData && marketOddsData.odds_by_team) {
+        // Try to find market odds for this team
+        const marketOdds = marketOddsData.odds_by_team[bet.recommended_team];
+
+        if (marketOdds) {
+            // Calculate Kelly Criterion
+            const p = bet.win_probability; // Our win probability
+            const decimalOdds = marketOdds.decimal_odds;
+            const b = decimalOdds - 1; // Profit coefficient
+            const q = 1 - p;
+
+            // Kelly formula: f = (bp - q) / b
+            let kelly = (b * p - q) / b;
+
+            // Apply fractional Kelly
+            const kellyFrac = kellyFractions[currentKellyFraction];
+            kelly = kelly * kellyFrac;
+
+            // Cap at 10% of bankroll for safety
+            kelly = Math.min(kelly, 0.10);
+            kelly = Math.max(kelly, 0); // Don't bet if negative
+
+            suggestedAmount = budget * kelly;
+
+            // Calculate expected value
+            const winProfit = suggestedAmount * b;
+            expectedValue = (p * winProfit) - (q * suggestedAmount);
+
+            // Market odds indicator
+            const marketImpliedProb = marketOdds.probability;
+            const edge = (p - marketImpliedProb) * 100;
+
+            marketOddsInfo = `
+                <div class="detail-item" style="background: #eff6ff; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                    <span class="detail-label">Market Odds</span>
+                    <span class="detail-value">${marketOdds.american_odds > 0 ? '+' : ''}${marketOdds.american_odds.toFixed(0)}</span>
+                </div>
+                <div class="detail-item" style="background: ${edge > 5 ? '#ecfdf5' : '#fef3c7'}; padding: 0.5rem; border-radius: 4px;">
+                    <span class="detail-label">Edge vs Market</span>
+                    <span class="detail-value" style="color: ${edge > 5 ? '#10b981' : '#f59e0b'};">${edge > 0 ? '+' : ''}${edge.toFixed(1)}%</span>
+                </div>
+            `;
+
+            kellyInfo = `
+                <div style="font-size: 0.75rem; color: #3b82f6; margin-bottom: 0.5rem;">
+                    📊 Kelly ${currentKellyFraction === 'quarter' ? '1/4' : currentKellyFraction === 'half' ? '1/2' : 'Full'} sizing with market odds
+                </div>
+            `;
+        } else {
+            // No market odds available, fall back to fixed percentage
+            suggestedAmount = budget * strategyPercentages[currentStrategy];
+        }
+    } else {
+        // Fixed percentage betting
+        const betPercentage = strategyPercentages[currentStrategy];
+        suggestedAmount = budget * betPercentage;
+    }
+
+    // Adjust to minimum bet if needed
+    betAmount = Math.max(suggestedAmount, minBet);
+    isAdjusted = betAmount > suggestedAmount;
+
+    // Calculate potential profit
+    let potentialProfit = 0;
+    if (currentBetMethod === 'kelly' && marketOddsData && marketOddsData.odds_by_team[bet.recommended_team]) {
+        const marketOdds = marketOddsData.odds_by_team[bet.recommended_team];
+        const decimalOdds = marketOdds.decimal_odds;
+        const potentialReturn = betAmount * decimalOdds;
+        potentialProfit = potentialReturn - betAmount;
+    } else {
+        // For fair bet estimation
+        const potentialReturn = betAmount / bet.win_probability;
+        potentialProfit = potentialReturn - betAmount;
+    }
+
+    // Show bet amount for Very Low Risk and Low Risk only
+    const showBetAmount = bet.risk_level === 'VERY LOW RISK' || bet.risk_level === 'LOW RISK';
+
+    // Generate unique ID for this bet card
+    const betId = `bet-${bet.matchup.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}`;
+
     return `
-        <div class="bet-card ${riskClass}">
+        <div class="bet-card ${riskClass}" id="${betId}">
             <div class="bet-header">
                 <div class="matchup">${bet.matchup}</div>
-                <span class="risk-badge risk-${riskClass}">${bet.risk_level}</span>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span class="risk-badge risk-${riskClass}">${bet.risk_level}</span>
+                    <label class="bet-checkbox-label">
+                        <input type="checkbox" class="bet-placed-checkbox" onchange="toggleBetPlaced('${betId}', this.checked)">
+                        <span style="font-size: 0.85rem; margin-left: 0.25rem; white-space: nowrap;">✓ Bet Placed</span>
+                    </label>
+                </div>
             </div>
             <div class="bet-details">
                 <div class="detail-item">
@@ -513,7 +1314,28 @@ function createBetCard(bet) {
                     <span class="detail-label">Implied Odds</span>
                     <span class="odds-display">${oddsDisplay}</span>
                 </div>
+                ${marketOddsInfo}
             </div>
+            ${showBetAmount ? `
+            <div class="bet-amount-display">
+                ${kellyInfo}
+                <div class="bet-amount-label">${isAdjusted ? 'BetCris Minimum Bet' : 'Suggested Bet Amount'}</div>
+                <div class="bet-amount-value">Q${betAmount.toFixed(2)}</div>
+                ${isAdjusted ? `
+                <div style="font-size: 0.75rem; color: #f59e0b; margin-bottom: 0.5rem;">
+                    ⚠️ Strategy suggests Q${suggestedAmount.toFixed(2)}, but BetCris minimum is Q${minBet.toFixed(2)}
+                </div>
+                ` : ''}
+                ${expectedValue > 0 && currentBetMethod === 'kelly' ? `
+                <div style="font-size: 0.75rem; color: #10b981; margin-bottom: 0.5rem;">
+                    Expected Value: <strong>+Q${expectedValue.toFixed(2)}</strong>
+                </div>
+                ` : ''}
+                <div class="bet-amount-profit">
+                    Potential profit: <strong>Q${potentialProfit.toFixed(2)}</strong>
+                </div>
+            </div>
+            ` : ''}
         </div>
     `;
 }

@@ -111,20 +111,51 @@ def main():
         log(f"Teams tracked: {initial_stats['teams_tracked']}")
         log(f"Players tracked: {initial_stats['players_tracked']}")
 
-    # Step 1: ALWAYS fetch new games from NBA API first
+    # Step 1: ALWAYS fetch new games from NBA API first, with CDN fallback
     log("\n--- Step 1: Fetching New Games from NBA API ---")
     num_new_games_fetched = 0
     if not dry_run:
+        api_succeeded = False
         try:
             from src.scrapers.nba_game_fetcher import fetch_missing_games
             num_new_games_fetched = fetch_missing_games()
+            api_succeeded = True
             if num_new_games_fetched > 0:
                 log(f"[OK] Fetched {num_new_games_fetched} new games from NBA API")
             else:
                 log("[OK] No new games available from NBA API")
         except Exception as e:
-            log(f"[ERROR] Game fetch failed: {str(e)}")
-            log("Continuing to check if existing games need processing...")
+            log(f"[WARN] NBA API fetch failed: {str(e)}")
+            log("Falling back to NBA CDN schedule...")
+
+        # CDN fallback: used when API times out or returns nothing but there may still be a gap
+        if not api_succeeded or num_new_games_fetched == 0:
+            try:
+                import pandas as _pd
+                from datetime import datetime as _dt, timedelta as _td
+                _games = _pd.read_csv('data/raw/nba_games_all.csv')
+                _latest = _dt.strptime(str(int(_games['date'].max())), '%Y%m%d')
+                _yesterday = _dt.now() - _td(days=1)
+                if _latest.date() < _yesterday.date():
+                    _start = (_latest + _td(days=1)).strftime('%Y-%m-%d')
+                    _end = _yesterday.strftime('%Y-%m-%d')
+                    log(f"[CDN] Fetching {_start} to {_end} from NBA CDN...")
+                    import subprocess as _sp
+                    _r = _sp.run(
+                        f'python scripts/fetch_missing_from_cdn.py --start {_start} --end {_end}',
+                        shell=True, capture_output=True, text=True, timeout=60
+                    )
+                    log(_r.stdout.strip())
+                    if _r.returncode == 0:
+                        _games2 = _pd.read_csv('data/raw/nba_games_all.csv')
+                        num_new_games_fetched = len(_games2) - len(_games)
+                        log(f"[CDN] Added {num_new_games_fetched} new games via CDN fallback")
+                    else:
+                        log(f"[CDN] CDN fallback failed: {_r.stderr.strip()}")
+                else:
+                    log("[CDN] Database already current through yesterday — no CDN fetch needed")
+            except Exception as e2:
+                log(f"[ERROR] CDN fallback also failed: {str(e2)}")
     else:
         log("[DRY RUN] Skipping game fetch")
 

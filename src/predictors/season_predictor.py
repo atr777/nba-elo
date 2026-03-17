@@ -1,8 +1,8 @@
 """
 Season Predictor - Monte Carlo Simulator
-Phase 1: Core Simulator Component
+Phase 2: Enhanced with Hybrid Predictor
 
-Runs Monte Carlo simulations to project season outcomes using ELO ratings.
+Runs Monte Carlo simulations to project season outcomes using Phase 2 hybrid predictor.
 """
 
 import random
@@ -11,27 +11,36 @@ import logging
 from typing import Dict, List, Optional
 from collections import defaultdict, Counter
 import numpy as np
+import pandas as pd
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
 class SeasonPredictor:
-    """Monte Carlo season simulator using ELO ratings."""
+    """Monte Carlo season simulator using Phase 2 hybrid predictor."""
 
-    def __init__(self, team_elo_engine, current_standings: Dict, remaining_schedule: List[Dict]):
+    def __init__(self, team_ratings, player_ratings, player_team_mapping, games_history,
+                 current_standings: Dict, remaining_schedule: List[Dict]):
         """
-        Initialize season predictor.
+        Initialize season predictor with Phase 2 data.
 
         Args:
-            team_elo_engine: TeamELOEngine instance with current ratings
+            team_ratings: Team ratings DataFrame
+            player_ratings: Player ratings DataFrame
+            player_team_mapping: Player-team mapping DataFrame
+            games_history: Historical games DataFrame for WElo and H2H
             current_standings: Dict[team_id] -> {'wins': int, 'losses': int, 'team_name': str}
             remaining_schedule: List of remaining games from ScheduleFetcher
         """
-        self.elo_engine = team_elo_engine
+        self.team_ratings = team_ratings
+        self.player_ratings = player_ratings
+        self.player_team_mapping = player_team_mapping
+        self.games_history = games_history
         self.standings = current_standings
         self.schedule = remaining_schedule
 
-        logger.info(f"SeasonPredictor initialized: {len(current_standings)} teams, {len(remaining_schedule)} remaining games")
+        logger.info(f"SeasonPredictor initialized (Phase 2): {len(current_standings)} teams, {len(remaining_schedule)} remaining games")
 
     def simulate_season(self, num_sims: int = 10000, use_enhanced: bool = True, seed: Optional[int] = None) -> 'SimulationResults':
         """
@@ -70,17 +79,33 @@ class SeasonPredictor:
                 if game['home_id'] not in sim_standings or game['away_id'] not in sim_standings:
                     continue
 
-                # Get win probability using ELO engine
+                # Get win probability using Phase 2 hybrid predictor
                 try:
-                    prediction = self.elo_engine.predict_game(
+                    from src.predictors.hybrid_team_player import predict_game_hybrid
+
+                    # Parse game date
+                    game_date = game.get('date')
+                    if game_date:
+                        if isinstance(game_date, int):
+                            game_date = datetime.strptime(str(game_date), '%Y%m%d')
+                        elif isinstance(game_date, str):
+                            game_date = datetime.strptime(game_date, '%Y-%m-%d')
+
+                    prediction = predict_game_hybrid(
                         home_team_id=game['home_id'],
                         away_team_id=game['away_id'],
-                        game_date=game['date'] if use_enhanced else None
+                        team_ratings=self.team_ratings,
+                        player_ratings=self.player_ratings,
+                        player_team_mapping=self.player_team_mapping,
+                        home_injuries=[],
+                        away_injuries=[],
+                        games_history=self.games_history,
+                        game_date=game_date
                     )
                     home_win_prob = prediction['home_win_probability']
-                except (ValueError, KeyError) as e:
-                    # Fallback if team not in engine
-                    logger.warning(f"Prediction failed for game {game['home_id']} vs {game['away_id']}: {e}")
+                except (ValueError, KeyError, Exception) as e:
+                    # Fallback if prediction fails
+                    logger.warning(f"Phase 2 prediction failed for game {game['home_id']} vs {game['away_id']}: {e}")
                     home_win_prob = 0.5  # Coin flip
 
                 # Random draw to determine winner

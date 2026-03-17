@@ -186,7 +186,7 @@ def get_injury_impact_analysis(team_name, player_ratings, player_team_mapping=No
     # Merge with player ratings by player name (fuzzy match)
     # Since player IDs are from different sources, we'll match by name
     team_player_ratings = player_ratings.merge(
-        team_players[['player_name', 'position']],
+        team_players[['player_name']],
         on='player_name',
         how='inner',
         suffixes=('', '_mapping')
@@ -445,7 +445,7 @@ def generate_newsletter(featured_game_name=None, all_games=False, date_str=None)
         else:
             schedule_section += f"**{away}** @ **{home}**  \n{time}\n\n"
 
-    output = f"""# NBA ELO Predictions - {header_date}
+    output = f"""# Second Bounce — {header_date}
 
 **Today's Slate: {len(games)} Games**
 

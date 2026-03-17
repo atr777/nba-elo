@@ -10,6 +10,76 @@ from datetime import datetime, timedelta
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from src.utils.file_io import load_csv_to_dataframe
+from src.predictors.hybrid_team_player import predict_game_hybrid
+
+
+def _load_prediction_data():
+    """
+    Load all data required for Phase 2 predictions.
+
+    Returns:
+        Tuple of (team_ratings, player_ratings, player_team_mapping, games_history)
+    """
+    try:
+        # Load team ratings
+        team_history = load_csv_to_dataframe('data/exports/team_elo_history_phase_1_5.csv')
+        latest_ratings = team_history.sort_values('date').groupby('team_id').last().reset_index()
+        latest_ratings['rating'] = latest_ratings['rating_after']
+        team_ratings = latest_ratings[['team_id', 'team_name', 'rating']].copy()
+
+        # Load player data
+        player_ratings = load_csv_to_dataframe('data/exports/player_ratings_bpm_adjusted.csv')
+        player_team_mapping = load_csv_to_dataframe('data/exports/player_team_mapping.csv')
+
+        # Load games history for WElo and H2H
+        games_all = load_csv_to_dataframe('data/raw/nba_games_all.csv')
+        # Get recent games (last 30 days)
+        recent_cutoff = datetime.now() - timedelta(days=30)
+        recent_cutoff_int = int(recent_cutoff.strftime('%Y%m%d'))
+        games_history = games_all[games_all['date'] >= recent_cutoff_int].copy()
+
+        return team_ratings, player_ratings, player_team_mapping, games_history
+    except Exception as e:
+        # Return empty dataframes on error
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+
+def _predict_game_phase2(home_team_id, away_team_id, team_ratings, player_ratings,
+                         player_team_mapping, games_history, game_date=None):
+    """
+    Make prediction using Phase 2 hybrid predictor.
+
+    Args:
+        home_team_id: Home team ID
+        away_team_id: Away team ID
+        team_ratings: Team ratings DataFrame
+        player_ratings: Player ratings DataFrame
+        player_team_mapping: Player-team mapping DataFrame
+        games_history: Historical games DataFrame
+        game_date: Date of game (optional)
+
+    Returns:
+        Dict with prediction including home_win_probability
+    """
+    try:
+        prediction = predict_game_hybrid(
+            home_team_id=home_team_id,
+            away_team_id=away_team_id,
+            team_ratings=team_ratings,
+            player_ratings=player_ratings,
+            player_team_mapping=player_team_mapping,
+            home_injuries=[],
+            away_injuries=[],
+            games_history=games_history,
+            game_date=game_date if game_date else datetime.now()
+        )
+        return prediction
+    except Exception as e:
+        # Fallback to basic prediction on error
+        return {
+            'home_win_probability': 0.5,
+            'away_win_probability': 0.5
+        }
 
 
 def get_injury_adjusted_team_elo(team_id, date, team_elo):
@@ -60,7 +130,7 @@ def get_monday_viz(target_date=None):
 
         # Merge to get team names (use player_name since player_id systems differ)
         player_data = player_ratings.merge(
-            team_mapping[['player_name', 'team_name', 'position']],
+            team_mapping[['player_name', 'team_name']],
             on='player_name',
             how='left'
         )
@@ -264,7 +334,7 @@ def get_wednesday_viz(home_team, away_team, target_date=None):
 def get_thursday_viz(target_date=None):
     """
     Thursday: Closest Games Today
-    Shows games with tightest win probabilities
+    Shows games with tightest win probabilities (using Phase 2 predictor)
 
     Args:
         target_date: Date to get games for (YYYYMMDD int or None for today)
@@ -273,9 +343,8 @@ def get_thursday_viz(target_date=None):
         Formatted string visualization
     """
     try:
-        # Load games and team ratings
+        # Load games
         games = load_csv_to_dataframe('data/raw/nba_games_all.csv')
-        team_history = load_csv_to_dataframe('data/exports/team_elo_history_phase_1_5.csv')
 
         # Determine target date
         if target_date is None:
@@ -289,26 +358,24 @@ def get_thursday_viz(target_date=None):
             # (Games may exist but not yet in CSV - coming from API/CDN)
             return ""
 
-        # Get latest team ratings
-        latest_ratings = team_history.sort_values('date').groupby('team_id').last().reset_index()
-        latest_ratings['rating'] = latest_ratings['rating_after']
+        # Load Phase 2 prediction data
+        team_ratings, player_ratings, player_team_mapping, games_history = _load_prediction_data()
 
         game_predictions = []
 
         for _, game in todays_games.iterrows():
-            home_rating_data = latest_ratings[latest_ratings['team_id'] == game['home_team_id']]
-            away_rating_data = latest_ratings[latest_ratings['team_id'] == game['away_team_id']]
+            # Use Phase 2 predictor
+            prediction = _predict_game_phase2(
+                game['home_team_id'],
+                game['away_team_id'],
+                team_ratings,
+                player_ratings,
+                player_team_mapping,
+                games_history,
+                game_date=datetime.strptime(str(target_date), '%Y%m%d')
+            )
 
-            if len(home_rating_data) == 0 or len(away_rating_data) == 0:
-                continue
-
-            home_rating = home_rating_data['rating'].iloc[0]
-            away_rating = away_rating_data['rating'].iloc[0]
-
-            # Calculate win probability
-            home_advantage = 30  # Calibrated
-            rating_diff = home_rating - away_rating + home_advantage
-            home_win_prob = 1 / (1 + 10 ** (-rating_diff / 400))
+            home_win_prob = prediction['home_win_probability']
 
             # Calculate closeness (distance from 50-50)
             closeness = abs(home_win_prob - 0.5)
@@ -329,7 +396,7 @@ def get_thursday_viz(target_date=None):
 
         # Format output
         output = "## Closest Games Today\n\n"
-        output += "*Games with tightest win probabilities*\n\n"
+        output += "*Games with tightest win probabilities (Phase 2 Model)*\n\n"
         output += "```\n"
         output += f"{'Matchup':<35} {'Home':<8} {'Away':<8}\n"
         output += "-" * 55 + "\n"
@@ -528,7 +595,7 @@ def get_saturday_viz(target_date=None):
 def get_sunday_viz(target_date=None):
     """
     Sunday: Model vs Reality (Weekly Accuracy)
-    Shows how the model performed over the past week
+    Shows how Phase 2 model performed over the past week
 
     Args:
         target_date: End date for week (YYYYMMDD int or None for today)
@@ -537,9 +604,8 @@ def get_sunday_viz(target_date=None):
         Formatted string visualization
     """
     try:
-        # Load games and team ratings
+        # Load games
         games = load_csv_to_dataframe('data/raw/nba_games_all.csv')
-        team_history = load_csv_to_dataframe('data/exports/team_elo_history_phase_1_5.csv')
 
         # Determine target date and week range
         if target_date is None:
@@ -559,28 +625,26 @@ def get_sunday_viz(target_date=None):
         if len(week_games) == 0:
             return "*No completed games this week*\n"
 
-        # Get latest team ratings
-        latest_ratings = team_history.sort_values('date').groupby('team_id').last().reset_index()
-        latest_ratings['rating'] = latest_ratings['rating_after']
+        # Load Phase 2 prediction data
+        team_ratings, player_ratings, player_team_mapping, games_history = _load_prediction_data()
 
         correct_predictions = 0
         total_games = 0
         upsets = []
 
         for _, game in week_games.iterrows():
-            home_rating_data = latest_ratings[latest_ratings['team_id'] == game['home_team_id']]
-            away_rating_data = latest_ratings[latest_ratings['team_id'] == game['away_team_id']]
+            # Use Phase 2 predictor
+            prediction = _predict_game_phase2(
+                game['home_team_id'],
+                game['away_team_id'],
+                team_ratings,
+                player_ratings,
+                player_team_mapping,
+                games_history,
+                game_date=datetime.strptime(str(game['date']), '%Y%m%d')
+            )
 
-            if len(home_rating_data) == 0 or len(away_rating_data) == 0:
-                continue
-
-            home_rating = home_rating_data['rating'].iloc[0]
-            away_rating = away_rating_data['rating'].iloc[0]
-
-            # Calculate prediction
-            home_advantage = 30  # Calibrated
-            rating_diff = home_rating - away_rating + home_advantage
-            home_win_prob = 1 / (1 + 10 ** (-rating_diff / 400))
+            home_win_prob = prediction['home_win_probability']
 
             predicted_winner = game['home_team_name'] if home_win_prob > 0.5 else game['away_team_name']
             actual_winner = game['home_team_name'] if game['home_score'] > game['away_score'] else game['away_team_name']
@@ -602,15 +666,18 @@ def get_sunday_viz(target_date=None):
 
         # Format output
         output = "## Model vs Reality: This Week's Performance\n\n"
+        output += "*Using Phase 2 Hybrid Predictor (WElo + Enhanced H2H + Player Impact)*\n\n"
 
         output += f"### Weekly Accuracy\n"
         output += f"**Correct Predictions:** {correct_predictions} / {total_games} ({accuracy:.1%})\n"
-        output += f"**Model Baseline:** 65.69%\n"
+        output += f"**Phase 2 Target:** 76%+\n"
 
-        if accuracy > 0.6569:
-            output += f"**Status:** **Above baseline** (+{(accuracy - 0.6569):.1%})\n\n"
+        if accuracy >= 0.76:
+            output += f"**Status:** **Exceeds target** (+{(accuracy - 0.76):.1%})\n\n"
+        elif accuracy >= 0.70:
+            output += f"**Status:** **Above Phase 1 baseline**\n\n"
         else:
-            output += f"**Status:** **Below baseline** ({(accuracy - 0.6569):.1%})\n\n"
+            output += f"**Status:** **Below target**\n\n"
 
         # Visual accuracy bar
         output += "```\n"
@@ -618,9 +685,9 @@ def get_sunday_viz(target_date=None):
         acc_empty = '-' * (50 - int(accuracy * 50))
         output += f"This Week: {acc_bar}{acc_empty} {accuracy:.1%}\n"
 
-        baseline_bar = '#' * int(0.6569 * 50)
-        baseline_empty = '-' * (50 - int(0.6569 * 50))
-        output += f"Baseline:  {baseline_bar}{baseline_empty} 65.69%\n"
+        target_bar = '#' * int(0.76 * 50)
+        target_empty = '-' * (50 - int(0.76 * 50))
+        output += f"Target:    {target_bar}{target_empty} 76.0%\n"
         output += "```\n\n"
 
         # Show upsets if any

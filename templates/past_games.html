@@ -219,6 +219,7 @@ body.dark-theme .player-stats {
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/team-logos.js') }}"></script>
 <script>
 let currentFilter = 7;
 let gamesData = [];
@@ -264,8 +265,9 @@ async function togglePlayerDetails(index, game) {
         html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">';
 
         // Away team section
+        const awayRecord = data.away_team_record || '';
         html += `<div class="player-section">
-            <h4>${game.away_team_name}</h4>`;
+            <h4>${game.away_team_name} ${awayRecord ? `<span style="font-size: 0.85rem; color: #666; font-weight: normal;">(${awayRecord})</span>` : ''}</h4>`;
 
         if (data.away_top_scorers && data.away_top_scorers.length > 0) {
             html += '<div style="margin-bottom: 0.75rem;"><strong style="font-size: 0.85rem;">Top 3 Scorers:</strong>';
@@ -307,8 +309,9 @@ async function togglePlayerDetails(index, game) {
         html += '</div>';
 
         // Home team section
+        const homeRecord = data.home_team_record || '';
         html += `<div class="player-section">
-            <h4>${game.home_team_name}</h4>`;
+            <h4>${game.home_team_name} ${homeRecord ? `<span style="font-size: 0.85rem; color: #666; font-weight: normal;">(${homeRecord})</span>` : ''}</h4>`;
 
         if (data.home_top_scorers && data.home_top_scorers.length > 0) {
             html += '<div style="margin-bottom: 0.75rem;"><strong style="font-size: 0.85rem;">Top 3 Scorers:</strong>';
@@ -475,10 +478,26 @@ async function loadGames(days, buttonEl) {
                 <tr class="game-row clickable-row ${resultClass}" onclick="togglePlayerDetails(${index}, gamesData[${index}])">
                     <td>${game.date}</td>
                     <td>
-                        <strong style="${awayWon ? 'font-weight: 700;' : ''}">${game.away_team_name}</strong> @
-                        <strong style="${homeWon ? 'font-weight: 700;' : ''}">${game.home_team_name}</strong>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <img src="${getTeamLogo(game.away_team_id)}"
+                                     alt="${game.away_team_name}"
+                                     style="width: 20px; height: 20px; object-fit: contain;"
+                                     onerror="this.src='https://cdn.nba.com/logos/nba/logo.svg'">
+                                <strong style="${awayWon ? 'font-weight: 700;' : ''}">${game.away_team_name}</strong>
+                                <span style="font-size: 0.75rem; color: #666; font-weight: normal;">(AWAY)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <img src="${getTeamLogo(game.home_team_id)}"
+                                     alt="${game.home_team_name}"
+                                     style="width: 20px; height: 20px; object-fit: contain;"
+                                     onerror="this.src='https://cdn.nba.com/logos/nba/logo.svg'">
+                                <strong style="${homeWon ? 'font-weight: 700;' : ''}">${game.home_team_name}</strong>
+                                <span style="font-size: 0.75rem; color: #666; font-weight: normal;">(HOME)</span>
+                            </div>
+                        </div>
                     </td>
-                    <td><strong>${game.away_score} - ${game.home_score}</strong></td>
+                    <td><strong>${game.away_score}<br>${game.home_score}</strong></td>
                     <td><strong>${predictedWinner}</strong> (${predictedProb}%)</td>
                     <td><strong>${resultText}</strong></td>
                 </tr>

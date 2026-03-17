@@ -70,6 +70,19 @@ def calculate_top_player_metrics(
     # Get team's players (ensure type matching for team_id)
     team_id_str = str(team_id)
     player_team_mapping_copy = player_team_mapping.copy()
+
+    if 'team_id' not in player_team_mapping_copy.columns:
+        # Mapping file only has team_name — return neutral values to avoid crash
+        return {
+            'top_player_bonus': 0.0,
+            'concentration_risk': 0.0,
+            'top_5_depth': 0.0,
+            'top_player_elo': 1500.0,
+            'second_player_elo': 1500.0,
+            'concentration_ratio': 0.0,
+            'team_has_superstar': False
+        }
+
     player_team_mapping_copy['team_id'] = player_team_mapping_copy['team_id'].astype(str)
 
     team_players_mapping = player_team_mapping_copy[player_team_mapping_copy['team_id'] == team_id_str]

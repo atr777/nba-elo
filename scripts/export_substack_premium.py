@@ -492,7 +492,7 @@ def generate_premium_newsletter(date_str=None, output_file=None):
 
     # Handle case with no games
     if not games:
-        output = f"""# NBA ELO Premium - {header_date}
+        output = f"""# Second Bounce Premium — {header_date}
 
 **No Games Scheduled Today**
 
@@ -519,7 +519,7 @@ Our hybrid ELO model combines:
 
 *Questions or feedback? Reply to this email or visit our dashboard at [your-domain.com]*
 
-**© 2025 NBA ELO Premium | Powered by Advanced Analytics**
+**© 2026 Second Bounce | Powered by Advanced Analytics**
 """
         # Save output if file specified
         if output_file:
@@ -541,7 +541,7 @@ Our hybrid ELO model combines:
         # Add extra spacing for copy-paste readability
         schedule_section += f"**{away}** @ **{home}**\n\n{time}\n\n"
 
-    output = f"""# NBA ELO Premium - {header_date}
+    output = f"""# Second Bounce Premium — {header_date}
 
 **Today's Full Slate: {len(games)} Games**
 
@@ -667,7 +667,7 @@ Our hybrid ELO model combines:
 
 *Questions or feedback? Reply to this email or visit our dashboard at [your-domain.com]*
 
-**© 2025 NBA ELO Premium | Powered by Advanced Analytics**
+**© 2026 Second Bounce | Powered by Advanced Analytics**
 """
 
     # Save or print output
