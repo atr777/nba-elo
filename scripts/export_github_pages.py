@@ -130,7 +130,7 @@ def get_today_predictions():
         from src.utils.file_io import load_csv_to_dataframe
 
         # Same data loading as newsletter
-        team_history = load_csv_to_dataframe('data/exports/team_elo_history_phase_1_5.csv')
+        team_history = load_csv_to_dataframe('data/exports/team_elo_history_phase_1_6.csv')
         latest_teams = team_history.sort_values('date').groupby('team_id').last().reset_index()
         latest_teams['rating'] = latest_teams['rating_after']
         team_ratings = latest_teams[['team_id', 'team_name', 'rating']].copy()
