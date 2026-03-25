@@ -1,0 +1,11 @@
+score_model:
+  intercept: 2.8437
+  coefficient: 0.034507
+  league_avg_ppg: 114.15
+  calibration:
+    train_r2: 0.1527
+    train_mae: 9.73
+    holdout_r2: 0.1702
+    holdout_mae: 11.31
+    train_games: 29436
+    holdout_games: 2307

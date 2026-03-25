@@ -184,7 +184,19 @@ def track_predictions(days_back=7):
                 'home_elo': prediction.get('home_rating', 0),
                 'away_elo': prediction.get('away_rating', 0),
                 'margin_of_victory': margin_of_victory,
-                'upset': upset
+                'upset': upset,
+                'predicted_home_score': prediction.get('predicted_home_score', None),
+                'predicted_away_score': prediction.get('predicted_away_score', None),
+                'predicted_margin': prediction.get('predicted_margin', None),
+                # Quarter predictions (Sprint 3)
+                'predicted_home_q1': prediction.get('predicted_home_q1', None),
+                'predicted_home_q2': prediction.get('predicted_home_q2', None),
+                'predicted_home_q3': prediction.get('predicted_home_q3', None),
+                'predicted_home_q4': prediction.get('predicted_home_q4', None),
+                'predicted_away_q1': prediction.get('predicted_away_q1', None),
+                'predicted_away_q2': prediction.get('predicted_away_q2', None),
+                'predicted_away_q3': prediction.get('predicted_away_q3', None),
+                'predicted_away_q4': prediction.get('predicted_away_q4', None),
             }
 
             new_rows.append(new_row)

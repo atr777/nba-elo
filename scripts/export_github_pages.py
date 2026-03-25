@@ -142,7 +142,32 @@ def get_today_predictions():
         # Import the same predict_game function the newsletter uses
         import importlib.util, types
         # Inline the core prediction to avoid loading the full newsletter module
-        from src.utils.elo_math import calculate_win_probability
+        from src.utils.elo_math import calculate_win_probability, elo_diff_to_expected_margin
+        import yaml as _yaml
+        _score_cfg_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'score_model.yaml')
+        try:
+            with open(_score_cfg_path) as _f:
+                _score_model = _yaml.safe_load(_f).get('score_model', {})
+        except Exception:
+            _score_model = {'intercept': 2.84, 'coefficient': 0.034507, 'league_avg_ppg': 114.15}
+        _score_intercept = _score_model.get('intercept', 2.84)
+        _score_coef      = _score_model.get('coefficient', 0.034507)
+        _league_avg      = _score_model.get('league_avg_ppg', 114.15)
+
+        # Quarter model (Sprint 3)
+        _q_cfg_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'quarter_model.yaml')
+        _Q_DEFAULTS = {
+            'q1': {'intercept': -0.7353, 'coefficient': 0.010391, 'league_avg': 27.972},
+            'q2': {'intercept':  0.3779, 'coefficient': 0.006782, 'league_avg': 28.560},
+            'q3': {'intercept': -1.6465, 'coefficient': 0.004861, 'league_avg': 28.028},
+            'q4': {'intercept':  1.0494, 'coefficient': 0.000163, 'league_avg': 26.620},
+        }
+        try:
+            with open(_q_cfg_path) as _f:
+                _q_raw = _yaml.safe_load(_f).get('quarter_model', {})
+            _quarter_cfg = {q: _q_raw.get(q, _Q_DEFAULTS[q]) for q in ['q1', 'q2', 'q3', 'q4']}
+        except Exception:
+            _quarter_cfg = _Q_DEFAULTS
 
         predictions = []
         for game in games:
@@ -161,6 +186,23 @@ def get_today_predictions():
             home_elo = float(home_row.iloc[0]['rating'])
             away_elo = float(away_row.iloc[0]['rating'])
             home_prob = calculate_win_probability(home_elo, away_elo, home_advantage=60)
+
+            # Score prediction
+            _pred_margin = elo_diff_to_expected_margin(
+                home_elo - away_elo, coefficient=_score_coef, intercept=_score_intercept
+            )
+            _pred_home_score = max(70, round(_league_avg + _pred_margin / 2))
+            _pred_away_score = max(70, round(_league_avg - _pred_margin / 2))
+
+            # Quarter predictions (Sprint 3)
+            _elo_diff_gtp = home_elo - away_elo
+            _q_preds = {}
+            for _qn, _qk in [(1, 'q1'), (2, 'q2'), (3, 'q3'), (4, 'q4')]:
+                _qc   = _quarter_cfg[_qk]
+                _qmgn = _qc['intercept'] + _qc['coefficient'] * _elo_diff_gtp
+                _qavg = _qc['league_avg']
+                _q_preds[f'predicted_home_q{_qn}'] = max(15, round(_qavg + _qmgn / 2))
+                _q_preds[f'predicted_away_q{_qn}'] = max(15, round(_qavg - _qmgn / 2))
 
             if home_prob >= 0.5:
                 winner, win_prob, is_home_win = home_name, home_prob, True
@@ -193,6 +235,10 @@ def get_today_predictions():
                 'home_elo': home_elo,
                 'away_elo': away_elo,
                 'game_status_code': game.get('game_status_code', 1),
+                'predicted_home_score': _pred_home_score,
+                'predicted_away_score': _pred_away_score,
+                'predicted_margin': round(_pred_margin, 1),
+                **_q_preds,
             })
 
         # Sort: scheduled first, then live, then final
@@ -444,22 +490,17 @@ def _to_iso_et(date_iso, time_str):
 
 
 def prob_bar(home_prob, home_name, away_name):
-    """Render a side-by-side probability bar. Favorite = gold, underdog = gray."""
+    """Render a two-sided probability bar. Away = left/muted, home = right/amber."""
     hp = round(home_prob * 100)
     ap = 100 - hp
-    home_fav  = hp >= ap
-    home_color = 'var(--pick)' if home_fav  else '#374151'
-    away_color = 'var(--pick)' if not home_fav else '#374151'
-    home_txt  = '#1a1a1a'  if home_fav  else '#cbd5e1'
-    away_txt  = '#1a1a1a'  if not home_fav else '#cbd5e1'
     return f"""
     <div class="prob-bar-wrap">
-      <div class="prob-label">{away_name}</div>
-      <div class="prob-bar">
-        <div class="bar-away" style="width:{ap}%;background:{away_color};color:{away_txt}">{ap}%</div>
-        <div class="bar-home" style="width:{hp}%;background:{home_color};color:{home_txt}">{hp}%</div>
+      <span class="prob-label-away">{ap}%</span>
+      <div class="prob-bar-split">
+        <div class="prob-bar-away" style="width:{ap}%"></div>
+        <div class="prob-bar-home" style="width:{hp}%"></div>
       </div>
-      <div class="prob-label right">{home_name}</div>
+      <span class="prob-label-home">{hp}%</span>
     </div>"""
 
 
@@ -511,6 +552,44 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
                 time_cls     = ''
                 iso_ts   = _to_iso_et(date_iso, p['time'])
                 iso_attr = f' data-iso="{iso_ts}"' if iso_ts else ''
+            # ── Quarter Score Grid (Sprint 3) ──────────────────────────────
+            # Use real per-quarter model outputs when available; fall back to
+            # the cyclic-offset distribution described in the design spec.
+            _away_tot = p.get('predicted_away_score', 0) or 0
+            _home_tot = p.get('predicted_home_score', 0) or 0
+            _q_offsets = [-1, 2, -1, 0]  # sum = 0, total preserved
+            if p.get('predicted_away_q1') is not None:
+                _aq = [p[f'predicted_away_q{i}'] for i in range(1, 5)]
+                _hq = [p[f'predicted_home_q{i}'] for i in range(1, 5)]
+            else:
+                _aq = [max(20, round(_away_tot / 4) + _q_offsets[i]) for i in range(4)]
+                _hq = [max(20, round(_home_tot / 4) + _q_offsets[i]) for i in range(4)]
+            # Running (cumulative) totals after each quarter
+            _aq_run = [sum(_aq[:i+1]) for i in range(4)]
+            _hq_run = [sum(_hq[:i+1]) for i in range(4)]
+            _away_display = _aq_run[3]
+            _home_display = _hq_run[3]
+            _winner_is_home = p['is_home_win']
+            _away_row_cls = 'qs-winner' if not _winner_is_home else ''
+            _home_row_cls = 'qs-winner' if _winner_is_home else ''
+            _away_abbr = TEAM_ABBREVS.get(p['away'], p['away'][:3].upper())
+            _home_abbr = TEAM_ABBREVS.get(p['home'], p['home'][:3].upper())
+            # Margin line: plain-English expected win margin
+            _margin_pts = abs(round(p.get('predicted_margin', _home_display - _away_display)))
+            _margin_html = f'<div class="qscore-margin"><span>Expected to win by <strong>{_margin_pts} pts</strong></span><span class="qscore-margin-prob">{p["win_prob"]*100:.0f}% win probability</span></div>'
+            _qscore_html = f"""<div class="qscore-wrap">
+  <div class="qscore-label">Projected Score</div>
+  <table class="qscore-table">
+    <thead><tr><th></th><th>Q1</th><th>Q2</th><th>Q3</th><th class="col-final">FINAL</th></tr></thead>
+    <tbody>
+      <tr class="{_away_row_cls}"><td>{_away_abbr}</td><td>{_aq_run[0]}</td><td>{_aq_run[1]}</td><td>{_aq_run[2]}</td><td class="col-final">{_away_display}</td></tr>
+      <tr class="{_home_row_cls}"><td>{_home_abbr}</td><td>{_hq_run[0]}</td><td>{_hq_run[1]}</td><td>{_hq_run[2]}</td><td class="col-final">{_home_display}</td></tr>
+    </tbody>
+  </table>
+  {_margin_html}
+</div>"""
+            # ───────────────────────────────────────────────────────────────
+
             pred_cards += f"""
       <div class="card game-card{'  game-card-final' if is_final else ''}">
         <a class="game-card-link" href="{p['nba_url']}" target="_blank" rel="noopener" aria-label="View {p['away']} @ {p['home']} on NBA.com"></a>
@@ -526,8 +605,9 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
           <span class="{'team-pick' if p['is_home_win'] else ''}">{p['home']}</span>
         </div>
         <div class="prediction-line">
-          Pick: <strong>{p['winner']}</strong> — {p['win_prob']*100:.1f}%
+          <strong>{p['winner']}</strong> {'slight edge' if p.get('tossup') else 'favored to win'} <span class="favored-tag">· {p['win_prob']*100:.0f}% chance</span>
         </div>
+        {_qscore_html}
         {bar}
         <div class="elo-line">ELO: {p['away']} {p['away_elo']:.0f} · {p['home']} {p['home_elo']:.0f}</div>
         {inj_block}
@@ -833,36 +913,95 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
       color: var(--muted);
       margin-bottom: 0.5rem;
     }}
-    .prediction-line strong {{ color: var(--pick); font-weight: 600; }}
+    .prediction-line strong {{ color: var(--text); font-weight: 600; }}
+    .favored-tag {{ color: var(--muted); font-weight: 400; }}
 
-    .prob-bar-wrap {{
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      gap: 0.4rem;
-      margin-bottom: 0.35rem;
-    }}
-    .prob-label {{ font-size: 0.68rem; color: var(--muted); white-space: nowrap; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }}
-    .prob-label.right {{ text-align: right; }}
-    .prob-bar {{
-      display: flex;
-      height: 28px;
-      border-radius: 6px;
+    .prob-bar-wrap {{ display: flex; align-items: center; gap: 0.5rem; margin: 0.45rem 0 0.1rem; font-size: 0.68rem; }}
+    .prob-label-away {{ color: var(--muted); min-width: 28px; text-align: right; }}
+    .prob-label-home {{ color: var(--pick); min-width: 28px; font-weight: 600; }}
+    .prob-bar-split {{
+      flex: 1;
+      height: 5px;
+      border-radius: 3px;
       overflow: hidden;
-      background: rgba(30,45,69,0.6);
-    }}
-    .bar-away, .bar-home {{
       display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: #cbd5e1;
-      min-width: 32px;
-      transition: width 0.3s;
+      gap: 1px;
+      background: var(--border);
     }}
+    .prob-bar-away {{ height: 100%; background: var(--border); }}
+    .prob-bar-home {{ height: 100%; background: var(--pick); border-radius: 0 3px 3px 0; }}
 
     .elo-line {{ font-size: 0.68rem; color: var(--muted); margin-top: 0.25rem; letter-spacing: 0.1px; }}
+
+    .score-projection {{ font-size: 0.72rem; color: var(--muted); margin-top: 0.18rem; letter-spacing: 0.1px; }}
+
+    /* ── Quarter Score Breakdown (Sprint 3) ─────────────────────────────── */
+    .qscore-wrap {{
+      margin-top: 0.55rem;
+      margin-bottom: 0.1rem;
+    }}
+    .qscore-label {{
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }}
+    .qscore-table {{
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      table-layout: fixed;
+    }}
+    .qscore-table th {{
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-align: center;
+      padding: 0.28rem 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }}
+    .qscore-table th:first-child {{ text-align: left; padding-left: 0.5rem; width: 38px; }}
+    .qscore-table th.col-final {{ text-align: right; padding-right: 0.5rem; width: 48px; border-left: 1px solid var(--border); }}
+    .qscore-table td {{
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 0.3rem 0.25rem;
+      color: var(--text);
+      opacity: 0.6;
+    }}
+    .qscore-table td:first-child {{
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-align: left;
+      padding-left: 0.5rem;
+      opacity: 1;
+      color: var(--muted);
+      letter-spacing: 0.2px;
+    }}
+    .qscore-table td.col-final {{
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-align: right;
+      padding-right: 0.5rem;
+      color: var(--muted);
+      opacity: 1;
+      border-left: 1px solid var(--border);
+    }}
+    .qscore-table tr + tr td {{ border-top: 1px solid var(--border); }}
+    /* Winner row */
+    .qscore-table tr.qs-winner td {{ color: var(--pick); opacity: 1; }}
+    .qscore-table tr.qs-winner td:first-child {{ color: var(--pick); }}
+    .qscore-table tr.qs-winner td.col-final {{ color: var(--accent); }}
+    /* Plain-English margin line below score grid */
+    .qscore-margin {{ display: flex; justify-content: space-between; margin-top: 0.3rem; font-size: 0.65rem; color: var(--muted); }}
+    .qscore-margin strong {{ color: var(--pick); font-weight: 700; }}
+    .qscore-margin-prob {{ color: var(--muted); }}
 
     .badge {{
       display: inline-block;
@@ -1138,6 +1277,7 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
       .stats-bar {{ grid-template-columns: repeat(2, 1fr); }}
       header h1 {{ font-size: 2.55rem; }}
       .team-logo {{ width: 20px; height: 20px; }}
+      .qscore-label {{ font-size: 0.58rem; }}
     }}
 
     /* ── Glowing border ring (Aceternity-style, vanilla port) ── */

@@ -161,7 +161,18 @@ class ModelPerformanceTracker:
             'home_elo': home_elo,
             'away_elo': away_elo,
             'margin_of_victory': margin,
-            'upset': upset
+            'upset': upset,
+            'predicted_home_score': prediction.get('predicted_home_score'),
+            'predicted_away_score': prediction.get('predicted_away_score'),
+            'predicted_margin': prediction.get('predicted_margin'),
+            'predicted_home_q1': prediction.get('predicted_home_q1'),
+            'predicted_home_q2': prediction.get('predicted_home_q2'),
+            'predicted_home_q3': prediction.get('predicted_home_q3'),
+            'predicted_home_q4': prediction.get('predicted_home_q4'),
+            'predicted_away_q1': prediction.get('predicted_away_q1'),
+            'predicted_away_q2': prediction.get('predicted_away_q2'),
+            'predicted_away_q3': prediction.get('predicted_away_q3'),
+            'predicted_away_q4': prediction.get('predicted_away_q4'),
         }
 
         # Append to CSV

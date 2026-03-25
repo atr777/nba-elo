@@ -10,8 +10,75 @@ import logging
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
-from src.utils.elo_math import calculate_win_probability
+from src.utils.elo_math import calculate_win_probability, elo_diff_to_expected_margin
+from src.utils.file_io import load_yaml, get_config_path
 from src.features.close_game_enhancer import CloseGameEnhancer
+
+# ---------------------------------------------------------------------------
+# Score model coefficients — loaded once at module import time
+# ---------------------------------------------------------------------------
+_score_model_cache = None
+
+def _load_score_model() -> dict:
+    """Load score model coefficients from config/score_model.yaml (cached)."""
+    global _score_model_cache
+    if _score_model_cache is None:
+        try:
+            cfg = load_yaml(get_config_path('score_model.yaml'))
+            _score_model_cache = cfg.get('score_model', {})
+            logger.info(
+                "Score model loaded: intercept=%.4f coef=%.6f league_avg=%.2f",
+                _score_model_cache.get('intercept', 2.84),
+                _score_model_cache.get('coefficient', 0.034507),
+                _score_model_cache.get('league_avg_ppg', 114.15)
+            )
+        except Exception as e:
+            logger.warning("Could not load score_model.yaml (%s); using defaults.", e)
+            _score_model_cache = {
+                'intercept': 2.84,
+                'coefficient': 0.034507,
+                'league_avg_ppg': 114.15
+            }
+    return _score_model_cache
+
+
+# ---------------------------------------------------------------------------
+# Quarter model coefficients — loaded once at module import time (Sprint 3)
+# ---------------------------------------------------------------------------
+_quarter_model_cache = None
+
+# Fallback defaults derived from league averages when YAML is unavailable
+_QUARTER_MODEL_DEFAULTS = {
+    'q1': {'intercept': -0.7353, 'coefficient': 0.010391, 'league_avg': 27.972},
+    'q2': {'intercept':  0.3779, 'coefficient': 0.006782, 'league_avg': 28.560},
+    'q3': {'intercept': -1.6465, 'coefficient': 0.004861, 'league_avg': 28.028},
+    'q4': {'intercept':  1.0494, 'coefficient': 0.000163, 'league_avg': 26.620},
+}
+
+def _load_quarter_model() -> dict:
+    """Load per-quarter model coefficients from config/quarter_model.yaml (cached)."""
+    global _quarter_model_cache
+    if _quarter_model_cache is None:
+        try:
+            cfg = load_yaml(get_config_path('quarter_model.yaml'))
+            qm = cfg.get('quarter_model', {})
+            _quarter_model_cache = {
+                'q1': qm.get('q1', _QUARTER_MODEL_DEFAULTS['q1']),
+                'q2': qm.get('q2', _QUARTER_MODEL_DEFAULTS['q2']),
+                'q3': qm.get('q3', _QUARTER_MODEL_DEFAULTS['q3']),
+                'q4': qm.get('q4', _QUARTER_MODEL_DEFAULTS['q4']),
+            }
+            logger.info(
+                "Quarter model loaded: Q1 avg=%.2f  Q2 avg=%.2f  Q3 avg=%.2f  Q4 avg=%.2f",
+                _quarter_model_cache['q1'].get('league_avg', 27.97),
+                _quarter_model_cache['q2'].get('league_avg', 28.56),
+                _quarter_model_cache['q3'].get('league_avg', 28.03),
+                _quarter_model_cache['q4'].get('league_avg', 26.62),
+            )
+        except Exception as e:
+            logger.warning("Could not load quarter_model.yaml (%s); using defaults.", e)
+            _quarter_model_cache = dict(_QUARTER_MODEL_DEFAULTS)
+    return _quarter_model_cache
 from src.features.rest_fatigue_analyzer import get_rest_fatigue_analyzer
 from src.features.momentum_tracker import get_momentum_tracker
 from src.features.weighted_elo_tracker import get_weighted_elo_tracker
@@ -835,6 +902,39 @@ def predict_game_hybrid(
     if contextual_analysis['has_special_circumstances']:
         logger.info(f"Special circumstances: {contextual_analysis['context_summary']}")
 
+    # -----------------------------------------------------------------------
+    # Score Prediction (Sprint 2)
+    # Convert final ELO differential to expected margin and split into scores.
+    # Uses config/score_model.yaml coefficients (calibrated via OLS on 29k games).
+    # -----------------------------------------------------------------------
+    score_model = _load_score_model()
+    _score_coef      = score_model.get('coefficient', 0.034507)
+    _score_intercept = score_model.get('intercept', 2.84)
+    _league_avg      = score_model.get('league_avg_ppg', 114.15)
+
+    predicted_margin = elo_diff_to_expected_margin(
+        final_home_elo - final_away_elo,
+        coefficient=_score_coef,
+        intercept=_score_intercept
+    )
+    predicted_home_score = max(70, round(_league_avg + predicted_margin / 2))
+    predicted_away_score = max(70, round(_league_avg - predicted_margin / 2))
+
+    # -----------------------------------------------------------------------
+    # Quarter Predictions (Sprint 3)
+    # Four separate linear models: q_margin ~ elo_diff, split symmetrically
+    # around the quarter league average.  Floor of 15 prevents nonsense outputs.
+    # -----------------------------------------------------------------------
+    quarter_model = _load_quarter_model()
+    _elo_diff_final = final_home_elo - final_away_elo
+    _quarter_preds = {}
+    for q_num in [1, 2, 3, 4]:
+        q_cfg = quarter_model[f'q{q_num}']
+        q_margin = q_cfg['intercept'] + q_cfg['coefficient'] * _elo_diff_final
+        q_avg    = q_cfg['league_avg']
+        _quarter_preds[f'predicted_home_q{q_num}'] = max(15, round(q_avg + q_margin / 2))
+        _quarter_preds[f'predicted_away_q{q_num}'] = max(15, round(q_avg - q_margin / 2))
+
     return {
         'home_win_probability': final_home_prob,
         'away_win_probability': 1 - final_home_prob,
@@ -848,6 +948,12 @@ def predict_game_hybrid(
         'away_roster_elo': away_roster,
         'away_hybrid_elo': away_hybrid,
         'elo_difference': elo_diff,
+        # Score prediction (Sprint 2)
+        'predicted_home_score': predicted_home_score,
+        'predicted_away_score': predicted_away_score,
+        'predicted_margin': round(predicted_margin, 1),
+        # Quarter predictions (Sprint 3)
+        **_quarter_preds,
         'blend_weight': blend_weight,
         'home_injuries_count': len(home_injuries),
         'away_injuries_count': len(away_injuries),

@@ -34,6 +34,21 @@ def calculate_win_probability(team_rating: float, opponent_rating: float, home_a
     return calculate_expected_score(team_rating, opponent_rating, home_advantage)
 
 
+def elo_diff_to_expected_margin(elo_diff: float, coefficient: float, intercept: float) -> float:
+    """
+    Convert ELO point differential to expected margin of victory (home - away).
+
+    Args:
+        elo_diff: Home team ELO minus away team ELO (after all adjustments)
+        coefficient: Points per ELO point (from linear regression calibration)
+        intercept: Baseline home margin when teams are equal (home court PPG advantage)
+
+    Returns:
+        Expected point margin from the home team's perspective (positive = home wins)
+    """
+    return intercept + coefficient * elo_diff
+
+
 def update_elo_rating(current_rating: float, k_factor: float, actual_score: float, expected_score: float) -> float:
     """
     Update ELO rating based on game result.

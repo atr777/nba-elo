@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprint 3 — Quarter Score Preview</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #21262d;
+    --text: #e6edf3;
+    --muted: #64748b;
+    --pick: #f8a100;
+    --accent: #4b8bf4;
+    --green: #22c55e;
+  }
+  body { background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; gap: 1.5rem; padding: 2rem; flex-wrap: wrap; justify-content: center; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; width: 300px; color: var(--text); }
+  .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+  .game-time { font-size: 0.72rem; color: var(--muted); }
+  .badge { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 0.18rem 0.5rem; border-radius: 99px; }
+  .badge-high { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-med  { background: rgba(251,191,36,0.12); color: #fbbf24; }
+  .badge-toss { background: rgba(148,163,184,0.1); color: var(--muted); }
+  .matchup { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.35rem; }
+  .vs { color: var(--muted); font-size: 0.78rem; }
+  .team-pick { color: var(--pick); }
+
+  /* Plain-English pick line */
+  .prediction-line { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.55rem; }
+  .prediction-line strong { color: var(--text); }
+  .prediction-line .favored-tag { color: var(--muted); font-weight: 400; }
+
+  /* ── Two-sided probability bar ── */
+  .prob-bar-wrap { display: flex; align-items: center; gap: 0.5rem; margin: 0.45rem 0 0.1rem; font-size: 0.68rem; }
+  .prob-label-away { color: var(--muted); min-width: 28px; text-align: right; }
+  .prob-label-home { color: var(--pick); min-width: 28px; font-weight: 600; }
+  .prob-bar-split {
+    flex: 1; height: 5px; border-radius: 3px; overflow: hidden;
+    display: flex; gap: 1px; background: var(--border);
+  }
+  .prob-bar-away { height: 100%; background: var(--border); }
+  .prob-bar-home { height: 100%; background: var(--pick); border-radius: 0 3px 3px 0; }
+
+  .elo-line { font-size: 0.68rem; color: var(--muted); margin-top: 0.3rem; }
+
+  /* ── Quarter Score Table ── */
+  .qscore-wrap { margin-top: 0.55rem; margin-bottom: 0.1rem; }
+  .qscore-label {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--muted); margin-bottom: 0.3rem;
+  }
+  .qscore-table {
+    width: 100%; border-collapse: collapse; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    overflow: hidden; table-layout: fixed;
+  }
+  .qscore-table th {
+    font-size: 0.6rem; font-weight: 600; color: var(--muted);
+    text-align: center; padding: 0.28rem 0.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .qscore-table th:first-child { text-align: left; padding-left: 0.5rem; width: 38px; }
+  .qscore-table th.col-final { text-align: right; padding-right: 0.5rem; width: 48px; border-left: 1px solid var(--border); }
+  .qscore-table td {
+    font-size: 0.78rem; font-weight: 700; text-align: center;
+    padding: 0.3rem 0.25rem; color: var(--text); opacity: 0.6;
+  }
+  .qscore-table td:first-child {
+    font-size: 0.7rem; font-weight: 600; text-align: left;
+    padding-left: 0.5rem; opacity: 1; color: var(--muted); letter-spacing: 0.2px;
+  }
+  .qscore-table td.col-final {
+    font-size: 0.82rem; font-weight: 800; text-align: right;
+    padding-right: 0.5rem; color: var(--muted); opacity: 1;
+    border-left: 1px solid var(--border);
+  }
+  .qscore-table tr + tr td { border-top: 1px solid var(--border); }
+  .qscore-table tr.qs-winner td { color: var(--pick); opacity: 1; }
+  .qscore-table tr.qs-winner td:first-child { color: var(--pick); }
+  .qscore-table tr.qs-winner td.col-final { color: var(--accent); }
+
+  /* Plain-English margin line */
+  .qscore-margin {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 0.3rem; font-size: 0.65rem; color: var(--muted);
+  }
+  .qscore-margin-text { }
+  .qscore-margin-prob { color: var(--muted); }
+  .qscore-margin strong { color: var(--pick); font-weight: 700; }
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.game-time[data-iso]').forEach(function(el) {
+      try {
+        var d = new Date(el.dataset.iso);
+        if (isNaN(d.getTime())) return;
+        var day  = d.toLocaleDateString(undefined, { weekday: 'short' });
+        var time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        el.textContent = day + ' · ' + time;
+      } catch(e) {}
+    });
+  });
+</script>
+</head>
+<body>
+
+<!-- Card 1: High confidence, BOS favored by 6 -->
+<div class="card">
+  <div class="game-header">
+    <span class="game-time" data-iso="2026-03-25T23:30:00Z">7:30 PM ET</span>
+    <span class="badge badge-high">High Confidence</span>
+  </div>
+  <div class="matchup">
+    <span>MIA</span><span class="vs">@</span><span class="team-pick">BOS</span>
+  </div>
+  <div class="prediction-line">
+    <strong>Boston</strong> favored to win <span class="favored-tag">· 67% chance</span>
+  </div>
+  <div class="qscore-wrap">
+    <div class="qscore-label">Projected Score</div>
+    <table class="qscore-table">
+      <thead><tr><th></th><th>Q1</th><th>Q2</th><th>Q3</th><th class="col-final">FINAL</th></tr></thead>
+      <tbody>
+        <tr><td>MIA</td><td>27</td><td>56</td><td>84</td><td class="col-final">111</td></tr>
+        <tr class="qs-winner"><td>BOS</td><td>29</td><td>59</td><td>88</td><td class="col-final">117</td></tr>
+      </tbody>
+    </table>
+    <div class="qscore-margin">
+      <span class="qscore-margin-text">Expected to win by <strong>6 pts</strong></span>
+      <span class="qscore-margin-prob">67% win probability</span>
+    </div>
+  </div>
+  <div class="prob-bar-wrap">
+    <span class="prob-label-away">33%</span>
+    <div class="prob-bar-split">
+      <div class="prob-bar-away" style="width:33%"></div>
+      <div class="prob-bar-home" style="width:67%"></div>
+    </div>
+    <span class="prob-label-home">67%</span>
+  </div>
+  <div class="elo-line">ELO: MIA 1487 · BOS 1534</div>
+</div>
+
+<!-- Card 2: Tossup -->
+<div class="card">
+  <div class="game-header">
+    <span class="game-time" data-iso="2026-03-26T02:00:00Z">10:00 PM ET</span>
+    <span class="badge badge-toss">Too Close to Call</span>
+  </div>
+  <div class="matchup">
+    <span class="team-pick">GSW</span><span class="vs">@</span><span>LAL</span>
+  </div>
+  <div class="prediction-line">
+    <strong>Golden State</strong> slight edge <span class="favored-tag">· 52% chance</span>
+  </div>
+  <div class="qscore-wrap">
+    <div class="qscore-label">Projected Score</div>
+    <table class="qscore-table">
+      <thead><tr><th></th><th>Q1</th><th>Q2</th><th>Q3</th><th class="col-final">FINAL</th></tr></thead>
+      <tbody>
+        <tr class="qs-winner"><td>GSW</td><td>28</td><td>58</td><td>85</td><td class="col-final">112</td></tr>
+        <tr><td>LAL</td><td>28</td><td>57</td><td>84</td><td class="col-final">110</td></tr>
+      </tbody>
+    </table>
+    <div class="qscore-margin">
+      <span class="qscore-margin-text">Expected to win by <strong>2 pts</strong></span>
+      <span class="qscore-margin-prob">52% win probability</span>
+    </div>
+  </div>
+  <div class="prob-bar-wrap">
+    <span class="prob-label-away">48%</span>
+    <div class="prob-bar-split">
+      <div class="prob-bar-away" style="width:48%"></div>
+      <div class="prob-bar-home" style="width:52%"></div>
+    </div>
+    <span class="prob-label-home">52%</span>
+  </div>
+  <div class="elo-line">ELO: GSW 1501 · LAL 1498</div>
+</div>
+
+<!-- Card 3: Blowout -->
+<div class="card">
+  <div class="game-header">
+    <span class="game-time" data-iso="2026-03-26T00:00:00Z">8:00 PM ET</span>
+    <span class="badge badge-high">High Confidence</span>
+  </div>
+  <div class="matchup">
+    <span>WAS</span><span class="vs">@</span><span class="team-pick">OKC</span>
+  </div>
+  <div class="prediction-line">
+    <strong>Oklahoma City</strong> favored to win <span class="favored-tag">· 81% chance</span>
+  </div>
+  <div class="qscore-wrap">
+    <div class="qscore-label">Projected Score</div>
+    <table class="qscore-table">
+      <thead><tr><th></th><th>Q1</th><th>Q2</th><th>Q3</th><th class="col-final">FINAL</th></tr></thead>
+      <tbody>
+        <tr><td>WAS</td><td>24</td><td>49</td><td>72</td><td class="col-final">96</td></tr>
+        <tr class="qs-winner"><td>OKC</td><td>32</td><td>63</td><td>93</td><td class="col-final">122</td></tr>
+      </tbody>
+    </table>
+    <div class="qscore-margin">
+      <span class="qscore-margin-text">Expected to win by <strong>26 pts</strong></span>
+      <span class="qscore-margin-prob">81% win probability</span>
+    </div>
+  </div>
+  <div class="prob-bar-wrap">
+    <span class="prob-label-away">19%</span>
+    <div class="prob-bar-split">
+      <div class="prob-bar-away" style="width:19%"></div>
+      <div class="prob-bar-home" style="width:81%"></div>
+    </div>
+    <span class="prob-label-home">81%</span>
+  </div>
+  <div class="elo-line">ELO: WAS 1391 · OKC 1568</div>
+</div>
+
+</body>
+</html>
