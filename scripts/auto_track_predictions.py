@@ -14,8 +14,9 @@ from pathlib import Path
 
 # Add parent directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from src.utils.file_io import load_csv_to_dataframe
+from src.utils.file_io import load_csv_to_dataframe, load_yaml, get_config_path
 from src.engines.team_elo_engine import TeamELOEngine
+from src.utils.elo_math import elo_diff_to_expected_margin
 
 TRACKING_FILE = Path('data/exports/prediction_tracking.csv')
 
@@ -99,6 +100,15 @@ def track_predictions(days_back=7):
     )
     elo_engine.compute_season_elo(games_raw, reset=True)
 
+    # Load score model for predicted score fields (Sprint 2)
+    try:
+        _score_cfg = load_yaml(get_config_path('score_model.yaml')).get('score_model', {})
+        _score_coef = _score_cfg.get('coefficient', 0.034507)
+        _score_int  = _score_cfg.get('intercept', 2.8437)
+        _league_avg = _score_cfg.get('league_avg_ppg', 114.15)
+    except Exception:
+        _score_coef, _score_int, _league_avg = 0.034507, 2.8437, 114.15
+
     # Get recent completed games
     recent_games = get_recent_games(days_back)
     log(f"Found {len(recent_games)} completed games in the last {days_back} days")
@@ -127,6 +137,14 @@ def track_predictions(days_back=7):
                 away_team_id=game['away_team_id'],
                 game_date=game['date']
             )
+
+            # Enrich prediction with score fields (Sprint 2) if not already present
+            if prediction.get('predicted_home_score') is None:
+                _elo_diff = prediction.get('home_rating', 0) - prediction.get('away_rating', 0)
+                _margin = elo_diff_to_expected_margin(_elo_diff, coefficient=_score_coef, intercept=_score_int)
+                prediction['predicted_home_score'] = max(70, round(_league_avg + _margin / 2))
+                prediction['predicted_away_score'] = max(70, round(_league_avg - _margin / 2))
+                prediction['predicted_margin'] = round(_margin, 1)
 
             home_win_prob = prediction['home_win_probability']
             away_win_prob = 1 - home_win_prob
