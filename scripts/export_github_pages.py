@@ -210,11 +210,11 @@ def get_today_predictions():
                 winner, win_prob, is_home_win = away_name, 1.0 - home_prob, False
 
             if win_prob >= 0.75:
-                conf_label, conf_class = 'Strong', 'conf-high'
+                conf_label, conf_class = 'High Confidence', 'conf-high'
             elif win_prob >= 0.63:
-                conf_label, conf_class = 'Moderate', 'conf-med'
+                conf_label, conf_class = 'Medium Confidence', 'conf-med'
             else:
-                conf_label, conf_class = 'Tossup', 'conf-low'
+                conf_label, conf_class = 'Too Close to Call', 'conf-low'
 
             tossup = abs(home_elo - away_elo) < 30
             nba_url = f'https://www.nba.com/game/{game_id}' if game_id else 'https://www.nba.com/games'
@@ -489,18 +489,25 @@ def _to_iso_et(date_iso, time_str):
     return f"{date_iso}T{dt.strftime('%H:%M')}:00{offset}"
 
 
-def prob_bar(home_prob, home_name, away_name):
-    """Render a two-sided probability bar. Away = left/muted, home = right/amber."""
+def prob_bar(home_prob, home_name, away_name, is_home_win=True):
+    """Render a two-sided probability bar. Pick side = amber, opponent = muted."""
     hp = round(home_prob * 100)
     ap = 100 - hp
+    if is_home_win:
+        left_bar, right_bar = 'prob-bar-away', 'prob-bar-home'
+        left_lbl, right_lbl = 'prob-label-away', 'prob-label-home'
+    else:
+        # Away is the pick — left side gets amber
+        left_bar, right_bar = 'prob-bar-home', 'prob-bar-away'
+        left_lbl, right_lbl = 'prob-label-home', 'prob-label-away'
     return f"""
     <div class="prob-bar-wrap">
-      <span class="prob-label-away">{ap}%</span>
+      <span class="{left_lbl}">{ap}%</span>
       <div class="prob-bar-split">
-        <div class="prob-bar-away" style="width:{ap}%"></div>
-        <div class="prob-bar-home" style="width:{hp}%"></div>
+        <div class="{left_bar}" style="width:{ap}%"></div>
+        <div class="{right_bar}" style="width:{hp}%"></div>
       </div>
-      <span class="prob-label-home">{hp}%</span>
+      <span class="{right_lbl}">{hp}%</span>
     </div>"""
 
 
@@ -518,7 +525,7 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
     if predictions:
         pred_cards = ''
         for p in predictions:
-            bar = prob_bar(p['home_prob'], p['home'], p['away'])
+            bar = prob_bar(p['home_prob'], p['home'], p['away'], p['is_home_win'])
 
             # Injury alerts for this game
             inj_html = ''
@@ -575,7 +582,7 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
             _away_abbr = TEAM_ABBREVS.get(p['away'], p['away'][:3].upper())
             _home_abbr = TEAM_ABBREVS.get(p['home'], p['home'][:3].upper())
             # Margin line: plain-English expected win margin
-            _margin_pts = abs(round(p.get('predicted_margin', _home_display - _away_display)))
+            _margin_pts = abs(_home_display - _away_display)
             _margin_html = f'<div class="qscore-margin"><span>Expected to win by <strong>{_margin_pts} pts</strong></span><span class="qscore-margin-prob">{p["win_prob"]*100:.0f}% win probability</span></div>'
             _qscore_html = f"""<div class="qscore-wrap">
   <div class="qscore-label">Projected Score</div>
