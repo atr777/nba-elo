@@ -1,28 +1,28 @@
 quarter_model:
   q1:
-    intercept: -0.7353
-    coefficient: 0.010391
-    league_avg: 27.972
+    intercept: -0.5415
+    coefficient: 0.013582
+    league_avg: 28.4652
   q2:
-    intercept: 0.3779
-    coefficient: 0.006782
-    league_avg: 28.56
+    intercept: -0.4807
+    coefficient: 0.009418
+    league_avg: 28.3362
   q3:
-    intercept: -1.6465
-    coefficient: 0.004861
-    league_avg: 28.028
+    intercept: -0.6733
+    coefficient: 0.009295
+    league_avg: 28.3439
   q4:
-    intercept: 1.0494
-    coefficient: 0.000163
-    league_avg: 26.62
+    intercept: -0.1474
+    coefficient: 0.004973
+    league_avg: 27.2175
   calibration:
-    train_games: 125
-    q1_r2: 0.025
-    q1_mae: 6.4901
-    q2_r2: 0.0092
-    q2_mae: 6.9371
-    q3_r2: 0.0055
-    q3_mae: 6.5257
-    q4_r2: 0.0
-    q4_mae: 6.2741
+    train_games: 4915
+    q1_r2: 0.0533
+    q1_mae: 6.6073
+    q2_r2: 0.0273
+    q2_mae: 6.4775
+    q3_r2: 0.0241
+    q3_mae: 6.8069
+    q4_r2: 0.0082
+    q4_mae: 6.3283
     note: "Preliminary \u2014 retrain after full backfill"
