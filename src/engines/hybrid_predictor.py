@@ -55,7 +55,7 @@ class HybridPredictor:
     def __init__(
         self,
         blend_weight: float = 0.7,
-        home_advantage: float = 30,  # Calibrated
+        home_advantage: float = 60,  # Sprint 5A: Aligned with hybrid_team_player default
         use_adaptive_weighting: bool = True,
         close_game_threshold: float = 100.0
     ):
@@ -334,7 +334,7 @@ def validate_hybrid_predictions(
     player_ratings_file: str,
     player_boxscores_file: str,
     blend_weight: float = 0.7,
-    home_advantage: float = 30,  # Calibrated to 54.33% home win rate
+    home_advantage: float = 60,  # Sprint 5A: Aligned with hybrid_team_player default
     output_file: Optional[str] = None
 ) -> Dict:
     """

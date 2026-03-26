@@ -658,7 +658,7 @@ def predict_game_hybrid(
 
     # Recalculate probability with rest/fatigue
     final_home_prob = calculate_win_probability(
-        final_home_elo, final_away_elo, 0  # Home advantage already applied
+        final_home_elo, final_away_elo, home_advantage
     )
 
     if rest_factors['rest_fatigue_active']:
@@ -761,12 +761,9 @@ def predict_game_hybrid(
     #             f"Away {away_momentum:+.1f} ELO"
     #         )
 
-    # Recalculate final probability with all adjustments (close game + rest/fatigue + momentum)
-    # home_advantage=0: HA is captured implicitly via WElo (home teams win more -> higher WElo).
-    # Verified 2026-03-09: model predicts 55% home wins vs 54.4% actual — correctly calibrated.
-    # Adding explicit HA=60 here would push home predictions to 67%, severely overcounting.
+    # Recalculate final probability with all adjustments (close game + rest/fatigue + WElo + injury)
     final_home_prob = calculate_win_probability(
-        final_home_elo, final_away_elo, 0
+        final_home_elo, final_away_elo, home_advantage
     )
 
     # Toss-up game probability compression

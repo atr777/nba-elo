@@ -131,8 +131,8 @@ def predict_game(home_id, away_id, team_ratings, apply_h2h=True, h2h_weight=0.07
         home_rating = home_rating + (momentum_weight * home_momentum)
         away_rating = away_rating + (momentum_weight * away_momentum)
 
-    # Use updated home advantage from Phase 4 (reduced from 30 to 20)
-    home_advantage = 20
+    # Sprint 5A: Aligned with hybrid_team_player default (60 pts)
+    home_advantage = 60
     rating_diff = home_rating - away_rating + home_advantage
     home_win_prob = 1 / (1 + 10 ** (-rating_diff / 400))
 
