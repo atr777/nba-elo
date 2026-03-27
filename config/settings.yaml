@@ -33,6 +33,13 @@ season:
   current_season_start: "2025-10-01"
   current_season_end: "2026-06-30"
   
+# Drift Detection
+drift_detection:
+  min_games_7d: 5          # skip accuracy drop check if fewer games in window
+  min_games_30d: 10
+  accuracy_drop_threshold: 0.05   # 5pp drop triggers alert
+  consecutive_loss_threshold: 3   # 3 in a row triggers alert
+
 # Logging
 logging:
   level: "INFO"

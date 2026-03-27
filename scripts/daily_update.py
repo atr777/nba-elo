@@ -218,6 +218,15 @@ def main():
     if not success:
         log("WARNING: Prediction tracking had issues. Continuing...")
 
+    # Step 5: Model drift detection
+    log("\n--- Step 5: Model Drift Detection ---")
+    success = run_command(
+        'python scripts/detect_model_drift.py',
+        "Model drift check"
+    )
+    if not success:
+        log("WARNING: Drift check reported potential model degradation. Review data/exports/DRIFT_STATUS.md")
+
     # Get final stats
     log("\n--- Final Statistics ---")
     final_stats = get_data_stats()
