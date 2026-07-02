@@ -67,7 +67,16 @@ def main() -> None:
     post.from_markdown(body, api=api)
 
     draft = api.post_draft(post.get_draft())
-    print(f"Draft created: \"{title}\" (id {draft.get('id')})")
+    draft_id = draft.get("id")
+    print(f"Draft created: \"{title}\" (id {draft_id})")
+
+    for tag in ("NBA", "basketball", "Sports Analytics", "NBA Predictions",
+                "Statistics"):
+        try:
+            api.add_tag_to_post(draft_id, tag)
+        except Exception:
+            pass
+    print("Standard tags applied.")
     print(f"Review and publish at: {PUBLICATION_URL}/publish/posts/drafts")
 
 
