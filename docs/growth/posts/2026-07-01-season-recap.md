@@ -56,6 +56,6 @@ When the games start, this newsletter delivers picks every single game day, with
 
 **Subscribe free and you'll have the model's read on every big offseason move before your group chat does.**
 
-![Second Bounce: NBA predictions, powered by ELO](https://substack-post-media.s3.amazonaws.com/public/images/470d66b2-26b3-4561-9f54-792893763395_1456x420.jpeg)
+![Second Bounce: NBA predictions that show their work](https://substack-post-media.s3.amazonaws.com/public/images/48f4bf14-faa4-4781-8061-93f3deaf3aa5_1456x420.jpeg)
 
 [Full prediction log and methodology](https://atr777.github.io/nba-predictions/) · [Follow @SecondBounceNBA on X](https://x.com/SecondBounceNBA)
