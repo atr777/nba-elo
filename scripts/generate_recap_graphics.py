@@ -46,13 +46,13 @@ fig, ax = plt.subplots(figsize=(7.28, 3.4), dpi=200)
 ax.axis("off")
 fig.text(0.055, 0.83, "2025-26 SEASON ACCURACY", fontsize=10.5, color=MUTED,
          fontweight="bold")
-fig.text(0.048, 0.40, "73.5%", fontsize=64, color=INK, fontweight="bold")
-fig.text(0.055, 0.24, "483 of 657 tracked games called correctly",
+fig.text(0.048, 0.40, "70.6%", fontsize=64, color=INK, fontweight="bold")
+fig.text(0.055, 0.24, "464 of 657 tracked games called correctly",
          fontsize=12.5, color=SECONDARY)
 for x, big, small in [
-    (0.52, "86.1%", "on 75%+ confidence\npicks (273 games)"),
-    (0.70, "24", "straight correct\npicks at the peak"),
-    (0.845, "63.8%", "in close games\n(within 30 ELO)"),
+    (0.52, "77.6%", "on 75%+ confidence\npicks (259 games)"),
+    (0.70, "20", "straight correct\npicks at the peak"),
+    (0.845, "80%", "in the playoffs\n(20 games)"),
 ]:
     fig.text(x, 0.60, big, fontsize=21, color=INK, fontweight="bold")
     fig.text(x, 0.535, small, fontsize=9, color=SECONDARY, va="top")
@@ -64,8 +64,8 @@ fig.savefig(f"{OUT}/hero_card.png", bbox_inches=None)
 plt.close(fig)
 
 # ------------------------------------------------------- monthly accuracy
-months = ["Dec", "Jan", "Feb", "Mar", "Apr", "Playoffs"]
-vals = [63.7, 60.9, None, 81.2, 77.8, 80.0]
+months = ["Nov-Dec", "Jan", "Feb", "Mar", "Apr", "Playoffs"]
+vals = [61.1, 63.0, None, 77.4, 73.6, 80.0]
 games = [162, 92, None, 239, 144, 20]
 
 fig, ax = plt.subplots(figsize=(7.28, 4.1), dpi=200)
@@ -98,9 +98,9 @@ plt.close(fig)
 
 # ----------------------------------------------------------- calibration
 buckets = ["50-60%", "60-70%", "70-80%", "80-90%", "90%+"]
-expected = [54.5, 65.0, 74.6, 84.6, 90.0]
-actual = [60.1, 63.3, 74.0, 88.1, 92.8]
-n = [148, 150, 150, 126, 83]
+expected = [54.6, 65.2, 74.4, 84.8, 90.0]
+actual = [60.0, 69.7, 73.2, 78.6, 81.0]
+n = [195, 119, 142, 117, 84]
 
 fig, ax = plt.subplots(figsize=(7.28, 4.3), dpi=200)
 xs = range(len(buckets))
@@ -118,11 +118,11 @@ ax.set_ylim(48, 100)
 ax.set_yticks([])
 ax.set_xlim(-0.5, 4.75)
 strip_axes(ax)
-ax.set_title("When the model says 90%, it wins 93% of the time",
+ax.set_title("The confidence scores mean something, with one flaw",
              fontsize=15, fontweight="bold", loc="left", pad=16, color=INK)
-ax.text(0, 1.015, "Stated win probability vs. what actually happened, "
-        "across all 657 tracked games.", transform=ax.transAxes,
-        fontsize=10.5, color=SECONDARY)
+ax.text(0, 1.015, "Stated win probability vs. reality, 657 games. Solid in "
+        "the middle, overconfident up top.",
+        transform=ax.transAxes, fontsize=10.5, color=SECONDARY)
 legend = ax.legend(handles=[
     Line2D([], [], marker="o", linestyle="", markersize=10, color=BLUE,
            label="Actual win rate"),
