@@ -258,3 +258,6 @@ nba_elo_admin.py
 
 # Batch scripts
 scripts/*.bat
+
+# Secrets
+.env

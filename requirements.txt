@@ -7,3 +7,6 @@ tqdm>=4.65.0
 pyyaml>=6.0
 nba-api>=1.4
 nbainjuries>=1.0.0
+
+python-substack>=0.1.23
+python-dotenv>=1.0
