@@ -79,29 +79,29 @@ def build(pid: str, name: str, rating: str, kicker: str, out: str):
     # baseline the player "stands" on
     d.rectangle([W - 660, H - 8, W, H], fill=BLUE)
 
-    f_kick = ImageFont.truetype(F + "segoeuib.ttf", 26)
-    f_name = ImageFont.truetype(F + "segoeuib.ttf", 74)
-    f_num = ImageFont.truetype(F + "segoeuib.ttf", 128)
-    f_lab = ImageFont.truetype(F + "segoeui.ttf", 28)
-    f_mono = ImageFont.truetype(F + "consola.ttf", 24)
+    f_kick = ImageFont.truetype(F + "seguibl.ttf", 30)
+    f_name = ImageFont.truetype(F + "seguibl.ttf", 86)
+    f_num = ImageFont.truetype(F + "seguibl.ttf", 168)
+    f_lab = ImageFont.truetype(F + "segoeuib.ttf", 28)
+    f_small = ImageFont.truetype(F + "segoeui.ttf", 24)
 
     x = 84
-    d.text((x, 84), kicker.upper(), font=f_kick, fill=ORANGE)
-    # wrap name onto two lines if long
-    parts = name.split(" ", 1)
-    if d.textlength(name, font=f_name) > 660 and len(parts) == 2:
-        d.text((x, 136), parts[0], font=f_name, fill=TEXT)
-        d.text((x, 228), parts[1], font=f_name, fill=TEXT)
-        ny = 340
+    d.text((x, 72), kicker.upper(), font=f_kick, fill=ORANGE)
+    # wrap name onto two lines if long; all caps for weight
+    name_u = name.upper()
+    parts = name_u.split(" ", 1)
+    if d.textlength(name_u, font=f_name) > 680 and len(parts) == 2:
+        d.text((x, 128), parts[0], font=f_name, fill=TEXT)
+        d.text((x, 232), parts[1], font=f_name, fill=TEXT)
+        ny = 372
     else:
-        d.text((x, 136), name, font=f_name, fill=TEXT)
-        ny = 248
-    d.text((x, ny), f"{int(rating):,}", font=f_num, fill=BLUE)
-    d.text((x + 8, ny + 150), "model rating · 1500 = league average",
+        d.text((x, 128), name_u, font=f_name, fill=TEXT)
+        ny = 268
+    d.text((x - 6, ny), f"{int(rating):,}", font=f_num, fill=BLUE)
+    d.text((x, ny + 200), "MODEL RATING · 1500 = LEAGUE AVERAGE",
            font=f_lab, fill=MUTED)
 
-    d.text((x, H - 74), receipt_line(), font=f_mono, fill=MUTED)
-    d.text((x, H - 40), "secondbounce.substack.com", font=f_mono, fill=MUTED)
+    d.text((x, H - 44), "secondbounce.substack.com", font=f_small, fill=MUTED)
 
     card.save(out)
     print("saved:", out)
