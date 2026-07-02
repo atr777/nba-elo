@@ -91,10 +91,10 @@ def track_predictions(days_back=7):
     log("Initializing ELO engine...")
     elo_engine = TeamELOEngine(
         k_factor=20,
-        home_advantage=20,  # Phase 4: Reduced from 30 to 20
+        home_advantage=60,  # Sprint 5A: Aligned with hybrid_team_player default
         use_mov=True,
         use_enhanced_features=True,
-        use_top_player_concentration=True,
+        use_top_player_concentration=False,  # 2026-27 config: cost accuracy on both validation seasons
         player_ratings=player_ratings,
         player_team_mapping=player_team_mapping
     )

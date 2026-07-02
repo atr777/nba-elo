@@ -72,7 +72,9 @@ class TeamELOEngine:
         # Enhanced features trackers
         if use_enhanced_features:
             self.form_tracker = FormTracker(lookback_games=5, form_weight=0.1)
-            self.rest_tracker = RestTracker(b2b_penalty=46, one_day_penalty=15)
+            # 2026-27 config (validated on 2024-25 + 2025-26 walk-forward):
+            # the one-day rest penalty cost accuracy on both seasons — removed
+            self.rest_tracker = RestTracker(b2b_penalty=46, one_day_penalty=0)
         else:
             self.form_tracker = None
             self.rest_tracker = None
