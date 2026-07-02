@@ -56,6 +56,6 @@ When the games start, this newsletter delivers picks every single game day, with
 
 **Subscribe free and you'll have the model's read on every big offseason move before your group chat does.**
 
----
+![Second Bounce: NBA predictions, powered by ELO](https://substack-post-media.s3.amazonaws.com/public/images/222675cb-3409-42e7-84eb-68a0c651ad89_1456x420.jpeg)
 
-*Second Bounce is a fully automated NBA prediction engine with a public track record. The methodology and full prediction log live at [our tracking site](https://atr777.github.io/nba-predictions/). Follow [@SecondBounceNBA](https://x.com/SecondBounceNBA) for daily picks in season.*
+[Full prediction log and methodology](https://atr777.github.io/nba-predictions/) · [Follow @SecondBounceNBA on X](https://x.com/SecondBounceNBA)
