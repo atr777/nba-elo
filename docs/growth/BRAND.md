@@ -58,9 +58,16 @@ is its most human quality." Human writes, machine predicts, both are named.
   "BOUNCE" (first bounce big, second bounce smaller: the physics of the name).
 - **Typography:** Inter/Segoe for everything; monospace ONLY for the receipt and
   stat callouts. No serif, no display fonts.
-- **Imagery:** we don't use photography. Our charts ARE the photography. Every
-  post carries at least one chart in the house style (light surface, signal
-  blue, direct labels). The dataviz consistency is the aesthetic.
+- **Imagery:** charts are the default imagery, always in the house style (light
+  surface, signal blue, direct labels). The dataviz consistency is the aesthetic.
+- **Player cards (the one exception to no-photography):** NBA.com headshots run
+  through the signature treatment in `scripts/generate_player_card.py`: brand
+  duotone (navy shadows, signal-blue mids, pale highlights), film grain, orange
+  kicker label, hero rating, receipt stamp. Rules: **at most ONE card per post**,
+  only for the post's single subject, never as decoration. The duotone is the
+  signature; never use an untreated photo. (Headshots via cdn.nba.com, standard
+  editorial practice for newsletters; the heavy transformation keeps it clearly
+  our design language.)
 - Orange is rationed: in any graphic, orange marks the model's pick and nothing
   else. Scarcity keeps it meaningful.
 
