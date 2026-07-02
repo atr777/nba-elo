@@ -97,29 +97,29 @@ draw.text((W - 80, H - 56), "secondbounce.substack.com",
 banner.save(f"{ASSETS}/footer_banner.png")
 
 # ---------------------------------------------------------------- X header
+# Clean: no tagline, no pattern (Aaron 2026-07-01). Ball + wordmark + receipt.
 XW, XH = 1500, 500
 hdr = Image.new("RGB", (XW, XH), NAVY)
-tile2 = pattern.resize((500, 500))
-tile2.putalpha(tile2.split()[3].point(lambda a: int(a * 0.06)))
-for x in range(0, XW, 500):
-    for y in range(0, XH, 500):
-        hdr.paste(tile2, (x, y), tile2)
 d2 = ImageDraw.Draw(hdr)
+# soft radial glow behind the ball so the plain navy isn't flat
+glow = Image.new("L", (XW, XH), 0)
+gd = ImageDraw.Draw(glow)
+for r_, a_ in [(340, 14), (260, 20), (180, 26)]:
+    gd.ellipse([205 - r_, 250 - r_, 205 + r_, 250 + r_], fill=a_)
+hdr.paste(Image.new("RGB", (XW, XH), (36, 48, 72)), (0, 0), glow)
 d2.rectangle([0, 0, XW, 6], fill=BLUE_DARK_SURFACE)
 
-ball2 = ball_full.resize((190, 190))
-hdr.paste(ball2, (110, 140), ball2)
+ball2 = ball_full.resize((210, 210))
+hdr.paste(ball2, (100, 145), ball2)
 
-f_brand2 = ImageFont.truetype(F + "segoeuib.ttf", 88)
-tx2 = 110 + 190 + 48
-d2.text((tx2, 140), "SECOND BOUNCE", font=f_brand2, fill=TEXT_DARK)
+f_brand2 = ImageFont.truetype(F + "segoeuib.ttf", 92)
+tx2 = 100 + 210 + 52
+d2.text((tx2, 168), "SECOND BOUNCE", font=f_brand2, fill=TEXT_DARK)
 prefix2 = d2.textlength("SECOND ", font=f_brand2)
 bounce2 = d2.textlength("BOUNCE", font=f_brand2)
-bounce_arcs(d2, tx2 + prefix2, 263, bounce2, BLUE_DARK_SURFACE, width=4)
-d2.text((tx2 + 5, 310), "NBA predictions that show their work",
-        font=ImageFont.truetype(F + "segoeui.ttf", 38), fill=MUTED_DARK)
-d2.text((tx2 + 5, 396), RECEIPT,
-        font=ImageFont.truetype(F + "consola.ttf", 30), fill=(148, 163, 184))
+bounce_arcs(d2, tx2 + prefix2, 296, bounce2, BLUE_DARK_SURFACE, width=4)
+d2.text((tx2 + 5, 344), RECEIPT,
+        font=ImageFont.truetype(F + "consola.ttf", 31), fill=(148, 163, 184))
 hdr.save(f"{ASSETS}/x_header.png")
 
 print("done:", RECEIPT)

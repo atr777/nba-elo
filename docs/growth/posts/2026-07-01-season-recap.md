@@ -8,7 +8,7 @@ The season is over. Here's how it went.
 
 For context: picking the home team every night gets you roughly 55%. Most public prediction models live in the 63 to 67% range. A 70.6% season clears both bars, and the full game-by-game log is public.
 
-One more thing about that number, because it matters. While preparing this recap we audited our own tracking system and found it had been grading the model too generously: it scored some games using ratings that already included those games' results, a subtle form of data leakage that inflated the record to 73.5%. We rebuilt the entire season as a strict walk-forward replay, where every prediction only knows what was knowable before tip-off. The number that survives that audit is 70.6%, and it's the only number you'll ever see us quote. A prediction outfit that quietly publishes its most flattering math is a tout. We're the other thing.
+One more thing about that number. While preparing this recap we audited our own tracker and caught it flattering the model: a subtle data leak had inflated the record to 73.5%. We rebuilt the whole season as a strict walk-forward replay, and 70.6% is what survives. It's the only number you'll ever see us quote. A prediction outfit that quietly publishes its most flattering math is a tout. We're the other thing.
 
 ## What is this thing?
 
@@ -34,15 +34,11 @@ Accuracy is one thing. Calibration, whether a "75% confident" pick actually wins
 
 The middle of the range is solid: picks in the 60 to 80% buckets delivered right around what they promised, and coin-flip games landed above promise. The flaw is at the top: picks stated at 90%+ won 81% of the time, not 90. The model knows who's better; it's still learning how sure to be. Tightening that top end is literally on our offseason engineering list, and you'll be able to check next season whether we did it.
 
-## The misses we still think about
+## The season in five receipts
 
-The model's most confident wrong calls of the season, in all their glory:
+![Five moments: the 20-game streak, the 16/20 playoff run, the Boston-Philly humbling, the OKC blowout miss, and the audit](https://substack-post-media.s3.amazonaws.com/public/images/36503e95-bac5-4d4c-be3d-d139afe22561_1456x340.jpeg)
 
-- Boston at home against Philadelphia in the playoffs, twice. The model said 90% both times. The Sixers won both games by double digits.
-- Oklahoma City at home against Phoenix in April, 90%. The Suns won by 32.
-- Denver at home against Minnesota, 90%. The Wolves stole it 119 to 114.
-
-Basketball remains undefeated at humbling math. A 90% call losing isn't the model breaking, it's the 1-in-10 showing up on schedule. But four of them clustered at the top is part of why "overconfident up top" is our number one calibration fix.
+Basketball remains undefeated at humbling math. A 90% call losing isn't the model breaking, it's the 1-in-10 showing up on schedule (ask Denver, who the model gave 90% at home before Minnesota stole it 119 to 114). But several of those clustered at the top is exactly why "overconfident up top" is our number one calibration fix.
 
 ## What happens now
 
