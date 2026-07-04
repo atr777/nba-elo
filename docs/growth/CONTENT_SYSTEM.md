@@ -70,3 +70,36 @@ narration in one pass.
 - Narration voice is River (`SAz9YHcvj6GT2YYXdXww`), always introduced as the
   voice of the model, never a fake human.
 - Credits budget: ~121k/month ElevenLabs ≈ 2h audio; a normal week uses <15 min.
+
+## ROSTER ACCURACY (hard rule — Aaron, 2026-07-03)
+
+`player_team_mapping.csv` is STALE (pre-free-agency). Player ratings are correct;
+their TEAM assignments are NOT. **Never name a player as being on a team from the
+mapping without verifying against current news.** A single wrong roster claim
+(Naz Reid, Anthony Davis) destroys credibility. Until the nightly roster refresh
+(Roster Phase A) ships, and during any active transaction window even after:
+- Team ELO ratings are always safe to cite (team-level, not roster-dependent).
+- A player's individual rating is safe to cite; WHERE they play is not.
+- Roster detail in any post gets a live news verification at write/fire time,
+  for that specific team, right before it goes out. No pre-built roster lists.
+
+## The Posting Pack (end-of-day deliverable for next day)
+
+Standard next-day handoff. Must be phone-usable and paste-able into Aaron's
+private Discord with ZERO back-references ("same as before" is banned).
+
+Format:
+- Title: `SECOND BOUNCE — POSTING PACK (<date>)`.
+- **Part 1: schedule table.** Columns: time (US Central, primary) + ET
+  reference (CT = ET - 1h), platform (X / Substack), one-line description,
+  asset filename. Audience is US, so anchor slot strategy to ET peak windows,
+  then convert. Holidays: pull earlier (US evenings die on holidays).
+- Under the table, **every post's exact copy in its own fenced code block** so
+  each is one-tap copyable on mobile. Spell everything out; never reference an
+  earlier message.
+- Media reminder: the .mp4/.png assets live on the PC; tell Aaron to drop them
+  into the Discord channel too (while PC is on) so his phone has them.
+- **Part 2 (optional): contingency content** that fires on news (e.g. a star's
+  decision). Give the frame + caption; fill verified roster detail at fire time
+  per the roster-accuracy rule above.
+- End with override rules (what breaking news supersedes the plan).
