@@ -36,18 +36,28 @@ RED = (239, 90, 90)
 W = H = 1080
 KESSLER_ID = "1631117"
 
-NARRATION = (
+# One narration segment PER slide, in slide order. Each slide is held on
+# screen for exactly the length of its own segment, so audio never drifts
+# against the visuals.
+SEG_TEXTS = [
+    # slide1 (hook)
     "This is the voice of the model. The Lakers just paid Walker Kessler a "
-    "hundred and thirty million dollars. His box score rates him sixteen "
-    "ninety nine, a fringe star. I rate him fifteen twenty nine. A hundred "
-    "and seventy point haircut. Why? Box scores flatter rim protectors. "
-    "Blocks, rebounds, and low turnovers look better than they actually "
-    "play. It is the same discount I put on Rudy Gobert and every rim "
-    "protector in the league, and last season the adjusted numbers predicted "
-    "games better than the raw ones. The market priced the highlight reel. I "
-    "priced the wins. One of us is wrong, and we will find out by June. "
-    "Second Bounce. The receipts are public."
-)
+    "hundred and thirty million dollars.",
+    # slide2 (market: 1,699)
+    "His box score rates him sixteen ninety nine. A fringe star, on a "
+    "max-sized deal.",
+    # slide3 (model: 1,529)
+    "I rate him fifteen twenty nine. A hundred and seventy point haircut.",
+    # slide4 (why)
+    "Why? Box scores flatter rim protectors. Blocks, rebounds, and low "
+    "turnovers look better than they actually play. It is the same discount "
+    "I put on Rudy Gobert, and last season the adjusted numbers predicted "
+    "games better than the raw ones.",
+    # slide5 (end card)
+    "The market priced the highlight reel. I priced the wins. One of us is "
+    "wrong, and we will find out game by game. Second Bounce. The receipts "
+    "are public.",
+]
 
 BALL = Image.open(ASSETS / "logo_substack.png").convert("RGBA")
 
@@ -157,7 +167,7 @@ def slide5():
     d.arc([x0, y - h1, x0 + w1, y + h1], 180, 360, fill=BLUE, width=5)
     x2 = x0 + w1 + int(bw * 0.04)
     d.arc([x2, y - h2, x2 + w2, y + h2], 180, 360, fill=BLUE, width=5)
-    d.text((W // 2, 590), "We'll find out by June.",
+    d.text((W // 2, 590), "We'll find out, game by game.",
            font=font("segoeui.ttf", 46), fill=MUTED, anchor="ma")
     d.text((W // 2, 700), "[ 70.6% · 657 games · verified walk-forward ]",
            font=font("consola.ttf", 34), fill=MUTED, anchor="ma")
@@ -174,49 +184,69 @@ def audio_duration(path):
             + float(m.group(3)))
 
 
-def main():
-    load_dotenv(".env")
-    nar = ASSETS / "kessler_narration.mp3"
+def tts(text, path, key):
     r = requests.post(
         "https://api.elevenlabs.io/v1/text-to-speech/SAz9YHcvj6GT2YYXdXww"
         "?output_format=mp3_44100_128",
-        headers={"xi-api-key": os.environ["ELEVENLABS_API_KEY"]},
-        json={"text": NARRATION, "model_id": "eleven_multilingual_v2",
+        headers={"xi-api-key": key},
+        json={"text": text, "model_id": "eleven_multilingual_v2",
               "voice_settings": {"stability": 0.5, "similarity_boost": 0.75,
                                  "style": 0.25}},
         timeout=300)
     r.raise_for_status()
-    nar.write_bytes(r.content)
-    dur = audio_duration(nar)
-    print(f"narration: {dur:.1f}s")
+    path.write_bytes(r.content)
+    return audio_duration(path)
 
+
+def main():
+    load_dotenv(".env")
+    key = os.environ["ELEVENLABS_API_KEY"]
+
+    # one narration segment per slide; measure each so the slide can be held
+    # on screen for exactly the length of its own segment (audio never drifts)
+    segs, durs = [], []
+    for i, text in enumerate(SEG_TEXTS):
+        p = ASSETS / f"_kseg{i}.mp3"
+        d = tts(text, p, key)
+        segs.append(p)
+        durs.append(d)
+        print(f"seg{i}: {d:.1f}s")
+
+    LEAD = 0.5  # lead-in silence before the voice starts (slide1 covers it)
     slides = [slide1(), slide2(), slide3(), slide4(), slide5()]
-    weights = [0.17, 0.17, 0.17, 0.28, 0.21]
-    total = dur + 2.0
+    disp = [durs[0] + LEAD] + durs[1:]
+    total = LEAD + sum(durs)
+
     lines = []
-    for i, (img, wgt) in enumerate(zip(slides, weights)):
+    for i, (img, dd) in enumerate(zip(slides, disp)):
         p = ASSETS / f"_kv_slide{i}.png"
         img.save(p)
-        lines.append(f"file '{p.resolve()}'\nduration {total * wgt:.2f}")
+        lines.append(f"file '{p.resolve()}'\nduration {dd:.3f}")
     lines.append(f"file '{(ASSETS / '_kv_slide4.png').resolve()}'")
     concat = ASSETS / "_kv_list.txt"
     concat.write_text("\n".join(lines), encoding="utf-8")
 
     out = ASSETS / "kessler_tax.mp4"
-    cmd = [FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(concat),
-           "-i", str(nar), "-i", str(ASSETS / "lebron_bed.mp3"),
-           "-filter_complex",
-           f"[1:a]adelay=800|800[nar];"
-           f"[2:a]volume=0.18,afade=t=out:st={total-3:.1f}:d=3[bed];"
-           f"[nar][bed]amix=inputs=2:duration=longest:dropout_transition=3[a]",
-           "-map", "0:v", "-map", "[a]", "-t", f"{total:.2f}",
-           "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-           "-c:a", "aac", "-b:a", "160k", str(out)]
-    p = subprocess.run(cmd, capture_output=True, text=True)
-    if p.returncode != 0:
-        print(p.stderr[-1200:])
+    n = len(segs)
+    bed_idx = 1 + n
+    cmd = [FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(concat)]
+    for p in segs:
+        cmd += ["-i", str(p)]
+    cmd += ["-i", str(ASSETS / "lebron_bed.mp3")]
+    concat_labels = "".join(f"[{k}:a]" for k in range(1, 1 + n))
+    ms = int(LEAD * 1000)
+    cmd += ["-filter_complex",
+            f"{concat_labels}concat=n={n}:v=0:a=1,adelay={ms}|{ms}[nar];"
+            f"[{bed_idx}:a]volume=0.18,afade=t=out:st={total-3:.1f}:d=3[bed];"
+            f"[nar][bed]amix=inputs=2:duration=longest:dropout_transition=3[a]",
+            "-map", "0:v", "-map", "[a]", "-t", f"{total:.2f}",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+            "-c:a", "aac", "-b:a", "160k", str(out)]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(proc.stderr[-1500:])
         sys.exit(1)
-    for f in ASSETS.glob("_kv_*"):
+    for f in list(ASSETS.glob("_kv_*")) + list(ASSETS.glob("_kseg*")):
         f.unlink()
     print(f"video: {out} ({out.stat().st_size // 1024} KB, {total:.1f}s)")
 
