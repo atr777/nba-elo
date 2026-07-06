@@ -4,7 +4,7 @@ Free agency is loud. Everyone grades the same signings the same way, off the sam
 
 Start with the receipt.
 
-![This week's deals, model vs box score: the model docks Hartenstein and Kessler, boosts LaMelo and Harden](https://substack-post-media.s3.amazonaws.com/public/images/38146778-2672-49ef-beca-6d475ed127c7_1456x960.jpeg)
+![This weeks deals, model vs box score](https://substack-post-media.s3.amazonaws.com/public/images/f6293dc6-3f7c-439a-bd40-228f5db02549_1456x960.jpeg)
 
 That chart is the gap between two numbers we keep on every player: their raw box-score rating, and the rating our engine actually uses to predict games. When those two numbers disagree, it is usually because the box score is measuring the wrong thing.
 

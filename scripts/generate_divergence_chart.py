@@ -54,11 +54,10 @@ ax.text(-335, -0.75, "MODEL DOCKS  ◄", fontsize=10, color=RED,
         fontweight="bold", va="center")
 ax.text(335, -0.75, "►  MODEL BOOSTS", fontsize=10, color=BLUE,
         fontweight="bold", va="center", ha="right")
-ax.set_title("This week's deals, model vs box score",
-             fontsize=15, fontweight="bold", loc="left", pad=30, color=INK)
-ax.text(0, 1.09, "Model-adjusted rating minus raw box score. The market pays "
-        "for the numbers the model marks down.", transform=ax.transAxes,
-        fontsize=10.5, color=SECONDARY)
-fig.tight_layout()
+fig.subplots_adjust(left=0.03, right=0.97, top=0.80, bottom=0.05)
+fig.text(0.035, 0.945, "This week's deals, model vs box score",
+         fontsize=15, fontweight="bold", color=INK)
+fig.text(0.035, 0.862, "Model-adjusted rating minus raw box score. The market "
+         "pays for what the model marks down.", fontsize=10.5, color=SECONDARY)
 fig.savefig("docs/growth/posts/assets/week_divergence.png")
 print("done")
