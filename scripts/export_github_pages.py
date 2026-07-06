@@ -275,7 +275,7 @@ def get_week_results():
     for date_int, group in sorted(week.groupby('date'), reverse=True):
         try:
             d = datetime.strptime(str(date_int), '%Y%m%d')
-            day_label = f"{d.strftime('%a')}-{d.day:02d}-{d.strftime('%y')}"
+            day_label = d.strftime('%b %-d, %Y') if os.name != 'nt' else d.strftime('%b %#d, %Y')
             nba_scores_url = f"https://www.nba.com/games?date={d.strftime('%Y-%m-%d')}"
         except Exception:
             day_label = str(date_int)
@@ -451,19 +451,25 @@ def get_top_players(n=15):
 
     df = ratings.merge(mapping, on='player_name', how='left')
     df['team_name'] = df['team_name'].fillna('—')
-    top = df.nlargest(n, 'rating')[['player_name', 'team_name', 'rating', 'games_played']]
+    if 'raw_rating' not in df.columns:
+        df['raw_rating'] = df['rating']
+    cols = ['player_name', 'team_name', 'rating', 'raw_rating', 'games_played']
+    top = df.nlargest(n, 'rating')[cols]
 
     players = []
     for i, (_, row) in enumerate(top.iterrows(), 1):
         team_name = row['team_name']
         team_abbr = TEAM_ABBREVS.get(team_name, team_name[:3].upper() if len(team_name) >= 3 else team_name)
+        elo = int(row['rating'])
+        adj = int(round(row['rating'] - row['raw_rating']))
         players.append({
             'rank': i,
             'name': row['player_name'],
             'team': team_name,
             'team_abbr': team_abbr,
             'team_logo': get_logo_by_abbrev(team_abbr),
-            'elo': int(row['rating']),
+            'elo': elo,
+            'adj': adj,  # model adjustment vs raw box score (+boost / -dock)
             'games': int(row['games_played']),
         })
     return players
@@ -626,10 +632,18 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
         {inj_block}
       </div>"""
     else:
-        pred_cards = '''<div class="card" style="text-align:center;padding:1.6rem 1rem;">
+        _md = (datetime.now().month, datetime.now().day)
+        is_offseason = (6, 25) <= _md <= (10, 20)
+        if is_offseason:
+            pred_cards = '''<div class="card" style="text-align:center;padding:1.6rem 1rem;">
         <p style="font-size:0.98rem;color:var(--text);margin:0 0 0.4rem;font-weight:600;">No games today. The season is over.</p>
         <p style="font-size:0.8rem;color:var(--muted);margin:0 0 1rem;line-height:1.5;">The model finished <strong style="color:var(--accent);">70.6%</strong> across 657 tracked games. Daily predictions return on opening night. Until then, we break down every big offseason move through the model's eyes.</p>
-        <a href="https://secondbounce.substack.com" target="_blank" rel="noopener" style="display:inline-block;background:var(--accent);color:#fff;padding:0.55rem 1.2rem;border-radius:7px;font-size:0.82rem;font-weight:700;text-decoration:none;">Get the model's offseason analysis &rarr;</a>
+        <a href="https://secondbounce.substack.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.45rem;background:var(--accent);color:#fff;padding:0.55rem 1.25rem;border-radius:7px;font-size:0.82rem;font-weight:700;text-decoration:none;"><svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px;flex-shrink:0;"><path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812H22.54V24l-10.54-5.9L1.46 24V10.812zM22.54 0H1.46v2.836h21.08V0z"/></svg>Get the model's offseason analysis</a>
+      </div>'''
+        else:
+            pred_cards = '''<div class="card" style="text-align:center;padding:1.4rem 1rem;">
+        <p style="font-size:0.95rem;color:var(--text);margin:0 0 0.3rem;font-weight:600;">No games scheduled today.</p>
+        <p style="font-size:0.8rem;color:var(--muted);margin:0;line-height:1.5;">Predictions post every game day. Check back tomorrow, or see recent results below.</p>
       </div>'''
 
     # ---- This Week Results HTML ---- #
@@ -731,22 +745,38 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
     if players:
         player_rows = ''
         for p in players:
+            elo = p['elo']
+            frac = max(0.06, min(1.0, (elo - 1500) / (2650 - 1500)))
+            barw = f"{frac*100:.0f}%"
+            adj = p['adj']
+            if adj >= 20:
+                badge = f'<span style="color:var(--accent);font-weight:700;">&#9650; +{adj}</span>'
+            elif adj <= -20:
+                badge = f'<span style="color:var(--amber);font-weight:700;">&#9660; {adj}</span>'
+            else:
+                badge = '<span style="color:var(--muted);">&mdash;</span>'
             player_rows += f"""
         <tr>
           <td class="rank">{p['rank']}</td>
-          <td class="pname">{p['name']}</td>
-          <td class="pteam"><img class="pteam-logo" src="{p['team_logo']}" alt="{p['team_abbr']}" onerror="this.style.display='none'"> {p['team_abbr']}</td>
-          <td class="pelo">{p['elo']}</td>
+          <td class="pname">{p['name']}<br><span style="font-size:0.66rem;color:var(--muted);font-weight:400;"><img class="pteam-logo" src="{p['team_logo']}" alt="{p['team_abbr']}" onerror="this.style.display='none'" style="width:13px;height:13px;"> {p['team_abbr']}</span></td>
+          <td style="min-width:130px;">
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <div style="flex:1;height:6px;background:var(--surface-hi);border-radius:3px;overflow:hidden;"><div style="width:{barw};height:100%;background:var(--accent);border-radius:3px;"></div></div>
+              <span class="pelo" style="min-width:40px;">{elo}</span>
+            </div>
+          </td>
+          <td style="text-align:right;font-size:0.72rem;white-space:nowrap;">{badge}</td>
         </tr>"""
         players_html = f"""
       <div class="card">
-        <h2 class="section-title">Top 15 Player ELO</h2>
+        <h2 class="section-title">Top 15 Players by Model Rating</h2>
         <div class="table-wrap">
           <table class="player-table">
-            <thead><tr><th>#</th><th>Player</th><th>Team</th><th class="th-elo">ELO</th></tr></thead>
+            <thead><tr><th>#</th><th>Player</th><th class="th-elo">Rating</th><th style="text-align:right;">Model</th></tr></thead>
             <tbody>{player_rows}</tbody>
           </table>
         </div>
+        <p style="font-size:0.68rem;color:var(--muted);margin-top:0.7rem;line-height:1.5;">Rating: 1,500 = league average. <span style="color:var(--accent);">&#9650;</span> creators the model rates above their box score, <span style="color:var(--amber);">&#9660;</span> rim protectors it rates below. This is the adjustment the engine actually predicts with.</p>
       </div>"""
     else:
         players_html = ''
@@ -1338,17 +1368,19 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
   </header>
 
   <div class="container">
-    {stats_html}
+    <div id="stats" style="scroll-margin-top:90px;">{stats_html}</div>
 
     {weekly_html}
 
+    <div id="today" style="scroll-margin-top:90px;">
     <div class="games-date">{date_str} &nbsp;·&nbsp; {games_count} game{'s' if games_count != 1 else ''} today</div>
     <div class="games-header">Today's Predictions</div>
     {pred_cards}
+    </div>
 
-    {yesterday_html}
+    <div id="week" style="scroll-margin-top:90px;">{yesterday_html}</div>
 
-    {players_html}
+    <div id="players" style="scroll-margin-top:90px;">{players_html}</div>
   </div>
 
   <footer>
@@ -1373,9 +1405,9 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
           <div class="footer-section-label">Predictions</div>
           <ul class="footer-links">
             <li><a href="#today">Today's Picks</a></li>
-            <li><a href="#week">This Week</a></li>
+            <li><a href="#week">Recent Results</a></li>
             <li><a href="#stats">Season Stats</a></li>
-            <li><a href="#injuries">Injury Report</a></li>
+            <li><a href="#players">Player Ratings</a></li>
           </ul>
         </div>
 
