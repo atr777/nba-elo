@@ -119,7 +119,7 @@ def slide3():
         d.text((W - 80, y + 4), val, font=font("seguibl.ttf", 52), fill=BLUE,
                anchor="ra")
         y += 96
-    d.text((80, y + 20), "Team rating 1,637 — a contender before he arrived.",
+    d.text((80, y + 20), "Team rating 1,637. A contender before he arrived.",
            font=font("segoeui.ttf", 38), fill=MUTED)
     footer(img, d)
     return img
@@ -200,11 +200,16 @@ def main():
         cp = ASSETS / f"_cclip{i}.mp4"
         frames = max(2, round(dd * 30))
         zdir = "zoom+0.00035" if i % 2 == 0 else "zoom+0.0006"
-        subprocess.run([FFMPEG, "-y", "-loop", "1", "-i", str(sp),
-                        "-vf", f"scale=1350:1350,zoompan=z='min({zdir},1.12)'"
-                        f":d={frames}:s=1080x1080:fps=30",
-                        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-                        str(cp)], capture_output=True, text=True)
+        # -t bounds the output; without it, -loop 1 + zoompan runs forever
+        r = subprocess.run(
+            [FFMPEG, "-y", "-loop", "1", "-i", str(sp),
+             "-vf", f"scale=1350:1350,zoompan=z='min({zdir},1.12)'"
+             f":d={frames}:s=1080x1080:fps=30",
+             "-t", f"{dd:.3f}", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+             str(cp)], capture_output=True, text=True, timeout=90)
+        if r.returncode != 0:
+            print(r.stderr[-1200:])
+            sys.exit(1)
         clips.append(cp)
 
     listf = ASSETS / "_cclips.txt"
@@ -235,9 +240,9 @@ def main():
     if p.returncode != 0:
         print(p.stderr[-1800:])
         sys.exit(1)
-    for f in list(ASSETS.glob("_cseg*")) + list(ASSETS.glob("_cslide*")) + \
-            list(ASSETS.glob("_cclip*")) + [listf, silent]:
-        f.unlink()
+    for f in set(list(ASSETS.glob("_cseg*")) + list(ASSETS.glob("_cslide*"))
+                 + list(ASSETS.glob("_cclip*")) + [listf, silent]):
+        f.unlink(missing_ok=True)
     print(f"video: {out} ({out.stat().st_size // 1024} KB, {total:.1f}s)")
 
 
