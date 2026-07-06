@@ -1,10 +1,10 @@
-"""LeBron-to-Cleveland decision video (creative build for X, 1080x1080).
+"""LeBron-to-Cleveland decision video, STRIPPED fallback cut (X, 1080x1080).
 
-Elevated beyond the standard slideshow:
+A clean, minimal emergency version to post the moment he signs, if the premium
+ElevenCreative-footage version isn't finished yet:
 - River narration, per-slide-synced (audio welded to visuals)
-- ElevenLabs cinematic building bed (cle_bed.mp3) + crowd-roar SFX at the reveal
-- Ken Burns motion on every slide (each clip = its own narration segment, so
-  sync holds) + fade from/to black
+- Static brand slides (NO zoom / Ken Burns), simple fade in / fade out
+- Music bed mixed LOW (0.06), no crowd SFX
 Roster verified 2026-07-06 (Harden in via Garland trade; Garland gone).
 """
 
@@ -179,8 +179,8 @@ def main():
             "https://api.elevenlabs.io/v1/text-to-speech/SAz9YHcvj6GT2YYXdXww"
             "?output_format=mp3_44100_128", headers={"xi-api-key": key},
             json={"text": text, "model_id": "eleven_multilingual_v2",
-                  "voice_settings": {"stability": 0.5, "similarity_boost": 0.75,
-                                     "style": 0.3}}, timeout=300)
+                  "voice_settings": {"stability": 0.6, "similarity_boost": 0.75,
+                                     "style": 0.0}}, timeout=300)
         r.raise_for_status()
         p.write_bytes(r.content)
         segs.append(p)
@@ -192,47 +192,32 @@ def main():
     disp = [durs[0] + LEAD] + durs[1:]
     total = LEAD + sum(durs)
 
-    # Ken Burns clip per slide (each clip == its narration segment -> sync holds)
-    clips = []
+    # Stripped fallback cut: static slides (no zoom), each held for its own
+    # narration segment; music bed mixed low, no crowd SFX. Just a clean fade
+    # in / fade out. (The premium version replaces slides with ElevenCreative
+    # footage.)
+    lines = []
     for i, (img, dd) in enumerate(zip(slides, disp)):
         sp = ASSETS / f"_cslide{i}.png"
         img.save(sp)
-        cp = ASSETS / f"_cclip{i}.mp4"
-        frames = max(2, round(dd * 30))
-        zdir = "zoom+0.00035" if i % 2 == 0 else "zoom+0.0006"
-        # -t bounds the output; without it, -loop 1 + zoompan runs forever
-        r = subprocess.run(
-            [FFMPEG, "-y", "-loop", "1", "-i", str(sp),
-             "-vf", f"scale=1350:1350,zoompan=z='min({zdir},1.12)'"
-             f":d={frames}:s=1080x1080:fps=30",
-             "-t", f"{dd:.3f}", "-c:v", "libx264", "-pix_fmt", "yuv420p",
-             str(cp)], capture_output=True, text=True, timeout=90)
-        if r.returncode != 0:
-            print(r.stderr[-1200:])
-            sys.exit(1)
-        clips.append(cp)
-
-    listf = ASSETS / "_cclips.txt"
-    listf.write_text("\n".join(f"file '{c.resolve()}'" for c in clips),
-                     encoding="utf-8")
-    silent = ASSETS / "_csilent.mp4"
-    subprocess.run([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i",
-                    str(listf), "-c", "copy", str(silent)],
-                   capture_output=True, text=True)
+        lines.append(f"file '{sp.resolve()}'\nduration {dd:.3f}")
+    lines.append(f"file '{(ASSETS / '_cslide4.png').resolve()}'")
+    listf = ASSETS / "_cslides.txt"
+    listf.write_text("\n".join(lines), encoding="utf-8")
 
     out = ASSETS / "lebron_cleveland_decision.mp4"
     ms = int(LEAD * 1000)
-    cmd = [FFMPEG, "-y", "-i", str(silent)]
+    cmd = [FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(listf)]
     for s in segs:
         cmd += ["-i", str(s)]
-    cmd += ["-i", str(ASSETS / "cle_bed.mp3"), "-i", str(ASSETS / "cle_crowd.mp3")]
+    cmd += ["-i", str(ASSETS / "cle_bed.mp3")]
     nlab = "".join(f"[{k}:a]" for k in range(1, 6))
     cmd += ["-filter_complex",
-            f"[0:v]fade=t=in:st=0:d=0.7,fade=t=out:st={total-0.8:.1f}:d=0.8[v];"
+            f"[0:v]fps=30,fade=t=in:st=0:d=0.6,fade=t=out:st={total-0.8:.1f}"
+            f":d=0.8,format=yuv420p[v];"
             f"{nlab}concat=n=5:v=0:a=1,adelay={ms}|{ms}[nar];"
-            f"[6:a]volume=0.2,afade=t=in:st=0:d=1,afade=t=out:st={total-3:.1f}:d=3[bed];"
-            f"[7:a]adelay={ms}|{ms},volume=0.42,afade=t=out:st=4.5:d=1.5[sfx];"
-            f"[nar][bed][sfx]amix=inputs=3:duration=longest:dropout_transition=2[a]",
+            f"[6:a]volume=0.06,afade=t=out:st={total-3:.1f}:d=3[bed];"
+            f"[nar][bed]amix=inputs=2:duration=longest:dropout_transition=2[a]",
             "-map", "[v]", "-map", "[a]", "-t", f"{total:.2f}",
             "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
             "-c:a", "aac", "-b:a", "160k", str(out)]
@@ -241,7 +226,7 @@ def main():
         print(p.stderr[-1800:])
         sys.exit(1)
     for f in set(list(ASSETS.glob("_cseg*")) + list(ASSETS.glob("_cslide*"))
-                 + list(ASSETS.glob("_cclip*")) + [listf, silent]):
+                 + [listf]):
         f.unlink(missing_ok=True)
     print(f"video: {out} ({out.stat().st_size // 1024} KB, {total:.1f}s)")
 
