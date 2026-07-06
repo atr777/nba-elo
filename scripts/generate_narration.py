@@ -20,7 +20,9 @@ from dotenv import load_dotenv
 
 VOICE_ID = "SAz9YHcvj6GT2YYXdXww"  # River — the fixed voice of the model
 MODEL_ID = "eleven_multilingual_v2"
-SETTINGS = {"stability": 0.55, "similarity_boost": 0.75, "style": 0.2}
+# style kept at 0.0: higher values make the voice add stray words (a phantom
+# trailing "The" appeared on a 2026-07-06 close). Verify with STT after gen.
+SETTINGS = {"stability": 0.6, "similarity_boost": 0.75, "style": 0.0}
 
 
 def main() -> None:
