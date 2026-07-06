@@ -251,7 +251,9 @@ def get_today_predictions():
 
 
 def get_week_results():
-    """Return yesterday's results only."""
+    """Recent graded results. In season: yesterday's games. Offseason (no games
+    yesterday): fall back to the most recent graded games, so the public
+    receipts are always visible to a visitor, not blank."""
     df = load_csv('data/exports/prediction_tracking.csv')
     if df.empty:
         return [], {}
@@ -261,6 +263,10 @@ def get_week_results():
     yesterday_int = int((today - timedelta(days=1)).strftime('%Y%m%d'))
 
     week = df[df['date'] == yesterday_int]
+    if week.empty:
+        # Offseason fallback: the last 18 graded games (games with a result).
+        graded = df[df['correct'].notna()] if 'correct' in df.columns else df
+        week = graded.tail(18)
     if week.empty:
         return [], {}
 
@@ -620,7 +626,11 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
         {inj_block}
       </div>"""
     else:
-        pred_cards = '<div class="card"><p style="text-align:center;color:#888">No games scheduled today or predictions unavailable.</p></div>'
+        pred_cards = '''<div class="card" style="text-align:center;padding:1.6rem 1rem;">
+        <p style="font-size:0.98rem;color:var(--text);margin:0 0 0.4rem;font-weight:600;">No games today. The season is over.</p>
+        <p style="font-size:0.8rem;color:var(--muted);margin:0 0 1rem;line-height:1.5;">The model finished <strong style="color:var(--accent);">70.6%</strong> across 657 tracked games. Daily predictions return on opening night. Until then, we break down every big offseason move through the model's eyes.</p>
+        <a href="https://secondbounce.substack.com" target="_blank" rel="noopener" style="display:inline-block;background:var(--accent);color:#fff;padding:0.55rem 1.2rem;border-radius:7px;font-size:0.82rem;font-weight:700;text-decoration:none;">Get the model's offseason analysis &rarr;</a>
+      </div>'''
 
     # ---- This Week Results HTML ---- #
     _check_svg = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
@@ -658,7 +668,7 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
       <div class="card">
         <details class="week-details" open>
           <summary class="section-title week-summary">
-            Yesterday's Results
+            Recent Results
             <span class="record-pill {week_pill_cls}">
               {week_summary['correct']}-{week_summary['total'] - week_summary['correct']} ({week_summary['pct']}%)
             </span>
@@ -1379,25 +1389,25 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
         </div>
 
         <div class="footer-anim" style="transition-delay:0.35s">
-          <div class="footer-section-label">Social</div>
+          <div class="footer-section-label">Follow</div>
           <ul class="footer-links">
             <li>
-              <span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.72rem;color:var(--muted);opacity:0.5;">
-                <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/></svg>
-                Twitter / X <em style="font-style:normal;font-size:0.6rem;opacity:0.7;">(Soon)</em>
-              </span>
+              <a href="https://secondbounce.substack.com" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812H22.54V24l-10.54-5.9L1.46 24V10.812zM22.54 0H1.46v2.836h21.08V0z"/></svg>
+                Newsletter
+              </a>
+            </li>
+            <li>
+              <a href="https://x.com/SecondBounceNBA" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                @SecondBounceNBA
+              </a>
             </li>
             <li>
               <a href="https://github.com/atr777/nba-predictions" target="_blank" rel="noopener">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
                 GitHub
               </a>
-            </li>
-            <li>
-              <span style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.72rem;color:var(--muted);opacity:0.5;">
-                <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 0 1-1.872-.878.075.075 0 0 1-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 0 1 .078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 0 1 .079.009c.12.098.245.195.372.288a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028z"/></svg>
-                Discord <em style="font-style:normal;font-size:0.6rem;opacity:0.7;">(Soon)</em>
-              </span>
             </li>
           </ul>
         </div>
