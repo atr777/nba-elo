@@ -163,6 +163,18 @@ def main():
     log("\n--- Checking for Unprocessed Games ---")
     has_new_games = check_for_new_games()
 
+    # Roster mapping refresh — runs BEFORE the "no new games" short-circuit
+    # because rosters churn hardest in the offseason (free agency), when there
+    # are no games to process. Self-throttles to once/~18h, so it's a cheap
+    # no-op on 4 of the 5 daily crons. NBA API + data/manual/roster_overrides.csv.
+    if not dry_run:
+        log("\n--- Roster Mapping Refresh ---")
+        if not run_command(
+            'python scripts/refresh_roster_mapping.py',
+            "Roster -> team mapping refresh (NBA API + overrides)",
+            timeout=300):
+            log("WARNING: Roster refresh had issues. Keeping existing mapping.")
+
     if not has_new_games and not dry_run:
         log("\n[OK] Database is fully up to date. No processing needed.")
         log("\n" + "="*80)
@@ -199,18 +211,6 @@ def main():
     )
     if not success:
         log("WARNING: Team ELO calculation had issues. Continuing...")
-
-    # Step 2.5: Refresh roster -> team mapping (self-throttles to once/~18h, so
-    # this is a no-op on 4 of the 5 daily crons). Rebuilds from the NBA API and
-    # applies data/manual/roster_overrides.csv for free-agency moves the API lags.
-    log("\n--- Step 2.5: Refreshing Roster Mapping ---")
-    success = run_command(
-        'python scripts/refresh_roster_mapping.py',
-        "Roster -> team mapping refresh (NBA API + overrides)",
-        timeout=300
-    )
-    if not success:
-        log("WARNING: Roster refresh had issues. Keeping existing mapping.")
 
     # Step 3: Recalculate player ELO
     log("\n--- Step 3: Recalculating Player ELO ---")
