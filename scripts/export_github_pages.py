@@ -525,1018 +525,229 @@ def prob_bar(home_prob, home_name, away_name, is_home_win=True):
 
 def render_html(date_str, predictions, week_days, week_summary, stats, players,
                 weekly=None, injuries=None):
+    """Origin (video-hero) template renderer.
+
+    Reads templates/origin.html (a plain static file — CSS/JS braces are
+    NOT doubled because this is never evaluated as an f-string) and fills
+    in the dynamic regions via simple str.replace() token substitution.
+
+    `weekly` and `injuries` are accepted for call-site compatibility with
+    main() but are not rendered in the Origin layout (no bar-chart weekly
+    summary or per-game injury callouts in this design — flagged to Aaron
+    as a deliberately deferred feature, not an oversight).
+    """
     games_count = len(predictions)
     try:
         date_iso = datetime.strptime(date_str, '%B %d, %Y').strftime('%Y-%m-%d')
     except ValueError:
         date_iso = datetime.now().strftime('%Y-%m-%d')
 
-    # ---- Predictions HTML ---- #
-    injuries = injuries or {}
+    stats = stats or {}
 
+    # ---- small local rendering helpers ---- #
+    def _pct1(numerator, denominator):
+        """Format a ratio as a one-decimal percent string, or '—' if invalid."""
+        try:
+            numerator = float(numerator)
+            denominator = float(denominator)
+            if denominator:
+                return f"{numerator / denominator * 100:.1f}"
+        except (TypeError, ValueError):
+            pass
+        return '—'
+
+    def _team_logo(team_name):
+        abbr = TEAM_ABBREVS.get(team_name, team_name[:3].upper() if team_name else '')
+        return get_logo_by_abbrev(abbr)
+
+    acc_pct     = _pct1(stats.get('correct'), stats.get('total'))
+    total_games = stats.get('total', '—')
+
+    # ---- {{DATE_STAMP}} ---- #
+    date_stamp = f"{date_str} · {games_count} game{'s' if games_count != 1 else ''} today"
+
+    # ---- {{STATS}} ---- #
+    _tp = stats.get('tossup_pct')
+    if _tp in (None, 'N/A'):
+        tossup_display = _tp or '—'
+    else:
+        tossup_display = f"{_tp}%"
+
+    stats_html = f"""
+      <div class="stat">
+        <div class="stat-value">{acc_pct}%</div>
+        <div class="stat-label">Season Accuracy</div>
+        <div class="stat-sub">{stats.get('correct', '—')} of {total_games} correct</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{tossup_display}</div>
+        <div class="stat-label">Toss-Up Games</div>
+        <div class="stat-sub">games within 30 elo pts</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{total_games}</div>
+        <div class="stat-label">Games Tracked</div>
+        <div class="stat-sub">since Oct 2025</div>
+      </div>"""
+
+    # ---- {{PREDICTIONS}} — live game cards, offseason CTA, or no-games ---- #
     if predictions:
-        pred_cards = ''
+        cards = []
         for p in predictions:
-            bar = prob_bar(p['home_prob'], p['home'], p['away'], p['is_home_win'])
-
-            # Injury alerts for this game
-            inj_html = ''
-            for team_key in [p['away'], p['home']]:
-                team_inj = injuries.get(team_key, [])
-                if team_inj:
-                    espn_url = get_espn_injury_url(team_key)
-                    items = ''
-                    for inj in team_inj:
-                        impact_cls = {'star': 'inj-star', 'starter': 'inj-starter', 'role': 'inj-role'}.get(inj['impact'], 'inj-role')
-                        items += f'<a href="{espn_url}" target="_blank" rel="noopener" class="inj-pill {impact_cls}">{inj["name"]} <em>{inj["status"]}</em></a> '
-                    inj_html += f'<div class="inj-row"><span class="inj-team">{team_key}:</span> {items}</div>'
-            inj_block = f'<div class="inj-block">{inj_html}</div>' if inj_html else ''
-
-            away_logo = get_team_logo(p['away'])
-            home_logo = get_team_logo(p['home'])
             status_code = p.get('game_status_code', 1)
             is_live  = status_code == 2
             is_final = status_code == 3
-            # Live/Final games get a status badge instead of scheduled time
             if is_final:
-                time_display = 'FINAL'
-                time_cls     = ' game-time-final'
-                iso_attr     = ''
+                time_display, iso_attr = 'Final', ''
             elif is_live:
-                time_display = p['time'] if p['time'] != 'TBD' else 'LIVE'
-                time_cls     = ' game-time-live'
-                iso_attr     = ''
+                time_display = p['time'] if p['time'] != 'TBD' else 'Live'
+                iso_attr = ''
             else:
                 time_display = p['time']
-                time_cls     = ''
-                iso_ts   = _to_iso_et(date_iso, p['time'])
+                iso_ts = _to_iso_et(date_iso, p['time'])
                 iso_attr = f' data-iso="{iso_ts}"' if iso_ts else ''
-            # ── Quarter Score Grid (Sprint 3) ──────────────────────────────
-            # Use real per-quarter model outputs when available; fall back to
-            # the cyclic-offset distribution described in the design spec.
-            _away_tot = p.get('predicted_away_score', 0) or 0
-            _home_tot = p.get('predicted_home_score', 0) or 0
-            _q_offsets = [-1, 2, -1, 0]  # sum = 0, total preserved
-            if p.get('predicted_away_q1') is not None:
-                _aq = [p[f'predicted_away_q{i}'] for i in range(1, 5)]
-                _hq = [p[f'predicted_home_q{i}'] for i in range(1, 5)]
-            else:
-                _aq = [max(20, round(_away_tot / 4) + _q_offsets[i]) for i in range(4)]
-                _hq = [max(20, round(_home_tot / 4) + _q_offsets[i]) for i in range(4)]
-            # Running (cumulative) totals after each quarter
-            _aq_run = [sum(_aq[:i+1]) for i in range(4)]
-            _hq_run = [sum(_hq[:i+1]) for i in range(4)]
-            _away_display = _aq_run[3]
-            _home_display = _hq_run[3]
-            _winner_is_home = p['is_home_win']
-            _away_row_cls = 'qs-winner' if not _winner_is_home else ''
-            _home_row_cls = 'qs-winner' if _winner_is_home else ''
-            _away_abbr = TEAM_ABBREVS.get(p['away'], p['away'][:3].upper())
-            _home_abbr = TEAM_ABBREVS.get(p['home'], p['home'][:3].upper())
-            # Margin line: plain-English expected win margin
-            _margin_pts = abs(_home_display - _away_display)
-            _margin_html = f'<div class="qscore-margin"><span>Expected to win by <strong>{_margin_pts} pts</strong></span><span class="qscore-margin-prob">{p["win_prob"]*100:.0f}% win probability</span></div>'
-            _qscore_html = f"""<div class="qscore-wrap">
-  <div class="qscore-label">Projected Score</div>
-  <table class="qscore-table">
-    <thead><tr><th></th><th>Q1</th><th>Q2</th><th>Q3</th><th class="col-final">FINAL</th></tr></thead>
-    <tbody>
-      <tr class="{_away_row_cls}"><td>{_away_abbr}</td><td>{_aq_run[0]}</td><td>{_aq_run[1]}</td><td>{_aq_run[2]}</td><td class="col-final">{_away_display}</td></tr>
-      <tr class="{_home_row_cls}"><td>{_home_abbr}</td><td>{_hq_run[0]}</td><td>{_hq_run[1]}</td><td>{_hq_run[2]}</td><td class="col-final">{_home_display}</td></tr>
-    </tbody>
-  </table>
-  {_margin_html}
-</div>"""
-            # ───────────────────────────────────────────────────────────────
 
-            pred_cards += f"""
-      <div class="card game-card{'  game-card-final' if is_final else ''}">
+            away_logo = _team_logo(p['away'])
+            home_logo = _team_logo(p['home'])
+            hp = round(p['home_prob'] * 100)
+            ap = 100 - hp
+            pick_pct = hp if p['is_home_win'] else ap
+
+            cards.append(f"""
+      <div class="card game-card{' game-card-final' if is_final else ''}">
         <a class="game-card-link" href="{p['nba_url']}" target="_blank" rel="noopener" aria-label="View {p['away']} @ {p['home']} on NBA.com"></a>
-        <div class="game-header">
-          <span class="game-time{time_cls}"{iso_attr}>{time_display}</span>
-          <span class="badge {p['conf_class']}">{p['conf_label']}{' · Tossup' if p['tossup'] else ''}</span>
+        <div class="game-card-head">
+          <span class="game-time mono"{iso_attr}>{time_display}</span>
+          <span class="chip chip-neutral">{p['conf_label']}{' &middot; Toss-up' if p['tossup'] else ''}</span>
         </div>
-        <div class="matchup">
-          <img class="team-logo{' team-logo-pick' if not p['is_home_win'] else ''}" src="{away_logo}" alt="{p['away']}" onerror="this.style.display='none'">
-          <span class="{'team-pick' if not p['is_home_win'] else ''}">{p['away']}</span>
-          <span class="vs">@</span>
-          <img class="team-logo{' team-logo-pick' if p['is_home_win'] else ''}" src="{home_logo}" alt="{p['home']}" onerror="this.style.display='none'">
-          <span class="{'team-pick' if p['is_home_win'] else ''}">{p['home']}</span>
+        <div class="result-matchup" style="margin-top:16px;">
+          <span class="team-pair"><img class="team-logo" src="{away_logo}" alt="" onerror="this.style.display='none'">{p['away']}</span>
+          <span class="matchup-vs">@</span>
+          <span class="team-pair"><img class="team-logo" src="{home_logo}" alt="" onerror="this.style.display='none'">{p['home']}</span>
         </div>
-        <div class="prediction-line">
-          <strong>{p['winner']}</strong> {'slight edge' if p.get('tossup') else 'favored to win'} <span class="favored-tag">· {p['win_prob']*100:.0f}% chance</span>
-        </div>
-        {_qscore_html}
-        {bar}
-        <div class="elo-line">ELO: {p['away']} {p['away_elo']:.0f} · {p['home']} {p['home_elo']:.0f}</div>
-        {inj_block}
-      </div>"""
+        <div class="game-pick-line">{p['winner']} {'slight edge' if p['tossup'] else 'favored to win'} <span class="mono">&middot; {p['win_prob'] * 100:.0f}%</span></div>
+        <div class="game-prob-track"><div class="game-prob-fill" style="width:{pick_pct}%;"></div></div>
+        <div class="game-elo-line mono">Elo &middot; {p['away']} {p['away_elo']:.0f} &middot; {p['home']} {p['home_elo']:.0f}</div>
+      </div>""")
+        predictions_html = ''.join(cards)
     else:
         _md = (datetime.now().month, datetime.now().day)
         is_offseason = (6, 25) <= _md <= (10, 20)
         if is_offseason:
-            pred_cards = '''<div class="card" style="text-align:center;padding:1.6rem 1rem;">
-        <p style="font-size:0.98rem;color:var(--text);margin:0 0 0.4rem;font-weight:600;">No games today. The season is over.</p>
-        <p style="font-size:0.8rem;color:var(--muted);margin:0 0 1rem;line-height:1.5;">The model finished <strong style="color:var(--accent);">70.6%</strong> across 657 tracked games. Daily predictions return on opening night. Until then, we break down every big offseason move through the model's eyes.</p>
-        <a href="https://secondbounce.substack.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.45rem;background:var(--accent);color:#fff;padding:0.55rem 1.25rem;border-radius:7px;font-size:0.82rem;font-weight:700;text-decoration:none;"><svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px;flex-shrink:0;"><path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812H22.54V24l-10.54-5.9L1.46 24V10.812zM22.54 0H1.46v2.836h21.08V0z"/></svg>Get the model's offseason analysis</a>
-      </div>'''
+            predictions_html = f"""
+      <div class="card card-offseason">
+        <h2 class="card-headline">No games today. The season is over.</h2>
+        <p class="card-body">
+          The model finished {acc_pct}% across {total_games} tracked games. Daily predictions
+          return opening night. Until then we break down every offseason move
+          through the model's eyes.
+        </p>
+        <a class="btn-primary" href="https://secondbounce.substack.com" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px;flex-shrink:0;"><path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812H22.54V24l-10.54-5.9L1.46 24V10.812zM22.54 0H1.46v2.836h21.08V0z"/></svg>
+          Get the model's offseason analysis
+        </a>
+      </div>"""
         else:
-            pred_cards = '''<div class="card" style="text-align:center;padding:1.4rem 1rem;">
-        <p style="font-size:0.95rem;color:var(--text);margin:0 0 0.3rem;font-weight:600;">No games scheduled today.</p>
-        <p style="font-size:0.8rem;color:var(--muted);margin:0;line-height:1.5;">Predictions post every game day. Check back tomorrow, or see recent results below.</p>
-      </div>'''
+            predictions_html = """
+      <div class="card card-offseason">
+        <h2 class="card-headline">No games scheduled today.</h2>
+        <p class="card-body">Predictions post every game day. Check back tomorrow, or see recent results below.</p>
+        <a class="btn-ghost" href="#results">See recent results</a>
+      </div>"""
 
-    # ---- This Week Results HTML ---- #
-    _check_svg = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-    _x_svg    = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.5"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/></svg>'
-
+    # ---- {{RESULTS}} — day-grouped, ESPN logos, green/red chips ---- #
     if week_days:
-        week_pill_cls = 'pill-good' if week_summary['correct'] > week_summary['total'] // 2 else 'pill-ok'
-        week_body = ''
+        day_blocks = []
         for day in week_days:
             day_correct = day['correct']
-            day_total = day['total']
-            nba_url = day.get('nba_url', 'https://www.nba.com/scores')
-            day_rows = ''
+            day_total   = day['total']
+            row_blocks  = []
             for r in day['rows']:
-                icon = _check_svg if r['correct'] else _x_svg
-                score_str = f"{r['away_score']}–{r['home_score']}" if r['away_score'] != '' else ''
-                upset_badge = ' <span class="badge upset-badge">UPSET</span>' if r['upset'] else ''
-                day_rows += f"""
-        <div class="result-row {'result-correct' if r['correct'] else 'result-miss'}">
-          <span class="result-icon">{icon}</span>
-          <a class="result-teams" href="{nba_url}" target="_blank" rel="noopener">{r['away']} @ {r['home']}</a>
-          <span class="result-pick">Pick: {r['predicted']}{upset_badge}</span>
-          <span class="result-score">{score_str}</span>
-        </div>"""
-            day_pct_cls = 'day-pct-good' if day_correct >= day_total * 0.65 else ('day-pct-ok' if day_correct >= day_total * 0.5 else 'day-pct-bad')
-            week_body += f"""
-        <div class="day-group">
-          <div class="day-header">
-            <span class="day-label">{day['label']}</span>
-            <span class="day-record {day_pct_cls}">{day_correct}-{day_total - day_correct} &nbsp;<small>{day['pct']}</small></span>
-          </div>
-          {day_rows}
-        </div>"""
-        yesterday_html = f"""
-      <div class="card">
-        <details class="week-details" open>
-          <summary class="section-title week-summary">
-            Recent Results
-            <span class="record-pill {week_pill_cls}">
-              {week_summary['correct']}-{week_summary['total'] - week_summary['correct']} ({week_summary['pct']}%)
+                marker_cls = 'chip-correct' if r['correct'] else 'chip-miss'
+                marker_txt = 'Correct' if r['correct'] else 'Miss'
+                pick_side  = 'Home' if r['predicted'] == r['home'] else 'Away'
+                away_logo  = _team_logo(r['away'])
+                home_logo  = _team_logo(r['home'])
+                score_html = ''
+                if r['away_score'] != '':
+                    score_html = f'<span class="result-score mono">{r["away_score"]}&ndash;{r["home_score"]}</span>'
+                upset_html = ' <span class="chip chip-neutral">Upset</span>' if r.get('upset') else ''
+                row_blocks.append(f"""
+          <div class="result-row">
+            <span class="result-matchup">
+              <span class="team-pair"><img class="team-logo" src="{away_logo}" alt="" onerror="this.style.display='none'">{r['away']}</span>
+              <span class="matchup-vs">@</span>
+              <span class="team-pair"><img class="team-logo" src="{home_logo}" alt="" onerror="this.style.display='none'">{r['home']}</span>
             </span>
-            <span class="chevron">▾</span>
-          </summary>
-          {week_body}
-        </details>
-      </div>"""
-    else:
-        yesterday_html = ''
-
-    # ---- Stats bar ---- #
-    stats_html = f"""
-    <div class="stats-bar">
-      <div class="stat-item">
-        <div class="stat-val">{stats.get('pct','—')}%</div>
-        <div class="stat-lbl">Season Accuracy</div>
-        <div class="stat-sub">{stats.get('correct','—')} of {stats.get('total','—')} correct</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val">{stats.get('last7_w','—')}-{stats.get('last7_l','—')}</div>
-        <div class="stat-lbl">Last 7 Days</div>
-        <div class="stat-sub">{stats.get('last7_w','—')} right, {stats.get('last7_l','—')} wrong</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val">{stats.get('tossup_pct','—')}%</div>
-        <div class="stat-lbl">Toss-Up Games</div>
-        <div class="stat-sub">games within 30 ELO pts</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val">{stats.get('total','—')}</div>
-        <div class="stat-lbl">Games Tracked</div>
-        <div class="stat-sub">since Oct 2025</div>
-      </div>
-    </div>""" if stats else ''
-
-    # ---- Weekly summary HTML ---- #
-    if weekly:
-        week_rows = ''
-        for day in weekly:
-            bar_w = int(day['pct'] * 100)
-            bar_color = '#22c55e' if day['pct'] >= 0.65 else ('#f59e0b' if day['pct'] >= 0.50 else '#ef4444')
-            week_rows += f"""
-        <div class="week-row">
-          <span class="week-day">{day['label']}</span>
-          <div class="week-bar-wrap">
-            <div class="week-bar" style="width:{bar_w}%;background:{bar_color}"></div>
+            {score_html}
+            <span class="chip chip-neutral">Pick {pick_side}</span>{upset_html}
+            <span class="chip {marker_cls}">{marker_txt}</span>
+          </div>""")
+            day_blocks.append(f"""
+        <div class="results-day">
+          <div class="results-day-head">
+            <span class="results-day-label mono">{day['label']}</span>
+            <span class="results-day-record mono">{day_correct}-{day_total - day_correct} ({day['pct']})</span>
           </div>
-          <span class="week-record">{day['correct']}-{day['total']-day['correct']} <small>({day['pct_str']})</small></span>
-        </div>"""
-        weekly_html = f"""
-      <div class="card">
-        <h2 class="section-title">Last Week</h2>
-        {week_rows}
-      </div>"""
+          {''.join(row_blocks)}
+        </div>""")
+        results_html = ''.join(day_blocks)
     else:
-        weekly_html = ''
+        results_html = '<p style="color:var(--ash);text-align:center;padding:20px 0;">No graded results yet.</p>'
 
-    # ---- Player rankings HTML ---- #
+    # ---- {{PLAYERS}} — full 15 rows, no truncation ---- #
     if players:
-        player_rows = ''
+        rows = []
         for p in players:
-            elo = p['elo']
+            elo  = p['elo']
             frac = max(0.06, min(1.0, (elo - 1500) / (2650 - 1500)))
-            barw = f"{frac*100:.0f}%"
-            adj = p['adj']
+            barw = f"{frac * 100:.0f}"
+            adj  = p['adj']
             if adj >= 20:
-                badge = f'<span style="color:var(--accent);font-weight:700;">&#9650; +{adj}</span>'
+                adj_cell = f'<td class="p-adj">&#9650; +{adj}</td>'
             elif adj <= -20:
-                badge = f'<span style="color:var(--amber);font-weight:700;">&#9660; {adj}</span>'
+                adj_cell = f'<td class="p-adj">&#9660; {adj}</td>'
             else:
-                badge = '<span style="color:var(--muted);">&mdash;</span>'
-            player_rows += f"""
-        <tr>
-          <td class="rank">{p['rank']}</td>
-          <td class="pname">{p['name']}<br><span style="font-size:0.66rem;color:var(--muted);font-weight:400;"><img class="pteam-logo" src="{p['team_logo']}" alt="{p['team_abbr']}" onerror="this.style.display='none'" style="width:13px;height:13px;"> {p['team_abbr']}</span></td>
-          <td style="min-width:130px;">
-            <div style="display:flex;align-items:center;gap:0.5rem;">
-              <div style="flex:1;height:6px;background:var(--surface-hi);border-radius:3px;overflow:hidden;"><div style="width:{barw};height:100%;background:var(--accent);border-radius:3px;"></div></div>
-              <span class="pelo" style="min-width:40px;">{elo}</span>
-            </div>
-          </td>
-          <td style="text-align:right;font-size:0.72rem;white-space:nowrap;">{badge}</td>
-        </tr>"""
-        players_html = f"""
-      <div class="card">
-        <h2 class="section-title">Top 15 Players by Model Rating</h2>
-        <div class="table-wrap">
-          <table class="player-table">
-            <thead><tr><th>#</th><th>Player</th><th class="th-elo">Rating</th><th style="text-align:right;">Model</th></tr></thead>
-            <tbody>{player_rows}</tbody>
-          </table>
-        </div>
-        <p style="font-size:0.68rem;color:var(--muted);margin-top:0.7rem;line-height:1.5;">Rating: 1,500 = league average. <span style="color:var(--accent);">&#9650;</span> creators the model rates above their box score, <span style="color:var(--amber);">&#9660;</span> rim protectors it rates below. This is the adjustment the engine actually predicts with.</p>
-      </div>"""
+                adj_cell = '<td class="p-adj dim">&mdash;</td>'
+            rows.append(f"""
+              <tr>
+                <td class="p-rank">{p['rank']}</td>
+                <td>{p['name']}</td>
+                <td class="p-team"><span class="team-cell"><img class="team-logo-sm" src="{p['team_logo']}" alt="" onerror="this.style.display='none'"><span class="mono">{p['team_abbr']}</span></span></td>
+                <td class="p-gp">{p['games']}</td>
+                <td class="p-rating-cell">
+                  <div class="rating-track"><div class="rating-fill" style="width:{barw}%;"></div></div>
+                  <span class="rating-num">{elo}</span>
+                </td>
+                {adj_cell}
+              </tr>""")
+        players_html = ''.join(rows)
     else:
-        players_html = ''
+        players_html = '<tr><td colspan="6" style="text-align:center;color:var(--ash);padding:20px;">No player ratings available.</td></tr>'
 
-    # ---- Full page ---- #
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Second Bounce — {date_str}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/png" href="logo.png">
-  <style>
-    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    # ---- {{RECEIPT}} / {{FOOTER_LEGAL}} ---- #
+    receipt_html = f"[ {acc_pct}% · {total_games} games · verified walk-forward ]"
+    footer_legal_html = f"&copy; {datetime.now().year} Second Bounce &nbsp;&middot;&nbsp; Updated {datetime.now().strftime('%b %d, %Y %I:%M %p')}"
 
-    :root {{
-      --bg:         #080c14;
-      --surface:    #0f1623;
-      --surface-hi: #1a2234;
-      --border:     #1e2d45;
-      --text:       #e8ecf4;
-      --muted:      #64748b;
-      --accent:     #4b8bf4;
-      --pick:       #f8a100;
-      --green:      #10b981;
-      --amber:      #f59e0b;
-      --red:        #ef4444;
-    }}
+    # ---- Assemble from the static template via token replacement ---- #
+    template_path = os.path.join(os.path.dirname(__file__), '..', 'templates', 'origin.html')
+    with open(template_path, encoding='utf-8') as f:
+        html = f.read()
 
-    body {{
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 15px;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      min-height: 100vh;
-    }}
+    replacements = {
+        '{{DATE_STR}}':     date_str,
+        '{{DATE_STAMP}}':   date_stamp,
+        '{{STATS}}':        stats_html,
+        '{{PREDICTIONS}}':  predictions_html,
+        '{{RESULTS}}':      results_html,
+        '{{PLAYERS}}':      players_html,
+        '{{RECEIPT}}':      receipt_html,
+        '{{FOOTER_LEGAL}}': footer_legal_html,
+    }
+    for token, value in replacements.items():
+        html = html.replace(token, value)
 
-    header {{
-      background-color: rgba(15, 22, 35, 0.78);
-      background-image:
-        radial-gradient(55% 130px at 50% 100%, rgba(255,255,255,0.045), transparent),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
-      backdrop-filter: blur(18px) saturate(140%) brightness(1.04);
-      -webkit-backdrop-filter: blur(18px) saturate(140%) brightness(1.04);
-      border-top: 3px solid var(--accent);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      border-radius: 0 0 1.5rem 1.5rem;
-      padding: 1.4rem 1.5rem 1.25rem;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      overflow: hidden;
-    }}
-    /* Glow line at bottom edge — mirrors footer-glow-line at top */
-    header::before {{
-      content: '';
-      position: absolute;
-      bottom: 0; left: 50%; transform: translateX(-50%);
-      width: 38%; height: 1px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 999px;
-      filter: blur(2px);
-      pointer-events: none;
-      z-index: 2;
-    }}
-    /* Tiled basketball pattern across full header — hue-rotated to light blue */
-    header::after {{
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: url('pattern.png') 0 0 / 380px 380px repeat;
-      opacity: 0.13;
-      filter: hue-rotate(178deg) saturate(0.8) brightness(1.6);
-      pointer-events: none;
-    }}
-    .header-inner {{
-      max-width: 680px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      position: relative;
-      z-index: 1;
-    }}
-    .header-text {{ display: flex; flex-direction: column; gap: 0.2rem; }}
-    header h1 {{ font-family: 'DM Serif Display', Georgia, serif; font-size: clamp(2.85rem, 7.5vw, 3.9rem); font-weight: 400; letter-spacing: -0.5px; line-height: 1.05; }}
-    header .tagline {{ font-size: 0.72rem; color: var(--muted); letter-spacing: 0.4px; text-transform: uppercase; }}
-    .games-date {{ font-size: 0.7rem; color: var(--muted); font-weight: 500; letter-spacing: 0.3px; margin-bottom: 0.4rem; }}
-    .site-logo {{
-      width: 144px;
-      height: 144px;
-      object-fit: contain;
-      flex-shrink: 0;
-      filter: drop-shadow(0 0 18px rgba(248,161,0,0.45)) drop-shadow(0 0 6px rgba(248,161,0,0.2));
-    }}
-
-    .container {{ max-width: 680px; margin: 0 auto; padding: 0.75rem; }}
-
-    .stats-bar {{
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.5rem;
-      margin: 0.75rem 0;
-    }}
-    .stat-item {{
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.6rem 0.25rem;
-      text-align: center;
-    }}
-    .stat-item:first-child {{ border-top: 2px solid var(--accent); }}
-    .stat-val {{ font-size: 1.1rem; font-weight: 800; color: var(--accent); }}
-    .stat-lbl {{ font-size: 0.6rem; color: var(--muted); margin-top: 0.15rem; text-transform: uppercase; letter-spacing: 0.8px; }}
-    .stat-sub {{ font-size: 0.58rem; color: var(--muted); opacity: 0.65; margin-top: 0.1rem; }}
-
-    .card {{
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem;
-      margin-bottom: 0.75rem;
-    }}
-
-    .section-title {{
-      font-size: 0.68rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--muted);
-      border-left: 3px solid var(--accent);
-      padding-left: 0.6rem;
-      margin-bottom: 0.75rem;
-    }}
-
-    .games-header {{
-      font-size: 0.68rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--muted);
-      border-left: 3px solid var(--accent);
-      padding-left: 0.6rem;
-      margin-bottom: 0.6rem;
-    }}
-
-    .game-card {{
-      margin-bottom: 0.75rem;
-      transition: background 0.15s, border-color 0.15s;
-    }}
-    .game-header {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.45rem;
-    }}
-    .game-time {{ font-size: 0.75rem; color: var(--muted); font-weight: 500; }}
-    .game-time-live  {{ color: #22c55e; font-weight: 700; letter-spacing: 0.3px; }}
-    .game-time-final {{ color: var(--muted); font-weight: 600; letter-spacing: 0.5px; opacity: 0.6; }}
-    .game-card-final {{ opacity: 0.72; }}
-
-    .matchup {{
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.97rem;
-      font-weight: 600;
-      margin-bottom: 0.35rem;
-      flex-wrap: wrap;
-    }}
-    .team-pick {{ color: var(--pick); font-weight: 700; }}
-    .vs {{ color: var(--muted); font-size: 0.78rem; font-weight: 400; }}
-
-    .prediction-line {{
-      font-size: 0.82rem;
-      color: var(--muted);
-      margin-bottom: 0.5rem;
-    }}
-    .prediction-line strong {{ color: var(--text); font-weight: 600; }}
-    .favored-tag {{ color: var(--muted); font-weight: 400; }}
-
-    .prob-bar-wrap {{ display: flex; align-items: center; gap: 0.5rem; margin: 0.45rem 0 0.1rem; font-size: 0.68rem; }}
-    .prob-label-away {{ color: var(--muted); min-width: 28px; text-align: right; }}
-    .prob-label-home {{ color: var(--pick); min-width: 28px; font-weight: 600; }}
-    .prob-bar-split {{
-      flex: 1;
-      height: 5px;
-      border-radius: 3px;
-      overflow: hidden;
-      display: flex;
-      gap: 1px;
-      background: var(--border);
-    }}
-    .prob-bar-away {{ height: 100%; background: var(--border); }}
-    .prob-bar-home {{ height: 100%; background: var(--pick); border-radius: 0 3px 3px 0; }}
-
-    .elo-line {{ font-size: 0.68rem; color: var(--muted); margin-top: 0.25rem; letter-spacing: 0.1px; }}
-
-    .score-projection {{ font-size: 0.72rem; color: var(--muted); margin-top: 0.18rem; letter-spacing: 0.1px; }}
-
-    /* ── Quarter Score Breakdown (Sprint 3) ─────────────────────────────── */
-    .qscore-wrap {{
-      margin-top: 0.55rem;
-      margin-bottom: 0.1rem;
-    }}
-    .qscore-label {{
-      font-size: 0.62rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      color: var(--muted);
-      margin-bottom: 0.3rem;
-    }}
-    .qscore-table {{
-      width: 100%;
-      border-collapse: collapse;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
-      table-layout: fixed;
-    }}
-    .qscore-table th {{
-      font-size: 0.6rem;
-      font-weight: 600;
-      color: var(--muted);
-      text-align: center;
-      padding: 0.28rem 0.25rem;
-      border-bottom: 1px solid var(--border);
-    }}
-    .qscore-table th:first-child {{ text-align: left; padding-left: 0.5rem; width: 38px; }}
-    .qscore-table th.col-final {{ text-align: right; padding-right: 0.5rem; width: 48px; border-left: 1px solid var(--border); }}
-    .qscore-table td {{
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-align: center;
-      padding: 0.3rem 0.25rem;
-      color: var(--text);
-      opacity: 0.6;
-    }}
-    .qscore-table td:first-child {{
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-align: left;
-      padding-left: 0.5rem;
-      opacity: 1;
-      color: var(--muted);
-      letter-spacing: 0.2px;
-    }}
-    .qscore-table td.col-final {{
-      font-size: 0.82rem;
-      font-weight: 800;
-      text-align: right;
-      padding-right: 0.5rem;
-      color: var(--muted);
-      opacity: 1;
-      border-left: 1px solid var(--border);
-    }}
-    .qscore-table tr + tr td {{ border-top: 1px solid var(--border); }}
-    /* Winner row */
-    .qscore-table tr.qs-winner td {{ color: var(--pick); opacity: 1; }}
-    .qscore-table tr.qs-winner td:first-child {{ color: var(--pick); }}
-    .qscore-table tr.qs-winner td.col-final {{ color: var(--accent); }}
-    /* Plain-English margin line below score grid */
-    .qscore-margin {{ display: flex; justify-content: space-between; margin-top: 0.3rem; font-size: 0.65rem; color: var(--muted); }}
-    .qscore-margin strong {{ color: var(--pick); font-weight: 700; }}
-    .qscore-margin-prob {{ color: var(--muted); }}
-
-    .badge {{
-      display: inline-block;
-      padding: 0.1rem 0.45rem;
-      border-radius: 4px;
-      font-size: 0.63rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }}
-    .conf-high {{ background: rgba(16,185,129,0.15); color: #34d399; }}
-    .conf-med  {{ background: rgba(75,139,244,0.15); color: #93bbff; }}
-    .conf-low  {{ background: rgba(248,161,0,0.15); color: #fbbf24; }}
-    .upset-badge {{ background: rgba(239,68,68,0.15); color: #f87171; }}
-    .tossup-badge {{ background: rgba(248,161,0,0.12); color: #fbbf24; }}
-
-    /* Collapsible week results */
-    .week-details {{ border: none; }}
-    .week-summary {{
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-      list-style: none;
-      user-select: none;
-    }}
-    .week-summary::-webkit-details-marker {{ display: none; }}
-    .week-summary::marker {{ display: none; }}
-    .chevron {{
-      margin-left: auto;
-      font-size: 3rem;
-      color: var(--muted);
-      transition: transform 0.2s;
-      line-height: 1;
-    }}
-    .week-details[open] .chevron {{ transform: rotate(180deg); }}
-    .week-summary:hover {{ color: var(--text); }}
-
-    /* This week day grouping */
-    .day-group {{ margin-bottom: 0.25rem; }}
-    .day-group:last-child {{ margin-bottom: 0; }}
-    .day-header {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.45rem 0 0.2rem;
-      border-top: 1px solid var(--border);
-      margin-top: 0.1rem;
-    }}
-    .day-group:first-child .day-header {{ border-top: none; padding-top: 0; }}
-    .day-label {{ font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }}
-    .day-record {{ font-size: 0.72rem; font-weight: 700; }}
-    .day-pct-good {{ color: #34d399; }}
-    .day-pct-ok   {{ color: #fbbf24; }}
-    .day-pct-bad  {{ color: #f87171; }}
-
-    /* Results rows */
-    .result-row {{
-      display: grid;
-      grid-template-columns: 1.5rem 1fr auto auto;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.8rem;
-    }}
-    .result-row:last-child {{ border-bottom: none; }}
-    .result-correct {{ opacity: 1; }}
-    .result-miss {{ opacity: 0.6; }}
-    .result-teams {{ color: var(--muted); font-size: 0.73rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }}
-    .result-teams:hover {{ color: var(--accent); text-decoration: underline; }}
-    .result-pick {{ font-weight: 500; font-size: 0.78rem; }}
-    .result-score {{ font-size: 0.73rem; color: var(--muted); text-align: right; white-space: nowrap; }}
-    .result-icon {{ font-size: 0.9rem; }}
-
-    .record-pill {{
-      font-size: 0.7rem;
-      padding: 0.1rem 0.45rem;
-      border-radius: 4px;
-      font-weight: 700;
-    }}
-    .pill-good {{ background: rgba(16,185,129,0.12); color: #34d399; }}
-    .pill-ok   {{ background: rgba(248,161,0,0.12); color: #fbbf24; }}
-
-    /* Player table */
-    .table-wrap {{ overflow-x: auto; }}
-    .player-table {{
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.8rem;
-    }}
-    .player-table th {{
-      text-align: left;
-      padding: 0.4rem 0.5rem;
-      color: var(--muted);
-      font-size: 0.63rem;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      border-bottom: 1px solid var(--border);
-      font-weight: 600;
-    }}
-    .player-table td {{
-      padding: 0.45rem 0.5rem;
-      border-bottom: 1px solid rgba(30,45,69,0.8);
-    }}
-    .rank {{ color: var(--muted); width: 2rem; font-size: 0.72rem; }}
-    .pname {{ font-weight: 600; }}
-    .pteam {{ color: var(--muted); font-size: 0.75rem; white-space: nowrap; }}
-    .pteam-logo {{ width: 18px; height: 18px; object-fit: contain; vertical-align: middle; opacity: 0.85; margin-right: 0.2rem; }}
-    .pelo {{ font-weight: 700; color: var(--accent); text-align: right; }}
-    .th-elo {{ text-align: right !important; }}
-    .result-icon {{ display: flex; align-items: center; }}
-
-    /* Weekly summary */
-    .week-row {{
-      display: grid;
-      grid-template-columns: 5rem 1fr auto;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0;
-      border-bottom: 1px solid var(--border);
-    }}
-    .week-row:last-child {{ border-bottom: none; }}
-    .week-day {{ font-size: 0.75rem; color: var(--muted); font-weight: 500; }}
-    .week-bar-wrap {{ background: rgba(30,45,69,0.6); border-radius: 3px; height: 8px; overflow: hidden; }}
-    .week-bar {{ height: 100%; border-radius: 3px; transition: width 0.3s; }}
-    .week-record {{ font-size: 0.75rem; font-weight: 700; white-space: nowrap; }}
-    .week-record small {{ font-weight: 400; color: var(--muted); }}
-
-    /* Injury alerts */
-    .inj-block {{ margin-top: 0.5rem; border-top: 1px solid var(--border); padding-top: 0.4rem; }}
-    .inj-row {{ font-size: 0.7rem; margin-bottom: 0.2rem; line-height: 1.5; }}
-    .inj-team {{ color: var(--muted); margin-right: 0.3rem; font-weight: 600; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; }}
-    .inj-pill {{ display: inline-block; margin-right: 0.35rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.68rem; }}
-    .inj-pill em {{ font-style: normal; opacity: 0.7; }}
-    .inj-star    {{ background: rgba(239,68,68,0.12); color: #f87171; }}
-    .inj-starter {{ background: rgba(248,161,0,0.12); color: #fbbf24; }}
-    .inj-role    {{ background: rgba(100,116,139,0.15); color: #94a3b8; }}
-
-    /* ── Footer ── */
-    footer {{
-      position: relative;
-      width: 100%;
-      max-width: 860px;
-      margin: 2rem auto 0;
-      border-top: 1px solid var(--border);
-      border-radius: 1.25rem 1.25rem 0 0;
-      background: radial-gradient(35% 80px at 50% 0%, rgba(255,255,255,0.04), transparent);
-      padding: 2.5rem 1.5rem 2rem;
-      overflow: hidden;
-    }}
-    .footer-glow-line {{
-      position: absolute;
-      top: 0; left: 50%; transform: translateX(-50%);
-      width: 33%; height: 1px;
-      background: rgba(255,255,255,0.18);
-      border-radius: 999px;
-      filter: blur(2px);
-    }}
-    .footer-grid {{
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 2rem;
-    }}
-    @media (min-width: 640px) {{
-      .footer-grid {{ grid-template-columns: 1fr 2fr; gap: 2.5rem; }}
-    }}
-    .footer-brand {{
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }}
-    .footer-brand-name {{
-      font-family: 'DM Serif Display', Georgia, serif;
-      font-size: 1.1rem;
-      color: var(--text);
-      letter-spacing: -0.02em;
-    }}
-    .footer-brand-copy {{
-      font-size: 0.68rem;
-      color: var(--muted);
-      line-height: 1.6;
-    }}
-    .footer-links-grid {{
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem 1rem;
-    }}
-    @media (min-width: 640px) {{
-      .footer-links-grid {{ grid-template-columns: repeat(3, 1fr); }}
-    }}
-    .footer-section-label {{
-      font-size: 0.6rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      color: var(--text);
-      margin-bottom: 0.75rem;
-    }}
-    .footer-links {{
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.45rem;
-    }}
-    .footer-links a {{
-      font-size: 0.72rem;
-      color: var(--muted);
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      transition: color 0.2s;
-    }}
-    .footer-links a:hover {{ color: var(--text); }}
-    .footer-links svg {{
-      width: 13px; height: 13px;
-      flex-shrink: 0;
-      opacity: 0.7;
-    }}
-    /* Entrance animation */
-    .footer-anim {{
-      opacity: 0;
-      transform: translateY(-8px);
-      filter: blur(4px);
-      transition: opacity 0.7s ease, transform 0.7s ease, filter 0.7s ease;
-    }}
-    .footer-anim.in-view {{
-      opacity: 1;
-      transform: translateY(0);
-      filter: blur(0);
-    }}
-
-    /* Clickable game card — overlay anchor, avoids block-in-inline parsing issues */
-    .game-card {{ position: relative; cursor: pointer; }}
-    .game-card-link {{
-      position: absolute;
-      inset: 0;
-      z-index: 1;
-      border-radius: 10px;
-    }}
-    .game-card:hover {{
-      background: var(--surface-hi);
-      border-color: var(--accent);
-    }}
-
-    /* Injury pills sit above the card overlay so tapping them opens ESPN, not NBA.com */
-    .inj-block {{ position: relative; z-index: 2; }}
-    a.inj-pill {{
-      text-decoration: none;
-      cursor: pointer;
-      position: relative;
-      z-index: 2;
-    }}
-    a.inj-pill:hover {{ text-decoration: underline; opacity: 1; }}
-
-    /* Team logos */
-    .team-logo {{
-      width: 26px;
-      height: 26px;
-      object-fit: contain;
-      vertical-align: middle;
-      opacity: 0.7;
-    }}
-    .team-logo-pick {{
-      opacity: 1;
-      filter: drop-shadow(0 0 3px rgba(248,161,0,0.4));
-    }}
-
-    @media (max-width: 400px) {{
-      .stats-bar {{ grid-template-columns: repeat(2, 1fr); }}
-      header h1 {{ font-size: 2.55rem; }}
-      .team-logo {{ width: 20px; height: 20px; }}
-      .qscore-label {{ font-size: 0.58rem; }}
-    }}
-
-    /* ── Glowing border ring (Aceternity-style, vanilla port) ── */
-    .game-card {{ isolation: isolate; }}
-    .glow-ring {{
-      position: absolute;
-      inset: -1px;
-      border-radius: 11px;
-      padding: 1px;
-      background-image: conic-gradient(
-        from calc((var(--glow-start, 0) - 35) * 1deg) at 50% 50%,
-        transparent   0deg,
-        #dd7bbb      12deg,
-        #f8a100      25deg,
-        #a855f7      38deg,
-        #4b8bf4      52deg,
-        transparent  70deg,
-        transparent 360deg
-      );
-      -webkit-mask:
-        linear-gradient(#fff 0 0) content-box,
-        linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
-      z-index: 0;
-      opacity: var(--glow-active, 0);
-      transition: opacity 0.35s ease;
-    }}
-  </style>
-</head>
-<body>
-  <header>
-    <div class="header-inner">
-      <div class="header-text">
-        <h1>Second Bounce</h1>
-        <p class="tagline">NBA game predictions, powered by ELO</p>
-      </div>
-      <img src="logo.png" alt="Second Bounce" class="site-logo" onerror="this.style.display='none'">
-    </div>
-  </header>
-
-  <div class="container">
-    <div id="stats" style="scroll-margin-top:90px;">{stats_html}</div>
-
-    {weekly_html}
-
-    <div id="today" style="scroll-margin-top:90px;">
-    <div class="games-date">{date_str} &nbsp;·&nbsp; {games_count} game{'s' if games_count != 1 else ''} today</div>
-    <div class="games-header">Today's Predictions</div>
-    {pred_cards}
-    </div>
-
-    <div id="week" style="scroll-margin-top:90px;">{yesterday_html}</div>
-
-    <div id="players" style="scroll-margin-top:90px;">{players_html}</div>
-  </div>
-
-  <footer>
-    <div class="footer-glow-line"></div>
-    <div class="footer-grid">
-
-      <div class="footer-brand footer-anim" style="transition-delay:0s">
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="14" cy="14" r="13" stroke="var(--accent)" stroke-width="1.5"/>
-          <circle cx="14" cy="14" r="6" fill="var(--pick)" opacity="0.85"/>
-        </svg>
-        <span class="footer-brand-name">Second Bounce</span>
-        <p class="footer-brand-copy">
-          NBA game predictions powered by a hybrid ELO model.<br>
-          Updated daily. &copy; {datetime.now().year} Aaron Thomas.
-        </p>
-      </div>
-
-      <div class="footer-links-grid">
-
-        <div class="footer-anim" style="transition-delay:0.1s">
-          <div class="footer-section-label">Predictions</div>
-          <ul class="footer-links">
-            <li><a href="#today">Today's Picks</a></li>
-            <li><a href="#week">Recent Results</a></li>
-            <li><a href="#stats">Season Stats</a></li>
-            <li><a href="#players">Player Ratings</a></li>
-          </ul>
-        </div>
-
-        <div class="footer-anim" style="transition-delay:0.2s">
-          <div class="footer-section-label">Model</div>
-          <ul class="footer-links">
-            <li><a href="https://fivethirtyeight.com/methodology/how-our-nba-predictions-work/" target="_blank" rel="noopener">Methodology</a></li>
-            <li><a href="https://github.com/atr777/nba-predictions" target="_blank" rel="noopener">GitHub</a></li>
-            <li><a href="https://harvardsportsanalysis.org/2019/01/a-simple-improvement-to-fivethirtyeights-nba-elo-model/" target="_blank" rel="noopener">Research</a></li>
-          </ul>
-        </div>
-
-        <div class="footer-anim" style="transition-delay:0.35s">
-          <div class="footer-section-label">Follow</div>
-          <ul class="footer-links">
-            <li>
-              <a href="https://secondbounce.substack.com" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812H22.54V24l-10.54-5.9L1.46 24V10.812zM22.54 0H1.46v2.836h21.08V0z"/></svg>
-                Newsletter
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/SecondBounceNBA" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                @SecondBounceNBA
-              </a>
-            </li>
-            <li>
-              <a href="https://github.com/atr777/nba-predictions" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
-                GitHub
-              </a>
-            </li>
-          </ul>
-        </div>
-
-      </div>
-    </div>
-
-    <div class="footer-anim" style="transition-delay:0.5s;margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);text-align:center;font-size:0.62rem;color:var(--muted);opacity:0.6;">
-      Hybrid ELO Model &nbsp;·&nbsp; Updated {datetime.now().strftime('%b %d, %Y %I:%M %p')} &nbsp;·&nbsp; Made by Aaron Thomas &amp; Claude Code
-    </div>
-  </footer>
-
-  <script>
-    // Convert ET game times to the visitor's local timezone
-    document.querySelectorAll('.game-time[data-iso]').forEach(function(el) {{
-      try {{
-        var d = new Date(el.dataset.iso);
-        if (isNaN(d.getTime())) return;
-        var day  = d.toLocaleDateString(undefined, {{ weekday: 'short' }});
-        var time = d.toLocaleTimeString(undefined, {{ hour: 'numeric', minute: '2-digit' }});
-        el.textContent = day + ' \u00b7 ' + time;
-      }} catch(e) {{}}
-    }});
-
-    // ── Header scroll transparency: full opacity at top → 30% opacity (70% transparent) on scroll ──
-    (function() {{
-      var hdr = document.querySelector('header');
-      if (!hdr) return;
-      var BASE_ALPHA = 0.78;   // starting opacity at top
-      var MIN_ALPHA  = 0.30;   // target opacity when scrolled (70% transparent)
-      var FADE_PX    = 120;    // pixels of scroll to complete the transition
-      function updateHeader() {{
-        var t = Math.min(window.scrollY / FADE_PX, 1);
-        var alpha = BASE_ALPHA + (MIN_ALPHA - BASE_ALPHA) * t;
-        hdr.style.backgroundColor = 'rgba(15,22,35,' + alpha.toFixed(3) + ')';
-      }}
-      window.addEventListener('scroll', updateHeader, {{ passive: true }});
-      updateHeader();
-    }})();
-
-    // ── Footer entrance animations (IntersectionObserver, replaces motion/react whileInView) ──
-    (function() {{
-      var els = document.querySelectorAll('.footer-anim');
-      if (!els.length) return;
-      var obs = new IntersectionObserver(function(entries) {{
-        entries.forEach(function(entry) {{
-          if (entry.isIntersecting) {{
-            entry.target.classList.add('in-view');
-            obs.unobserve(entry.target);
-          }}
-        }});
-      }}, {{ threshold: 0.15 }});
-      els.forEach(function(el) {{ obs.observe(el); }});
-    }})();
-
-    // ── Glowing border ring — Aceternity-style vanilla port ──
-    (function() {{
-      var cards = Array.from(document.querySelectorAll('.game-card'));
-      var states = new Map();
-
-      cards.forEach(function(card) {{
-        var ring = document.createElement('div');
-        ring.className = 'glow-ring';
-        card.appendChild(ring);
-        states.set(card, {{ current: 0, target: 0, raf: null }});
-      }});
-
-      function normDiff(d) {{ return ((d % 360) + 540) % 360 - 180; }}
-
-      function tick(card) {{
-        var s = states.get(card);
-        var diff = normDiff(s.target - s.current);
-        if (Math.abs(diff) < 0.2) {{ s.current = s.target; s.raf = null; return; }}
-        s.current += diff * 0.08;
-        card.style.setProperty('--glow-start', s.current.toFixed(1));
-        s.raf = requestAnimationFrame(function() {{ tick(card); }});
-      }}
-
-      document.body.addEventListener('pointermove', function(e) {{
-        var mx = e.clientX, my = e.clientY;
-        cards.forEach(function(card) {{
-          var r = card.getBoundingClientRect();
-          var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-          var prox = 64;
-          var active = mx > r.left - prox && mx < r.right + prox &&
-                       my > r.top  - prox && my < r.bottom + prox;
-          card.style.setProperty('--glow-active', active ? '1' : '0');
-          if (!active) return;
-          var s = states.get(card);
-          s.target = Math.atan2(my - cy, mx - cx) * 180 / Math.PI + 90;
-          if (!s.raf) s.raf = requestAnimationFrame(function() {{ tick(card); }});
-        }});
-      }}, {{ passive: true }});
-    }})();
-  </script>
-</body>
-</html>"""
+    return html
 
 
 # --------------------------------------------------------------------------- #

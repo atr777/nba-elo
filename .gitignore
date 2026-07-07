@@ -261,3 +261,7 @@ scripts/*.bat
 
 # Secrets
 .env
+
+# Site template (needed by export_github_pages.py)
+!templates/
+!templates/origin.html

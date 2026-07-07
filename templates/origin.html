@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Second Bounce — {{DATE_STR}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assets/logo_substack.png">
+<style>
+  /* ============================================================ */
+  /* ORIGIN SYSTEM — tokens                                         */
+  /* ============================================================ */
+  :root {
+    --obsidian: #0f1011;   /* canvas */
+    --abyss:    #090a0b;   /* deeper bands (footer) */
+    --graphite: #2e2e2e;   /* elevated cards */
+    --silver:   #cacaca;   /* the one light inverted surface */
+
+    --cloud: #f5f5f7;      /* headings on dark */
+    --ash:   #9f9fa0;      /* body copy on dark — never full white */
+    --white: #ffffff;      /* reserved for the primary CTA fill only */
+
+    --iris:      #847dff;
+    --cyan:      #00b3dd;
+    --orchid:    #dd90d8;
+    --periwinkle:#90b8f0;
+    --deep-iris: #4b49aa;
+    --pale-iris: #d1c9ff;
+
+    --good: #30a46c;  /* correct pick — functional, distinct from chromatic set */
+    --miss: #e5484d;  /* missed pick — functional, distinct from chromatic set */
+  }
+
+  * , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+  body {
+    background: var(--obsidian);
+    color: var(--ash);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
+  img { max-width: 100%; display: block; }
+  table { border-collapse: collapse; width: 100%; }
+
+  .serif {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-weight: 400;
+    color: var(--cloud);
+  }
+  .mono {
+    font-family: 'Roboto Mono', 'Courier New', monospace;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+  .section { margin-top: 80px; }
+
+  .eyebrow {
+    font-family: 'Roboto Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 11px;
+    color: var(--ash);
+    margin-bottom: 22px;
+  }
+
+  .section-head-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .section-head-row .eyebrow { margin-bottom: 0; }
+  .date-stamp { color: var(--ash); }
+
+  .card {
+    background: var(--graphite);
+    border-radius: 16px;
+    padding: 40px;
+  }
+
+  /* ============================================================ */
+  /* BUTTONS — white fill is the ONLY primary treatment; ghost is   */
+  /* the only secondary. No other button styling exists.           */
+  /* ============================================================ */
+  .btn-primary, .btn-ghost {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    border-radius: 8px;
+    padding: 14px 26px;
+    font: inherit;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 14.5px;
+    white-space: nowrap;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary { background: var(--white); color: #000000; }
+  .btn-primary svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--cloud);
+    border: 1px solid rgba(255,255,255,0.75);
+  }
+  .btn-primary--sm, .btn-ghost--sm { padding: 9px 20px; font-size: 13px; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 5px 14px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .chip-neutral { background: rgba(255,255,255,0.07); color: var(--ash); }
+  .chip-correct { background: var(--good); color: #ffffff; }
+  .chip-miss    { background: var(--miss); color: #ffffff; }
+
+  /* ============================================================ */
+  /* STICKY GLASS NAV                                               */
+  /* ============================================================ */
+  nav.topnav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(15,16,17,0.68);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding: 16px 40px;
+  }
+  .nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .nav-brand { display: flex; align-items: center; gap: 12px; }
+  .nav-logo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .nav-wordmark { font-size: 19px; font-weight: 500; color: var(--cloud); letter-spacing: 0.01em; }
+  .nav-links { display: flex; align-items: center; gap: 28px; }
+  .nav-links a { font-size: 13.5px; font-weight: 500; color: var(--ash); }
+  .nav-links a:hover { color: var(--cloud); }
+
+  /* ============================================================ */
+  /* HERO — seamless-loop video                                     */
+  /* ============================================================ */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 168px 40px 128px;
+    text-align: center;
+  }
+  .hero-media { position: absolute; inset: 0; z-index: 0; }
+  .hero-media-el {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.55;
+  }
+  .hero-scrim {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 42%, rgba(15,16,17,0.15) 0%, rgba(15,16,17,0.55) 55%, rgba(15,16,17,0.97) 100%);
+  }
+  .hero-inner { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; }
+  .hero-kicker {
+    margin-bottom: 30px;
+    background: rgba(255,255,255,0.08);
+    color: var(--cloud);
+    font-family: 'Roboto Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 10.5px;
+  }
+  .hero-headline {
+    font-size: clamp(38px, 7.5vw, 88px);
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+  }
+  .hero-headline em { font-style: italic; }
+  .hero-sub {
+    margin: 28px auto 0;
+    max-width: 560px;
+    font-size: 18px;
+    line-height: 1.65;
+    color: var(--ash);
+  }
+  .hero-ctas {
+    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  /* ============================================================ */
+  /* CHROMATIC FEATURE TILES — the signature                       */
+  /* ============================================================ */
+  .tiles-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    max-width: 840px;      /* ~0.75x the container: smaller card cluster */
+    margin: 44px auto 0;   /* centered + shifted down */
+  }
+  .tile {
+    border-radius: 22px;
+    padding: 24px;
+    color: var(--obsidian);
+  }
+  .tile-eyebrow {
+    font-family: 'Roboto Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 9px;
+    color: rgba(15,16,17,0.62);
+  }
+  .tile-heading {
+    margin-top: 13px;
+    font-family: 'DM Serif Display', serif;
+    font-weight: 400;
+    font-size: 22px;
+    line-height: 1.05;
+    color: var(--obsidian);
+  }
+  .tile-body {
+    margin-top: 11px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    line-height: 1.55;
+    color: rgba(15,16,17,0.72);
+  }
+  /* Dark-background tile (burnt orange) needs light text for contrast */
+  .tile--dark .tile-eyebrow { color: rgba(255,237,215,0.72); }
+  .tile--dark .tile-heading { color: #ffffff; }
+  .tile--dark .tile-body { color: rgba(255,237,215,0.86); }
+
+  /* ============================================================ */
+  /* STATS BAND — the one Silver inversion                          */
+  /* ============================================================ */
+  .stats-band {
+    background: var(--silver);
+    color: var(--obsidian);
+    padding: 96px 40px;
+    margin-top: 80px;
+  }
+  .stats-inner {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    text-align: center;
+  }
+  .stat-value {
+    font-family: 'DM Serif Display', serif;
+    font-weight: 400;
+    font-size: clamp(38px, 6vw, 62px);
+    line-height: 1;
+    color: var(--obsidian);
+  }
+  .stat-label {
+    margin-top: 16px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 13.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--obsidian);
+  }
+  .stat-sub {
+    margin-top: 8px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(15,16,17,0.55);
+  }
+
+  /* ============================================================ */
+  /* TODAY'S PREDICTIONS — offseason CTA / no-games / live cards    */
+  /* ============================================================ */
+  .card-offseason { text-align: center; }
+  .card-headline {
+    font-family: 'DM Serif Display', serif;
+    font-weight: 400;
+    font-size: clamp(26px, 4vw, 38px);
+    line-height: 1.1;
+    color: var(--cloud);
+  }
+  .card-body {
+    margin: 20px auto 0;
+    max-width: 560px;
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--ash);
+  }
+  .card-offseason .btn-primary,
+  .card-offseason .btn-ghost { margin-top: 30px; }
+
+  .game-card {
+    position: relative;
+    margin-bottom: 16px;
+    transition: background 0.15s ease;
+  }
+  .game-card:last-child { margin-bottom: 0; }
+  .game-card:hover { background: #333333; }
+  .game-card-link { position: absolute; inset: 0; z-index: 1; border-radius: 16px; }
+  .game-card-final { opacity: 0.68; }
+  .game-card-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .game-time { color: var(--ash); }
+  .game-pick-line {
+    position: relative;
+    margin-top: 16px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--cloud);
+  }
+  .game-pick-line .mono { color: var(--ash); font-size: 10.5px; }
+  .game-prob-track {
+    position: relative;
+    margin-top: 12px;
+    height: 6px;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.09);
+    overflow: hidden;
+  }
+  .game-prob-fill { height: 100%; border-radius: 9999px; background: var(--cyan); }
+  .game-elo-line { position: relative; margin-top: 12px; color: var(--ash); }
+
+  /* ============================================================ */
+  /* RECENT RESULTS — day-grouped, color-step separation, green/red */
+  /* ============================================================ */
+  .results-day + .results-day { margin-top: 32px; }
+  .results-day-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .results-day-label { color: var(--ash); }
+  .results-day-record { color: var(--cloud); font-size: 11px; }
+
+  .result-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 14px;
+    border-radius: 10px;
+    flex-wrap: wrap;
+  }
+  .result-row:nth-child(even) { background: rgba(255,255,255,0.035); }
+  .result-matchup {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--cloud);
+    flex: 1;
+    min-width: 180px;
+  }
+  .team-pair { display: inline-flex; align-items: center; gap: 6px; }
+  .team-logo { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+  .matchup-vs { color: var(--ash); font-weight: 400; font-size: 13px; }
+  .result-score { color: var(--ash); white-space: nowrap; }
+
+  /* ============================================================ */
+  /* TOP PLAYERS — rich table, cyan as data-signal (allowed use)    */
+  /* ============================================================ */
+  .table-scroll { overflow-x: auto; }
+  .players-table { min-width: 620px; }
+  .players-table th {
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ash);
+    padding: 0 14px 14px;
+  }
+  .players-table td {
+    padding: 14px;
+    font-size: 15px;
+    color: var(--cloud);
+    vertical-align: middle;
+  }
+  .players-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.035); }
+  .players-table tbody tr td:first-child { border-radius: 10px 0 0 10px; }
+  .players-table tbody tr td:last-child  { border-radius: 0 10px 10px 0; }
+  .p-rank { color: var(--ash); width: 30px; }
+  .p-team { color: var(--ash); width: 66px; }
+  .team-cell { display: inline-flex; align-items: center; gap: 6px; }
+  .team-logo-sm { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
+  .p-gp   { color: var(--ash); width: 50px; }
+  .p-rating-cell { width: 190px; }
+  .rating-track {
+    position: relative;
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.09);
+    margin-bottom: 7px;
+  }
+  .rating-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: var(--cyan);
+  }
+  .rating-num { font-family: 'Roboto Mono', monospace; font-size: 11.5px; color: var(--ash); }
+  .p-adj { text-align: right; font-size: 14px; color: var(--cloud); }
+  .p-adj.dim { color: var(--ash); opacity: 0.55; }
+  .table-caption {
+    margin-top: 26px;
+    max-width: 720px;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--ash);
+  }
+
+  /* ============================================================ */
+  /* FOOTER — rich, deeper Abyss band                               */
+  /* ============================================================ */
+  footer { background: var(--abyss); margin-top: 80px; padding: 80px 40px 36px; }
+  .footer-top {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 40px;
+    padding-bottom: 48px;
+  }
+  .footer-brand-row { display: flex; align-items: center; gap: 12px; }
+  .footer-logo { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .footer-wordmark { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 24px; color: var(--cloud); }
+  .footer-tagline { margin-top: 14px; font-size: 13.5px; color: var(--ash); max-width: 240px; line-height: 1.6; }
+  .footer-col-label {
+    font-family: 'Roboto Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10.5px;
+    color: var(--ash);
+    margin-bottom: 18px;
+  }
+  .footer-links li { margin-bottom: 12px; }
+  .footer-links a { font-size: 13.5px; color: var(--cloud); }
+  .footer-links a:hover { color: var(--ash); }
+  .footer-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding-top: 28px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .footer-receipt { font-family: 'Roboto Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ash); }
+  .footer-legal { font-size: 12px; color: var(--ash); opacity: 0.75; }
+
+  /* ============================================================ */
+  /* RESPONSIVE                                                     */
+  /* ============================================================ */
+  @media (max-width: 900px) {
+    .tiles-row { grid-template-columns: 1fr; }
+    .stats-inner { grid-template-columns: 1fr; gap: 44px; }
+    .footer-top { grid-template-columns: 1fr 1fr; gap: 32px 24px; }
+    .nav-links a:not(.btn-primary) { display: none; }
+  }
+
+  @media (max-width: 720px) {
+    .container { padding: 0 20px; }
+    .section { margin-top: 56px; }
+    nav.topnav { padding: 14px 20px; }
+    .hero { padding: 108px 20px 88px; }
+    .card { padding: 26px; }
+    .stats-band { padding: 64px 20px; margin-top: 56px; }
+    footer { padding: 56px 20px 28px; margin-top: 56px; }
+    .btn-primary, .btn-ghost { padding: 11px 20px; font-size: 13px; }
+  }
+
+  @media (max-width: 560px) {
+    .footer-top { grid-template-columns: 1fr; gap: 32px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============================================================ -->
+  <!-- STICKY GLASS NAV                                               -->
+  <!-- ============================================================ -->
+  <nav class="topnav">
+    <div class="nav-inner">
+      <div class="nav-brand">
+        <img class="nav-logo" src="assets/logo_substack.png" alt="Second Bounce">
+        <span class="nav-wordmark">Second Bounce</span>
+      </div>
+      <div class="nav-links">
+        <a href="#today">Predictions</a>
+        <a href="#results">Results</a>
+        <a href="#players">Players</a>
+        <a class="btn-primary btn-primary--sm" href="https://secondbounce.substack.com" target="_blank" rel="noopener">Subscribe</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- HERO                                                           -->
+  <!-- ============================================================ -->
+  <section class="hero">
+    <div class="hero-media">
+      <video class="hero-media-el" src="assets/hero_ball_loop.mp4" poster="assets/hero_ball.png" autoplay muted loop playsinline></video>
+      <div class="hero-scrim"></div>
+    </div>
+    <div class="hero-inner">
+      <span class="chip hero-kicker mono">Second Bounce &mdash; NBA Prediction Engine</span>
+      <h1 class="hero-headline serif">NBA predictions that show their <em>work</em>.</h1>
+      <p class="hero-sub">
+        70.6% accuracy across 657 tracked games. Every pick published before
+        tip-off, every miss kept, verified by walk-forward audit.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="https://secondbounce.substack.com" target="_blank" rel="noopener">
+          Read the model's record
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+        <a class="btn-ghost" href="#today">See today's picks</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- CHROMATIC FEATURE TILES                                        -->
+  <!-- ============================================================ -->
+  <section class="section container">
+    <div class="tiles-row">
+      <div class="tile" style="background:#f0f0c9;">
+        <div class="tile-eyebrow">Every game day</div>
+        <div class="tile-heading">Daily Predictions</div>
+        <p class="tile-body">Every matchup, every day, posted before tip-off. No hindsight, no edits after the fact.</p>
+      </div>
+      <div class="tile" style="background:#f2bb05;">
+        <div class="tile-eyebrow">The receipts</div>
+        <div class="tile-heading">Public Track Record</div>
+        <p class="tile-body">70.6% across 657 games. Every miss stays published, never quietly deleted.</p>
+      </div>
+      <div class="tile tile--dark" style="background:#d74e09;">
+        <div class="tile-eyebrow">Updated nightly</div>
+        <div class="tile-heading">Player Ratings</div>
+        <p class="tile-body">A live ELO leaderboard for every rotation player in the league.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STATS BAND — the one Silver inversion                          -->
+  <!-- ============================================================ -->
+  <section class="stats-band" id="stats">
+    <div class="stats-inner container">
+      {{STATS}}
+    </div>
+  </section>
+
+  <div class="container">
+
+    <!-- ============================================================ -->
+    <!-- TODAY'S PREDICTIONS                                            -->
+    <!-- ============================================================ -->
+    <section class="section" id="today">
+      <div class="section-head-row">
+        <div class="eyebrow">Today's Predictions</div>
+        <span class="date-stamp mono">{{DATE_STAMP}}</span>
+      </div>
+      {{PREDICTIONS}}
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- RECENT RESULTS                                                 -->
+    <!-- ============================================================ -->
+    <section class="section" id="results">
+      <div class="eyebrow">Recent Results</div>
+      <div class="card">
+        {{RESULTS}}
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TOP PLAYERS BY MODEL RATING — rich table                       -->
+    <!-- ============================================================ -->
+    <section class="section" id="players">
+      <div class="eyebrow">Top Players by Model Rating</div>
+      <div class="card">
+        <div class="table-scroll">
+          <table class="players-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Team</th>
+                <th>GP</th>
+                <th>Rating</th>
+                <th style="text-align:right;">Model</th>
+              </tr>
+            </thead>
+            <tbody>{{PLAYERS}}</tbody>
+          </table>
+        </div>
+        <p class="table-caption">
+          Rating: 1,500 is league average. Creators the model rates above their box
+          score get an up arrow. Rim protectors it rates below get a down arrow.
+          This is the adjustment the engine actually predicts with, shown next to
+          games played so sample size is never hidden.
+        </p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- FOOTER — rich, structured, deeper Abyss band                   -->
+  <!-- ============================================================ -->
+  <footer>
+    <div class="container">
+      <div class="footer-top">
+
+        <div>
+          <div class="footer-brand-row">
+            <img class="footer-logo" src="assets/logo_substack.png" alt="Second Bounce">
+            <div class="footer-wordmark">Second Bounce</div>
+          </div>
+          <p class="footer-tagline">NBA predictions that show their work.</p>
+        </div>
+
+        <div>
+          <div class="footer-col-label">Predictions</div>
+          <ul class="footer-links">
+            <li><a href="#today">Today's Picks</a></li>
+            <li><a href="#results">Recent Results</a></li>
+            <li><a href="#stats">Season Stats</a></li>
+            <li><a href="#players">Player Ratings</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-label">Model</div>
+          <ul class="footer-links">
+            <li><a href="https://fivethirtyeight.com/methodology/how-our-nba-predictions-work/" target="_blank" rel="noopener">Methodology</a></li>
+            <li><a href="https://github.com/atr777/nba-predictions" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://harvardsportsanalysis.org/2019/01/a-simple-improvement-to-fivethirtyeights-nba-elo-model/" target="_blank" rel="noopener">Research</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-label">Follow</div>
+          <ul class="footer-links">
+            <li><a href="https://secondbounce.substack.com" target="_blank" rel="noopener">Newsletter</a></li>
+            <li><a href="https://x.com/SecondBounceNBA" target="_blank" rel="noopener">@SecondBounceNBA</a></li>
+            <li><a href="https://github.com/atr777/nba-predictions" target="_blank" rel="noopener">GitHub</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="footer-bottom">
+        <span class="footer-receipt">{{RECEIPT}}</span>
+        <span class="footer-legal">{{FOOTER_LEGAL}}</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Convert ET game times to the visitor's local timezone
+    document.querySelectorAll('.game-time[data-iso]').forEach(function(el) {
+      try {
+        var d = new Date(el.dataset.iso);
+        if (isNaN(d.getTime())) return;
+        var day  = d.toLocaleDateString(undefined, { weekday: 'short' });
+        var time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        el.textContent = day + ' · ' + time;
+      } catch(e) {}
+    });
+  </script>
+</body>
+</html>
