@@ -200,6 +200,18 @@ def main():
     if not success:
         log("WARNING: Team ELO calculation had issues. Continuing...")
 
+    # Step 2.5: Refresh roster -> team mapping (self-throttles to once/~18h, so
+    # this is a no-op on 4 of the 5 daily crons). Rebuilds from the NBA API and
+    # applies data/manual/roster_overrides.csv for free-agency moves the API lags.
+    log("\n--- Step 2.5: Refreshing Roster Mapping ---")
+    success = run_command(
+        'python scripts/refresh_roster_mapping.py',
+        "Roster -> team mapping refresh (NBA API + overrides)",
+        timeout=300
+    )
+    if not success:
+        log("WARNING: Roster refresh had issues. Keeping existing mapping.")
+
     # Step 3: Recalculate player ELO
     log("\n--- Step 3: Recalculating Player ELO ---")
     success = run_command(

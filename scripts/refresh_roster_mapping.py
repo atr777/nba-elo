@@ -16,6 +16,7 @@ mapping rather than overwriting it with garbage.
 
 import sys
 import time
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -24,6 +25,17 @@ import pandas as pd
 MAPPING_FILE = Path("data/exports/player_team_mapping.csv")
 OVERRIDES_FILE = Path("data/manual/roster_overrides.csv")
 MIN_PLAYERS = 350   # 30 teams x ~14; below this we assume a bad pull and abort
+REFRESH_EVERY_HOURS = 18   # skip if refreshed more recently (crons fire 5x/day)
+
+
+def strip_accents(s):
+    """NBA API returns accented names (Jokić, Dončić); our ratings/boxscores are
+    plain ASCII (Jokic, Doncic). Normalize so the player_name merge doesn't
+    silently drop every accented star on the site."""
+    if not isinstance(s, str):
+        return s
+    return "".join(c for c in unicodedata.normalize("NFKD", s)
+                   if not unicodedata.combining(c))
 
 # NBA API team id (1610612XXX) -> our internal DB id (1-30) + full name
 NBA_TEAMS = {
@@ -91,9 +103,14 @@ def fetch_rosters():
         rows = _fetch_season(commonteamroster, s)
         if len(rows) >= MIN_PLAYERS:
             log(f"Using {s} rosters ({len(rows)} players)")
-            return pd.DataFrame(rows)
+            df = pd.DataFrame(rows)
+            df["player_name"] = df["player_name"].map(strip_accents)
+            return df
         log(f"  {s} too sparse ({len(rows)}); trying older season")
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    if len(df):
+        df["player_name"] = df["player_name"].map(strip_accents)
+    return df
 
 
 def apply_overrides(df):
@@ -121,7 +138,19 @@ def apply_overrides(df):
     return df
 
 
+def is_fresh():
+    if not MAPPING_FILE.exists():
+        return False
+    age_h = (time.time() - MAPPING_FILE.stat().st_mtime) / 3600
+    return age_h < REFRESH_EVERY_HOURS
+
+
 def main():
+    force = "--force" in sys.argv
+    if is_fresh() and not force:
+        log(f"Mapping refreshed < {REFRESH_EVERY_HOURS}h ago; skipping "
+            f"(use --force to override).")
+        return
     df = fetch_rosters()
     if len(df) < MIN_PLAYERS:
         log(f"ABORT: only {len(df)} players (< {MIN_PLAYERS}). Keeping existing "
