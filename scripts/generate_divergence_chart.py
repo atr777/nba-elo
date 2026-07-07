@@ -6,13 +6,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-SURFACE = "#fcfcfb"
-INK = "#0b0b0b"
-SECONDARY = "#52514e"
-MUTED = "#898781"
-BASELINE = "#c3c2b7"
-RED = "#d03b3b"
-BLUE = "#2a78d6"
+# Origin palette (dark obsidian canvas)
+SURFACE = "#0f1011"
+INK = "#f5f5f7"
+SECONDARY = "#9f9fa0"
+MUTED = "#6a6b6b"
+BASELINE = "#3a3d3f"
+RED = "#e5484d"
+BLUE = "#00b3dd"
 
 plt.rcParams.update({
     "font.family": "Segoe UI", "figure.facecolor": SURFACE,

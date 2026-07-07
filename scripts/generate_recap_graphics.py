@@ -10,15 +10,16 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-SURFACE = "#fcfcfb"
-INK = "#0b0b0b"
-SECONDARY = "#52514e"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-BASELINE = "#c3c2b7"
-BLUE = "#2a78d6"
-BLUE_LIGHT = "#9ec5f4"
-GOOD = "#006300"
+# Origin palette (dark obsidian canvas, cream text, cyan data-signal)
+SURFACE = "#0f1011"
+INK = "#f5f5f7"
+SECONDARY = "#9f9fa0"
+MUTED = "#6a6b6b"
+GRID = "#242628"
+BASELINE = "#3a3d3f"
+BLUE = "#00b3dd"        # cyan data-signal
+BLUE_LIGHT = "#4b49aa"  # deep iris (secondary marks)
+GOOD = "#30a46c"
 
 plt.rcParams.update({
     "font.family": "Segoe UI",

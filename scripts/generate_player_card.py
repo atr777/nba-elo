@@ -18,13 +18,14 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 ASSETS = "docs/growth/posts/assets"
 F = "C:/Windows/Fonts/"
 
-NAVY = (15, 22, 35)
-CARD_EDGE = (26, 36, 56)
-BLUE = (75, 139, 244)
-PALE = (205, 226, 251)
-TEXT = (232, 236, 244)
-MUTED = (100, 116, 139)
-ORANGE = (248, 161, 0)
+# Origin palette (names kept; values shifted to obsidian/cyan/ember)
+NAVY = (15, 16, 17)        # obsidian canvas + duotone shadows
+CARD_EDGE = (26, 26, 28)
+BLUE = (0, 179, 221)       # cyan data-signal: duotone mids + rating number
+PALE = (200, 240, 250)     # pale cyan: duotone highlights
+TEXT = (245, 245, 247)     # cloud
+MUTED = (159, 159, 160)    # ash
+ORANGE = (215, 78, 9)      # ember accent (kicker)
 
 HEADSHOT_URL = "https://cdn.nba.com/headshots/nba/latest/1040x760/{pid}.png"
 

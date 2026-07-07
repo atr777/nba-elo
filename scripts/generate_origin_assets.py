@@ -44,6 +44,27 @@ def ball_faded(target_h):
 
 
 def substack_header(path):
+    """Compact horizontal lockup (ball + wordmark) that stays legible when
+    Substack scales it into the small top header strip."""
+    logo = Image.open(f"{ASSETS}/logo_substack.png").convert("RGBA").resize((200, 200))
+    wm = serif(140)
+    ww = ImageDraw.Draw(Image.new("RGB", (10, 10))).textlength("Second Bounce", font=wm)
+    pad, gap = 72, 40
+    W = int(pad + 200 + gap + ww + pad)
+    H = 300
+    img = Image.new("RGB", (W, H), OBSIDIAN)
+    d = ImageDraw.Draw(img)
+    img.paste(logo, (pad, (H - 200) // 2), logo)
+    d.text((pad + 200 + gap, H // 2 - 6), "Second Bounce", font=wm, fill=CLOUD,
+           anchor="lm")
+    # thin ember accent under the wordmark
+    d.line([(pad + 200 + gap + 4, H // 2 + 78), (pad + 200 + gap + 260, H // 2 + 78)],
+           fill=EMBER, width=3)
+    img.save(path)
+
+
+def substack_cover(path):
+    """Wide hero banner, in case a larger homepage cover slot is available."""
     W, H = 1600, 500
     img = Image.new("RGB", (W, H), OBSIDIAN)
     ball = ball_faded(H)
@@ -77,5 +98,6 @@ def footer_banner(path):
 
 if __name__ == "__main__":
     substack_header(f"{ASSETS}/substack_header.png")
+    substack_cover(f"{ASSETS}/substack_cover.png")
     footer_banner(f"{ASSETS}/footer_banner_origin.png")
-    print("done: substack_header.png, footer_banner_origin.png")
+    print("done: substack_header.png, substack_cover.png, footer_banner_origin.png")
