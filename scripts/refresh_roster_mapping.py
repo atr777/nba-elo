@@ -49,15 +49,17 @@ def log(m):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {m}")
 
 
-def current_season():
-    n = datetime.now()
-    start = n.year if n.month >= 10 else n.year - 1
+def season_str(start):
     return f"{start}-{str(start + 1)[-2:]}"
 
 
-def fetch_rosters():
-    from nba_api.stats.endpoints import commonteamroster
-    season = current_season()
+def current_season_start():
+    """League year flips July 1: from July 2026 the current season is 2026-27."""
+    n = datetime.now()
+    return n.year if n.month >= 7 else n.year - 1
+
+
+def _fetch_season(commonteamroster, season):
     log(f"Fetching {season} rosters for {len(NBA_TEAMS)} teams...")
     rows, failed = [], 0
     for nba_id, (db_id, name) in NBA_TEAMS.items():
@@ -75,7 +77,22 @@ def fetch_rosters():
             failed += 1
             log(f"  WARN team {name}: {e}")
             time.sleep(1.0)
-    log(f"Fetched {len(rows)} players ({failed} teams failed)")
+    log(f"  {season}: fetched {len(rows)} players ({failed} teams failed)")
+    return rows
+
+
+def fetch_rosters():
+    """Prefer the current league-year rosters; if the API hasn't populated them
+    yet (early offseason), fall back to the prior season so we still get a full,
+    if slightly stale, set that the overrides layer then corrects."""
+    from nba_api.stats.endpoints import commonteamroster
+    start = current_season_start()
+    for s in (season_str(start), season_str(start - 1)):
+        rows = _fetch_season(commonteamroster, s)
+        if len(rows) >= MIN_PLAYERS:
+            log(f"Using {s} rosters ({len(rows)} players)")
+            return pd.DataFrame(rows)
+        log(f"  {s} too sparse ({len(rows)}); trying older season")
     return pd.DataFrame(rows)
 
 
