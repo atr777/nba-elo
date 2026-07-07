@@ -1,6 +1,11 @@
 """
-Auto-Track Daily Predictions
-Automatically makes predictions for recent games and tracks results.
+Auto-Track Daily Predictions  [DEPRECATED 2026-07-06 — DO NOT USE]
+
+Replaced by scripts/track_predictions_pregame.py. This script predicted
+COMPLETED games retroactively using ratings computed from all completed games,
+so each game's own result leaked into the ratings that "predicted" it. That
+leakage inflated the published record (73.5% -> honest 70.6% after audit). The
+daily pipeline no longer calls this file. Kept only for reference.
 
 Usage:
     python scripts/auto_track_predictions.py [--days-back N]

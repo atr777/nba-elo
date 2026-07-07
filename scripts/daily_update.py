@@ -210,10 +210,14 @@ def main():
         log("WARNING: Player ELO calculation had issues. Continuing...")
 
     # Step 4: Track predictions for recent games
-    log("\n--- Step 4: Tracking Recent Predictions ---")
+    log("\n--- Step 4: Pre-game Prediction Tracking ---")
+    # Leak-free: grade completed games from the pending log, then log locked
+    # pre-game predictions for today's still-unplayed games. Replaces the old
+    # auto_track_predictions.py, which predicted completed games retroactively
+    # (that leakage inflated 73.5% -> honest 70.6%).
     success = run_command(
-        'python scripts/auto_track_predictions.py --days-back 7',
-        "Auto-tracking predictions for last 7 days"
+        'python scripts/track_predictions_pregame.py',
+        "Reconciling finals and logging today's pre-game predictions"
     )
     if not success:
         log("WARNING: Prediction tracking had issues. Continuing...")
