@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Second Bounce — {{DATE_STR}}</title>
+<title>Second Bounce · {{DATE_STR}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
@@ -445,6 +445,33 @@
     line-height: 1.7;
     color: var(--ash);
   }
+  /* Player lookup — minimal, single input above the table */
+  .player-search-wrap { position: relative; max-width: 320px; margin-bottom: 20px; }
+  .player-search {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 10px;
+    padding: 11px 34px 11px 38px;
+    color: var(--cloud);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .player-search::placeholder { color: var(--ash); }
+  .player-search:focus { border-color: var(--cyan); }
+  .player-search-icon {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    width: 15px; height: 15px; stroke: var(--ash); fill: none; pointer-events: none;
+  }
+  .player-search-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: 0; color: var(--ash); font-size: 18px; line-height: 1;
+    cursor: pointer; padding: 4px 6px; display: none;
+  }
+  .player-search-clear:hover { color: var(--cloud); }
+  .players-empty { text-align: center; color: var(--ash); padding: 22px; font-size: 14px; }
 
   /* ============================================================ */
   /* FOOTER — rich, deeper Abyss band                               */
@@ -615,6 +642,14 @@
     <section class="section" id="players">
       <div class="eyebrow">Top Players by Model Rating</div>
       <div class="card">
+        <div class="player-search-wrap">
+          <svg class="player-search-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line>
+          </svg>
+          <input type="text" class="player-search" id="playerSearch"
+                 placeholder="Look up any player..." autocomplete="off" spellcheck="false">
+          <button class="player-search-clear" id="playerSearchClear" aria-label="Clear">&times;</button>
+        </div>
         <div class="table-scroll">
           <table class="players-table">
             <thead>
@@ -627,7 +662,7 @@
                 <th style="text-align:right;">Model</th>
               </tr>
             </thead>
-            <tbody>{{PLAYERS}}</tbody>
+            <tbody id="playersBody">{{PLAYERS}}</tbody>
           </table>
         </div>
         <p class="table-caption">
@@ -704,6 +739,49 @@
         el.textContent = day + ' · ' + time;
       } catch(e) {}
     });
+
+    // Player lookup — filter the full rated roster; empty input restores Top 15
+    (function () {
+      var ALL = {{PLAYERS_JSON}};
+      var input = document.getElementById('playerSearch');
+      var clear = document.getElementById('playerSearchClear');
+      var body  = document.getElementById('playersBody');
+      if (!input || !body) return;
+      var defaultHTML = body.innerHTML;   // server-rendered Top 15
+
+      function rowHTML(p) {
+        var frac = Math.max(0.06, Math.min(1, (p.elo - 1500) / (2650 - 1500)));
+        var adjCell = p.adj >= 20
+          ? '<td class="p-adj">&#9650; +' + p.adj + '</td>'
+          : (p.adj <= -20
+              ? '<td class="p-adj">&#9660; ' + p.adj + '</td>'
+              : '<td class="p-adj dim">&mdash;</td>');
+        return '<tr>'
+          + '<td class="p-rank">' + p.rank + '</td>'
+          + '<td>' + p.name + '</td>'
+          + '<td class="p-team"><span class="team-cell">'
+          +   '<img class="team-logo-sm" src="' + p.logo + '" alt="" onerror="this.style.display=\'none\'">'
+          +   '<span class="mono">' + p.abbr + '</span></span></td>'
+          + '<td class="p-gp">' + p.games + '</td>'
+          + '<td class="p-rating-cell">'
+          +   '<div class="rating-track"><div class="rating-fill" style="width:' + (frac * 100).toFixed(0) + '%;"></div></div>'
+          +   '<span class="rating-num">' + p.elo + '</span></td>'
+          + adjCell + '</tr>';
+      }
+
+      function render() {
+        var q = input.value.trim().toLowerCase();
+        clear.style.display = q ? 'block' : 'none';
+        if (!q) { body.innerHTML = defaultHTML; return; }
+        var hits = ALL.filter(function (p) { return p.name.toLowerCase().indexOf(q) !== -1; }).slice(0, 20);
+        body.innerHTML = hits.length
+          ? hits.map(rowHTML).join('')
+          : '<tr><td colspan="6" class="players-empty">No player found for &ldquo;' + input.value.trim() + '&rdquo;</td></tr>';
+      }
+
+      input.addEventListener('input', render);
+      clear.addEventListener('click', function () { input.value = ''; render(); input.focus(); });
+    })();
   </script>
 </body>
 </html>

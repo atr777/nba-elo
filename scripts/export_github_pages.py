@@ -18,6 +18,7 @@ for _p in [_engine_root, _src_dir]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import json
 import pandas as pd
 from datetime import datetime, timedelta
 
@@ -475,6 +476,37 @@ def get_top_players(n=15):
     return players
 
 
+def get_all_players(min_games=8, cap=400):
+    """Full searchable roster for the player-lookup box: every rated player with
+    a meaningful sample, ranked by model rating. Compact keys keep the embedded
+    JSON small; the front-end filter renders these into the same table."""
+    ratings = load_csv('data/exports/player_ratings_bpm_adjusted.csv')
+    mapping = load_csv('data/exports/player_team_mapping.csv')
+    if ratings.empty:
+        return []
+
+    df = ratings.merge(mapping, on='player_name', how='left')
+    df['team_name'] = df['team_name'].fillna('—')
+    if 'raw_rating' not in df.columns:
+        df['raw_rating'] = df['rating']
+    df = df[df['games_played'] >= min_games].nlargest(cap, 'rating')
+
+    out = []
+    for i, (_, row) in enumerate(df.iterrows(), 1):
+        team_name = row['team_name']
+        team_abbr = TEAM_ABBREVS.get(team_name, team_name[:3].upper() if len(team_name) >= 3 else team_name)
+        out.append({
+            'rank': i,
+            'name': row['player_name'],
+            'abbr': team_abbr,
+            'logo': get_logo_by_abbrev(team_abbr),
+            'elo': int(row['rating']),
+            'adj': int(round(row['rating'] - row['raw_rating'])),
+            'games': int(row['games_played']),
+        })
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # HTML rendering
 # --------------------------------------------------------------------------- #
@@ -734,6 +766,9 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
     with open(template_path, encoding='utf-8') as f:
         html = f.read()
 
+    # Full rated roster for the client-side player lookup (compact JSON)
+    players_json = json.dumps(get_all_players(), separators=(',', ':'), ensure_ascii=False)
+
     replacements = {
         '{{DATE_STR}}':     date_str,
         '{{DATE_STAMP}}':   date_stamp,
@@ -741,6 +776,7 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
         '{{PREDICTIONS}}':  predictions_html,
         '{{RESULTS}}':      results_html,
         '{{PLAYERS}}':      players_html,
+        '{{PLAYERS_JSON}}': players_json,
         '{{RECEIPT}}':      receipt_html,
         '{{FOOTER_LEGAL}}': footer_legal_html,
     }
