@@ -62,6 +62,15 @@ narration in one pass.
 - **The chart crop:** one chart, one sentence, link.
 - Always: plain claims, no hashtags, no engagement-bait questions, no em dashes.
 
+**HARD LIMIT: 280 characters per X post.** @SecondBounceNBA is NOT on X Premium,
+so anything over 280 simply will not send (Aaron sees a negative counter and a
+"Upgrade to Premium" prompt). Every X draft is counted before it ships. Counting
+rules: a newline counts as 1 character; a link counts as 23 (t.co), no matter its
+real length; plain ASCII counts as written. When a draft runs long, cut it to one
+claim, not two. Only build a numbered thread (1/, 2/) if the idea genuinely needs
+it and Aaron is told it is a thread. The chart carries the detail; the post carries
+one line. Substack Notes and Substack posts have no such limit; this is X-only.
+
 ## Standing rules
 
 - Aaron is the only publish button. Claude never posts publicly.

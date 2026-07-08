@@ -27,30 +27,33 @@ PM X post and the Notes are there if you want a fuller day.
 
 ---
 
-### X 1 — 8:00 AM CT (9:00 AM ET) · text only
+Every X post below is under X's 280-character limit (no Premium on this account).
+Counts noted so you can trust the paste.
+
+### X 1 — 8:00 AM CT (9:00 AM ET) · text only · 250 chars
 
 ```
 Vegas Summer League tips off tomorrow.
 
-We run a model that rates every player in the NBA, and right now it has exactly zero opinion on AJ Dybantsa or Darryn Peterson.
+Our model rates every player in the NBA. Right now it has zero opinion on AJ Dybantsa or Darryn Peterson.
 
-A rating is earned over real NBA games, not one week in July. We will tell you the day the model forms one.
+A rating is earned over real games, not one week in July. We will tell you the day the model forms one.
 ```
 
-### X 2 — 7:00 PM CT (8:00 PM ET) · attach cle_hierarchy.png
+### X 2 — 7:00 PM CT (8:00 PM ET) · attach cle_hierarchy.png · 249 chars
 
 ```
-Cleveland just gave Donovan Mitchell a 4-year, $273 million extension.
+Cleveland gave Donovan Mitchell a 4-year, $273M extension.
 
-In our rating system he is the third-best player on his own team. James Harden (2,136) and Evan Mobley (1,896) both grade out ahead of him. Mitchell is a very good player at 1,864. He is also, by the numbers, the Cavs' third option getting paid like their first.
+In our system he is the third-best Cavalier: James Harden (2,136) and Evan Mobley (1,896) both grade above his 1,864.
 
-The model rewards creation and two-way size over volume scoring. Eighty-two games will tell us if that read holds.
+A very good player. Also the third option getting paid like the first.
 ```
 
-### X 3 — 8:30 PM CT (9:30 PM ET) · OPTIONAL · text only
+### X 3 — 8:30 PM CT (9:30 PM ET) · OPTIONAL · text only · 216 chars
 
 ```
-This week the league watches rookies in Las Vegas. We will be watching too, with one rule: no player gets a number from us until the games are real.
+This week the league watches rookies in Las Vegas. We watch too, with one rule: no player gets a number from us until the games are real.
 
 Everyone else's Summer League MVP is a highlight reel. Ours is a sample size.
 ```
