@@ -44,3 +44,21 @@ drift_detection:
 logging:
   level: "INFO"
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Roster-delta preseason ratings (approved by Aaron 2026-07-09).
+# At a season boundary the engine nudges each team by k * (roster-talent change)
+# in addition to the 75/25 mean reversion, so a team that lost its franchise
+# player does not start the year pretending it still has him.
+#
+# start_season guards this to the 2026-27 boundary and later, which leaves the
+# historical replay (and every rating we have already published) untouched.
+#
+# k=0.8 was selected out-of-sample by expanding-window validation; it won 12 of
+# 13 held-out seasons. Pooled OOS Brier 0.21643 -> 0.21574 (p=0.0040). It does
+# NOT improve accuracy (p=0.37) and must never be sold as an accuracy gain.
+# Evidence: docs/research/2026-07-09-roster-delta.md
+roster_delta:
+  enabled: true
+  k: 0.8
+  start_season: 2026              # NBA season 2026-27
+  deltas_file: "data/exports/roster_deltas.csv"

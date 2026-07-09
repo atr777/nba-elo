@@ -34,7 +34,10 @@ class TeamELOEngine:
         use_enhanced_features: bool = True,
         use_top_player_concentration: bool = True,
         player_ratings: pd.DataFrame = None,
-        player_team_mapping: pd.DataFrame = None
+        player_team_mapping: pd.DataFrame = None,
+        roster_deltas: dict = None,
+        roster_delta_k: float = 0.0,
+        roster_delta_start_season: int = None
     ):
         """
         Initialize the Team ELO Engine.
@@ -48,6 +51,13 @@ class TeamELOEngine:
             use_top_player_concentration: If True, apply top player concentration adjustments (default: True)
             player_ratings: DataFrame with player ratings for concentration calculations
             player_team_mapping: DataFrame mapping players to teams
+            roster_deltas: {(season, team_id): delta} roster-talent change in
+                player-rating points. See src/features/roster_delta.py.
+            roster_delta_k: scale converting a player-rating delta into team-ELO
+                points. 0.0 disables the feature. Validated value: 0.8.
+            roster_delta_start_season: only apply the delta at season boundaries
+                from this season onward. This keeps the historical replay, and
+                therefore every rating we have already published, untouched.
         """
         self.base_rating = base_rating
         self.k_factor = k_factor
@@ -55,6 +65,9 @@ class TeamELOEngine:
         self.use_mov = use_mov
         self.use_enhanced_features = use_enhanced_features
         self.use_top_player_concentration = use_top_player_concentration
+        self.roster_deltas = roster_deltas or {}
+        self.roster_delta_k = roster_delta_k
+        self.roster_delta_start_season = roster_delta_start_season
 
         # Current ratings dictionary {team_id: rating}
         self.current_ratings = {}
@@ -95,7 +108,7 @@ class TeamELOEngine:
         self.games_played = {}
         logger.info("Ratings reset to base")
 
-    def _apply_season_reversion(self, reversion_factor: float = 0.75):
+    def _apply_season_reversion(self, reversion_factor: float = 0.75, season: int = None):
         """
         Apply FiveThirtyEight-style mean reversion between seasons.
 
@@ -120,6 +133,31 @@ class TeamELOEngine:
             f"Season reversion applied: {reversion_factor:.0%} prior + "
             f"{1-reversion_factor:.0%} mean ({self.base_rating}). "
             f"{len(reverted)} teams reverted."
+        )
+        self._apply_roster_delta(season)
+
+    def _apply_roster_delta(self, season):
+        """Nudge each team by K * (roster-talent change) at a season boundary.
+
+        Reverting toward the mean says "we are less sure about you now." It does
+        not say "your best player left." This does. No-op unless a K, a season,
+        and deltas are all present, and the season is at or past the configured
+        start season.
+        """
+        if not self.roster_deltas or not self.roster_delta_k or season is None:
+            return
+        start = self.roster_delta_start_season
+        if start is not None and season < start:
+            return
+        applied = 0
+        for team_id, rating in list(self.current_ratings.items()):
+            delta = self.roster_deltas.get((season, team_id))
+            if delta is not None:
+                self.current_ratings[team_id] = rating + self.roster_delta_k * delta
+                applied += 1
+        logger.info(
+            f"Roster delta applied for season {season}: K={self.roster_delta_k}, "
+            f"{applied} teams adjusted."
         )
 
     def _ensure_team_exists(self, team_id: str, team_name: str):
@@ -362,7 +400,7 @@ class TeamELOEngine:
                     f"Season boundary: {current_season_year} -> {game_season}. "
                     f"Applying 75/25 mean reversion."
                 )
-                self._apply_season_reversion(reversion_factor=0.75)
+                self._apply_season_reversion(reversion_factor=0.75, season=game_season)
 
             current_season_year = game_season
             self.process_game(game.to_dict())

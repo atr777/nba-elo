@@ -47,6 +47,8 @@ logging.disable(logging.CRITICAL)
 
 import pandas as pd
 
+from src.features.roster_delta import compute_upcoming_delta
+
 K = 0.8
 ROOKIE_RATING = 1450.0     # a rookie is a below-average NBA player, on average
 ROOKIE_MPG = 12.0          # and plays bench minutes
@@ -63,14 +65,6 @@ def norm(s):
     s = "".join(c for c in unicodedata.normalize("NFKD", s)
                 if not unicodedata.combining(c))
     return s.lower().strip()
-
-
-def talent(pairs):
-    """Minutes-weighted mean rating over the top-ROTATION players by minutes."""
-    pairs = sorted(pairs, key=lambda x: -x[1])[:ROTATION]
-    num = sum(r * w for r, w in pairs)
-    den = sum(w for _, w in pairs)
-    return num / den if den > 0 else None
 
 
 def main():
@@ -108,37 +102,26 @@ def main():
     pm = pm[pm.team_id.between(1, 30)].copy()
     pm["key"] = pm.player_name.map(norm)
 
+    # ONE definition of the delta, shared with the engine (src/features/roster_delta.py)
+    upcoming, deltas = compute_upcoming_delta(".")
+    rookie_counts = {
+        t: sum(1 for k in pm[pm.team_id == t].key if k not in rating)
+        for t in sorted(end_elo)
+    }
+
     rows = []
     for team_id in sorted(end_elo):
-        new_pairs, rookies = [], 0
-        for k in pm[pm.team_id == team_id].key:
-            r = rating.get(k)
-            if r is None:                       # no rating anywhere => rookie
-                new_pairs.append((ROOKIE_RATING, ROOKIE_MPG))
-                rookies += 1
-                continue
-            w = mpg_cur.get(k) or mpg_prev.get(k) or ROOKIE_MPG
-            new_pairs.append((r, w))
-
-        try:
-            old = mpg_team.loc[team_id]
-        except KeyError:
-            continue
-        old_pairs = [(rating[k], w) for k, w in old.items() if k in rating]
-
-        t_new, t_old = talent(new_pairs), talent(old_pairs)
-        if t_new is None or t_old is None:
+        if team_id not in deltas:
             continue
         rows.append({
             "team_id": team_id, "team_name": team_name[team_id],
             "finished": round(end_elo[team_id], 1),
             "reverted": round(REVERSION * end_elo[team_id] + (1 - REVERSION) * BASE, 1),
-            "delta_raw": round(t_new - t_old, 1),
-            "rookies": rookies,
+            "delta": round(deltas[team_id], 1),
+            "rookies": rookie_counts[team_id],
         })
 
     df = pd.DataFrame(rows)
-    df["delta"] = (df.delta_raw - df.delta_raw.mean()).round(1)     # zero-sum
     df["preseason"] = (df.reverted + K * df.delta).round(1)
     df["elo_change"] = (df.preseason - df.finished).round(1)
     df = df.sort_values("preseason", ascending=False).reset_index(drop=True)
