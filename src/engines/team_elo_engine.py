@@ -22,6 +22,40 @@ from src.features.rest_penalties import RestTracker
 logger = get_logger(__name__)
 
 
+def deployed_config() -> dict:
+    """The single definition of the config the model actually predicts with.
+
+    Read from config/settings.yaml. Both entry points use it: the CLI that
+    regenerates team_elo_history_phase_1_6.csv (which feeds the public site and
+    the preseason table) and track_predictions_pregame (which makes the picks).
+
+    Before this existed the CLI silently used argparse defaults, so the ratings we
+    published were built with home_advantage=100 and top-player concentration ON,
+    while predictions used 60 and OFF. The published numbers differed from the
+    model that produced the picks. Impact was small (sd 4.1 ELO, rank corr 0.9991,
+    because home advantage mostly cancels over a balanced home/away schedule) but
+    it would have grown silently the moment anyone retuned home advantage.
+    """
+    defaults = dict(k_factor=20, home_advantage=60, use_mov=True,
+                    use_enhanced_features=True, use_top_player_concentration=False,
+                    season_reversion=0.75)
+    try:
+        from src.utils.file_io import load_yaml, get_config_path
+        elo = load_yaml(get_config_path("settings.yaml")).get("elo", {})
+        return dict(
+            k_factor=float(elo.get("k_factor", defaults["k_factor"])),
+            home_advantage=float(elo.get("home_court_advantage", defaults["home_advantage"])),
+            use_mov=bool(elo.get("use_mov", defaults["use_mov"])),
+            use_enhanced_features=bool(elo.get("use_enhanced_features",
+                                               defaults["use_enhanced_features"])),
+            use_top_player_concentration=bool(elo.get("use_top_player_concentration",
+                                                      defaults["use_top_player_concentration"])),
+            season_reversion=float(elo.get("season_reversion", defaults["season_reversion"])),
+        )
+    except Exception:
+        return defaults
+
+
 class TeamELOEngine:
     """Engine for computing team-level ELO ratings."""
 
@@ -567,8 +601,8 @@ def main():
     parser = argparse.ArgumentParser(description='Compute team ELO ratings')
     parser.add_argument('--input', type=str, help='Input games CSV path')
     parser.add_argument('--output', type=str, help='Output ELO history CSV path')
-    parser.add_argument('--k-factor', type=float, default=20, help='K-factor (default: 20)')
-    parser.add_argument('--home-advantage', type=float, default=100, help='Home advantage (default: 100)')
+    parser.add_argument('--k-factor', type=float, default=None, help='K-factor (default: from config)')
+    parser.add_argument('--home-advantage', type=float, default=None, help='Home advantage (default: from config)')
     parser.add_argument('--use-mov', action='store_true', default=True, help='Use margin-of-victory multiplier (default: True)')
     parser.add_argument('--no-mov', action='store_false', dest='use_mov', help='Disable margin-of-victory multiplier')
     parser.add_argument('--season-reversion', type=float, default=None,
@@ -576,16 +610,18 @@ def main():
 
     args = parser.parse_args()
 
-    # Reversion comes from config so it cannot drift between this CLI, the live
-    # tracker, and the validation harnesses.
-    if args.season_reversion is None:
-        try:
-            from src.utils.file_io import load_yaml, get_config_path
-            args.season_reversion = float(
-                load_yaml(get_config_path('settings.yaml'))['elo']['season_reversion'])
-        except Exception:
-            args.season_reversion = 0.75
-    logger.info(f"Season reversion: {args.season_reversion}")
+    # Everything unspecified comes from the deployed config, so the ratings this
+    # writes match the model that makes the picks.
+    cfg = deployed_config()
+    if args.k_factor is not None:
+        cfg['k_factor'] = args.k_factor
+    if args.home_advantage is not None:
+        cfg['home_advantage'] = args.home_advantage
+    if args.season_reversion is not None:
+        cfg['season_reversion'] = args.season_reversion
+    if not args.use_mov:
+        cfg['use_mov'] = False
+    logger.info(f"Deployed config: {cfg}")
 
     # Load games
     input_path = args.input or get_data_path('raw', 'nba_games_all.csv')
@@ -595,12 +631,7 @@ def main():
     games_df = load_csv_to_dataframe(input_path)
 
     # Initialize engine
-    engine = TeamELOEngine(
-        k_factor=args.k_factor,
-        home_advantage=args.home_advantage,
-        use_mov=args.use_mov,
-        season_reversion=args.season_reversion
-    )
+    engine = TeamELOEngine(**cfg)
     
     # Compute ELO
     history_df = engine.compute_season_elo(games_df)

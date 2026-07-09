@@ -11,13 +11,16 @@ api:
 elo:
   base_rating: 1500
   k_factor: 20
-  # NOTE: This config value is not yet read by engines (they use hardcoded defaults).
-  # Actual values in production code:
-  #   hybrid_team_player.py: 60 (the main prediction path — what actually runs)
-  #   hybrid_predictor.py:   30
-  #   team_elo_engine.py:    20
-  # Sprint backlog: consolidate all to 60 (calibrated to 54.3% home win rate).
+  # AUTHORITATIVE as of 2026-07-09: read by TeamELOEngine.deployed_config(), which
+  # both the engine CLI and track_predictions_pregame use. Previously the CLI took
+  # argparse defaults (home_advantage=100, concentration=True), so the team ratings
+  # published on the site were built with a DIFFERENT config than the model predicts
+  # with. Impact was small (sd 4.1 ELO, rank corr 0.999) because home advantage
+  # mostly cancels over a balanced home/away schedule, but it was a live footgun.
   home_court_advantage: 60
+  use_mov: true
+  use_enhanced_features: true
+  use_top_player_concentration: false   # cost accuracy on both validation seasons
   # 0.45, NOT the FiveThirtyEight 0.75. Swept 2026-07-09 after team-season
   # residuals came back NEGATIVELY autocorrelated (r=-0.106, p=0.0038): the rating
   # carried too much of last season forward. Expanding-window selection picked 0.45

@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import pandas as pd
 
 from src.utils.file_io import load_csv_to_dataframe, load_yaml, get_config_path
-from src.engines.team_elo_engine import TeamELOEngine
+from src.engines.team_elo_engine import TeamELOEngine, deployed_config
 from src.utils.elo_math import elo_diff_to_expected_margin
 
 GAMES_FILE = "data/raw/nba_games_all.csv"
@@ -83,26 +83,15 @@ def _roster_delta_config():
         return {}, 0.0, None
 
 
-def _season_reversion():
-    """From config, so it cannot drift from the engine CLI or the harnesses."""
-    try:
-        return float(load_yaml(get_config_path("settings.yaml"))["elo"]["season_reversion"])
-    except Exception as e:
-        log(f"[WARN] season_reversion fell back to 0.75 ({e})")
-        return 0.75
-
-
 def build_engine(games):
     """Ratings from COMPLETED games only (compute_season_elo drops 0-0 rows)."""
     pr = load_csv_to_dataframe("data/exports/player_ratings_bpm_adjusted.csv")
     pm = load_csv_to_dataframe("data/exports/player_team_mapping.csv")
     deltas, k, start = _roster_delta_config()
     engine = TeamELOEngine(
-        k_factor=20, home_advantage=60, use_mov=True,
-        use_enhanced_features=True, use_top_player_concentration=False,
         player_ratings=pr, player_team_mapping=pm,
         roster_deltas=deltas, roster_delta_k=k, roster_delta_start_season=start,
-        season_reversion=_season_reversion())
+        **deployed_config())
     engine.compute_season_elo(games, reset=True)
     return engine
 
