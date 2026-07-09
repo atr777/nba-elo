@@ -18,7 +18,13 @@ elo:
   #   team_elo_engine.py:    20
   # Sprint backlog: consolidate all to 60 (calibrated to 54.3% home win rate).
   home_court_advantage: 60
-  season_reversion: 0.75   # FiveThirtyEight: 75% prior + 25% mean (1500)
+  # 0.45, NOT the FiveThirtyEight 0.75. Swept 2026-07-09 after team-season
+  # residuals came back NEGATIVELY autocorrelated (r=-0.106, p=0.0038): the rating
+  # carried too much of last season forward. Expanding-window selection picked 0.45
+  # in 12/13 windows; pooled OOS Brier 0.21696 -> 0.21576 (p=0.0000, 15,861 games).
+  # Accuracy is unchanged (p=0.68). Read by team_elo_engine + track_predictions_pregame.
+  # docs/research/2026-07-09-coaching-and-season-reversion.md
+  season_reversion: 0.45
 
 # Data Paths
 paths:
@@ -58,7 +64,11 @@ logging:
 # NOT improve accuracy (p=0.37) and must never be sold as an accuracy gain.
 # Evidence: docs/research/2026-07-09-roster-delta.md
 roster_delta:
-  enabled: true
+  # DISABLED 2026-07-09 (Aaron). Once season_reversion was corrected to 0.45,
+  # roster-delta added only +0.000297 Brier, p=0.272 (not significant): it was
+  # mostly a proxy for "revert more". generate_preseason_ratings.py still uses it
+  # to publish a roster-adjusted 2026-27 table, but the ENGINE does not consume it.
+  enabled: false
   k: 0.8
   start_season: 2026              # NBA season 2026-27
   deltas_file: "data/exports/roster_deltas.csv"

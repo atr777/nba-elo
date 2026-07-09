@@ -49,6 +49,11 @@ def main() -> None:
     for idx, game in games.iterrows():
         game_season = season_years.iloc[idx]
         if current_season_year is not None and game_season != current_season_year:
+            # PINNED at 0.75 on purpose. This harness replays what the model
+            # ACTUALLY predicted historically, and every logged 2025-26 prediction
+            # was made with reversion 0.75. The deployed value is now 0.45
+            # (config/settings.yaml), but changing it here would stop reproducing
+            # the logged picks and would silently move the audited 70.6%.
             engine._apply_season_reversion(reversion_factor=0.75)
         current_season_year = game_season
 

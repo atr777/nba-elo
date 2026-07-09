@@ -5,7 +5,9 @@ number we could publish was "where a team FINISHED," because the team ELO carrie
 into a new season is just last season's rating reverted toward the mean. It has
 no idea Giannis changed conferences.
 
-    preseason(T) = 0.75 * elo_end(last season) + 0.25 * 1500 + K * delta(T)
+    preseason(T) = rev * elo_end(last season) + (1-rev) * 1500 + K * delta(T)
+
+where `rev` is read from config/settings.yaml (0.45 as of 2026-07-09).
 
 delta(T) prices the roster CHANGE in player-rating points:
 
@@ -31,8 +33,14 @@ uses the REAL current roster from data/exports/player_team_mapping.csv, refreshe
 nightly from the NBA API plus data/manual/roster_overrides.csv. Every input is
 known today, so there is no leakage.
 
-K=0.8 was selected out-of-sample (expanding window, 13 held-out seasons; it won
-every window). Evidence: docs/research/2026-07-09-roster-delta.md
+IMPORTANT (2026-07-09): the ENGINE no longer consumes this delta. Once
+season_reversion was corrected to 0.45, roster-delta added only +0.000297 Brier
+(p=0.272, not significant) -- it was largely a proxy for "revert more". This table
+therefore is an ANALYTICAL OVERLAY: a roster-adjusted view of the league. Content
+must say so plainly rather than imply the model predicts with it. The `reverted`
+column IS what the engine starts each season from.
+
+Evidence: docs/research/2026-07-09-coaching-and-season-reversion.md
 
     python scripts/generate_preseason_ratings.py
 """
@@ -49,13 +57,22 @@ import pandas as pd
 
 from src.features.roster_delta import compute_upcoming_delta
 
+# Reversion is read from config so this table's baseline matches the engine.
+def _reversion():
+    try:
+        from src.utils.file_io import load_yaml, get_config_path
+        return float(load_yaml(get_config_path("settings.yaml"))["elo"]["season_reversion"])
+    except Exception:
+        return 0.75
+
+
 K = 0.8
 ROOKIE_RATING = 1450.0     # a rookie is a below-average NBA player, on average
 ROOKIE_MPG = 12.0          # and plays bench minutes
 MAX_MPG = 38.0
 ROTATION = 10              # talent is the quality of your rotation
 BASE = 1500.0
-REVERSION = 0.75
+REVERSION = _reversion()
 OUT = Path("data/exports/preseason_ratings.csv")
 
 

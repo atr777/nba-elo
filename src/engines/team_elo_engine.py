@@ -37,7 +37,8 @@ class TeamELOEngine:
         player_team_mapping: pd.DataFrame = None,
         roster_deltas: dict = None,
         roster_delta_k: float = 0.0,
-        roster_delta_start_season: int = None
+        roster_delta_start_season: int = None,
+        season_reversion: float = 0.75
     ):
         """
         Initialize the Team ELO Engine.
@@ -68,6 +69,13 @@ class TeamELOEngine:
         self.roster_deltas = roster_deltas or {}
         self.roster_delta_k = roster_delta_k
         self.roster_delta_start_season = roster_delta_start_season
+        # How much of last season a team carries into the next one. 0.45 (not the
+        # FiveThirtyEight 0.75) after a sweep: team-season residuals were
+        # NEGATIVELY autocorrelated (r=-0.106, p=0.0038), meaning the rating
+        # carried too much forward. At 0.45 that autocorrelation vanishes and
+        # pooled OOS Brier improves 0.21696 -> 0.21576 (p=0.0000, 15,861 games).
+        # See docs/research/2026-07-09-coaching-and-season-reversion.md
+        self.season_reversion = season_reversion
 
         # Current ratings dictionary {team_id: rating}
         self.current_ratings = {}
@@ -400,7 +408,8 @@ class TeamELOEngine:
                     f"Season boundary: {current_season_year} -> {game_season}. "
                     f"Applying 75/25 mean reversion."
                 )
-                self._apply_season_reversion(reversion_factor=0.75, season=game_season)
+                self._apply_season_reversion(reversion_factor=self.season_reversion,
+                                             season=game_season)
 
             current_season_year = game_season
             self.process_game(game.to_dict())
@@ -562,8 +571,21 @@ def main():
     parser.add_argument('--home-advantage', type=float, default=100, help='Home advantage (default: 100)')
     parser.add_argument('--use-mov', action='store_true', default=True, help='Use margin-of-victory multiplier (default: True)')
     parser.add_argument('--no-mov', action='store_false', dest='use_mov', help='Disable margin-of-victory multiplier')
+    parser.add_argument('--season-reversion', type=float, default=None,
+                        help='Season-boundary reversion factor (default: read from config/settings.yaml)')
 
     args = parser.parse_args()
+
+    # Reversion comes from config so it cannot drift between this CLI, the live
+    # tracker, and the validation harnesses.
+    if args.season_reversion is None:
+        try:
+            from src.utils.file_io import load_yaml, get_config_path
+            args.season_reversion = float(
+                load_yaml(get_config_path('settings.yaml'))['elo']['season_reversion'])
+        except Exception:
+            args.season_reversion = 0.75
+    logger.info(f"Season reversion: {args.season_reversion}")
 
     # Load games
     input_path = args.input or get_data_path('raw', 'nba_games_all.csv')
@@ -576,7 +598,8 @@ def main():
     engine = TeamELOEngine(
         k_factor=args.k_factor,
         home_advantage=args.home_advantage,
-        use_mov=args.use_mov
+        use_mov=args.use_mov,
+        season_reversion=args.season_reversion
     )
     
     # Compute ELO

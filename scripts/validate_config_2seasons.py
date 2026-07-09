@@ -41,6 +41,11 @@ def run(b2b, one_day, conc):
     for idx, g in games.iterrows():
         s = seasons.iloc[idx]
         if cur is not None and s != cur:
+            # PINNED at 0.75 on purpose. This harness replays what the model
+            # ACTUALLY predicted historically, and every logged 2025-26 prediction
+            # was made with reversion 0.75. The deployed value is now 0.45
+            # (config/settings.yaml), but changing it here would stop reproducing
+            # the logged picks and would silently move the audited 70.6%.
             e._apply_season_reversion(reversion_factor=0.75)
         cur = s
         if s in EVAL_SEASONS:
