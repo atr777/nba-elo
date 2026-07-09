@@ -30,9 +30,16 @@ def main():
     hist = compute_deltas(".")
     upcoming_season, upcoming = compute_upcoming_delta(".")
 
-    names = pd.read_csv("data/raw/nba_games_all_vps.csv",
-                        usecols=["home_team_id", "home_team_name"]).drop_duplicates()
-    nm = dict(zip(names.home_team_id, names.home_team_name))
+    # nba_games_all.csv is the file that exists everywhere; the _vps snapshot is
+    # a local-only copy. Only used for pretty team names, so fall back quietly.
+    games_path = next((p for p in ("data/raw/nba_games_all.csv",
+                                   "data/raw/nba_games_all_vps.csv")
+                       if Path(p).exists()), None)
+    nm = {}
+    if games_path:
+        names = pd.read_csv(games_path,
+                            usecols=["home_team_id", "home_team_name"]).drop_duplicates()
+        nm = dict(zip(names.home_team_id, names.home_team_name))
 
     rows = [{"season": s, "team_id": t, "team_name": nm.get(t, ""),
              "delta": round(v, 2), "source": "history"}
