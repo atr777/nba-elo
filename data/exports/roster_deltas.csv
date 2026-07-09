@@ -205,32 +205,32 @@ season,team_id,team_name,delta,source
 2007,28,Toronto Raptors,6.82,history
 2007,29,Memphis Grizzlies,21.51,history
 2007,30,Charlotte Hornets,-1.88,history
-2008,1,Atlanta Hawks,13.18,history
-2008,2,Boston Celtics,16.24,history
+2008,1,Atlanta Hawks,13.17,history
+2008,2,Boston Celtics,16.23,history
 2008,3,New Orleans Pelicans,-1.11,history
 2008,4,Chicago Bulls,-1.72,history
-2008,5,Cleveland Cavaliers,12.8,history
-2008,6,Dallas Mavericks,7.61,history
+2008,5,Cleveland Cavaliers,12.79,history
+2008,6,Dallas Mavericks,7.6,history
 2008,7,Denver Nuggets,-64.17,history
-2008,8,Detroit Pistons,24.96,history
-2008,9,Golden State Warriors,-33.77,history
+2008,8,Detroit Pistons,24.95,history
+2008,9,Golden State Warriors,-33.78,history
 2008,10,Houston Rockets,42.27,history
 2008,11,Indiana Pacers,3.7,history
 2008,12,LA Clippers,-12.57,history
 2008,13,Los Angeles Lakers,3.86,history
-2008,14,Miami Heat,9.15,history
+2008,14,Miami Heat,9.14,history
 2008,15,Milwaukee Bucks,3.13,history
 2008,16,Minnesota Timberwolves,8.95,history
-2008,17,Brooklyn Nets,-33.26,history
+2008,17,Brooklyn Nets,-33.16,history
 2008,18,New York Knicks,27.05,history
 2008,19,Orlando Magic,9.63,history
 2008,20,Philadelphia 76ers,39.42,history
-2008,21,Phoenix Suns,-38.78,history
+2008,21,Phoenix Suns,-38.79,history
 2008,22,Portland Trail Blazers,25.89,history
-2008,23,Sacramento Kings,-29.11,history
-2008,24,San Antonio Spurs,-30.19,history
-2008,25,Oklahoma City Thunder,-19.55,history
-2008,26,Utah Jazz,24.74,history
+2008,23,Sacramento Kings,-29.12,history
+2008,24,San Antonio Spurs,-30.2,history
+2008,25,Oklahoma City Thunder,-19.56,history
+2008,26,Utah Jazz,24.73,history
 2008,27,Washington Wizards,-12.96,history
 2008,28,Toronto Raptors,19.3,history
 2008,29,Memphis Grizzlies,-27.78,history
@@ -275,15 +275,15 @@ season,team_id,team_name,delta,source
 2010,8,Detroit Pistons,7.35,history
 2010,9,Golden State Warriors,40.22,history
 2010,10,Houston Rockets,25.91,history
-2010,11,Indiana Pacers,17.72,history
-2010,12,LA Clippers,-65.39,history
+2010,11,Indiana Pacers,17.71,history
+2010,12,LA Clippers,-65.4,history
 2010,13,Los Angeles Lakers,-28.77,history
 2010,14,Miami Heat,169.69,history
 2010,15,Milwaukee Bucks,1.92,history
 2010,16,Minnesota Timberwolves,38.35,history
 2010,17,Brooklyn Nets,54.61,history
 2010,18,New York Knicks,55.17,history
-2010,19,Orlando Magic,-56.5,history
+2010,19,Orlando Magic,-56.51,history
 2010,20,Philadelphia 76ers,-17.87,history
 2010,21,Phoenix Suns,-56.64,history
 2010,22,Portland Trail Blazers,5.0,history
@@ -293,7 +293,7 @@ season,team_id,team_name,delta,source
 2010,26,Utah Jazz,-73.49,history
 2010,27,Washington Wizards,-21.07,history
 2010,28,Toronto Raptors,-20.71,history
-2010,29,Memphis Grizzlies,-12.06,history
+2010,29,Memphis Grizzlies,-12.03,history
 2010,30,Charlotte Hornets,38.6,history
 2011,1,Atlanta Hawks,33.57,history
 2011,2,Boston Celtics,-24.41,history
@@ -382,23 +382,23 @@ season,team_id,team_name,delta,source
 2013,29,Memphis Grizzlies,20.56,history
 2013,30,Charlotte Hornets,43.63,history
 2014,1,Atlanta Hawks,1.05,history
-2014,2,Boston Celtics,-20.51,history
-2014,5,Cleveland Cavaliers,138.14,history
+2014,2,Boston Celtics,-20.45,history
+2014,5,Cleveland Cavaliers,138.15,history
 2014,6,Dallas Mavericks,-31.27,history
 2014,7,Denver Nuggets,-17.92,history
 2014,8,Detroit Pistons,-0.99,history
 2014,9,Golden State Warriors,-5.92,history
-2014,10,Houston Rockets,10.98,history
+2014,10,Houston Rockets,10.99,history
 2014,11,Indiana Pacers,-97.7,history
 2014,12,LA Clippers,-8.51,history
-2014,13,Los Angeles Lakers,70.36,history
+2014,13,Los Angeles Lakers,70.37,history
 2014,14,Miami Heat,-105.71,history
-2014,15,Milwaukee Bucks,3.09,history
-2014,16,Minnesota Timberwolves,-28.59,history
-2014,17,Brooklyn Nets,-7.46,history
+2014,15,Milwaukee Bucks,3.1,history
+2014,16,Minnesota Timberwolves,-28.58,history
+2014,17,Brooklyn Nets,-7.45,history
 2014,18,New York Knicks,-9.45,history
 2014,19,Orlando Magic,47.88,history
-2014,20,Philadelphia 76ers,30.75,history
+2014,20,Philadelphia 76ers,30.64,history
 2014,21,Phoenix Suns,-20.99,history
 2014,22,Portland Trail Blazers,-6.32,history
 2014,23,Sacramento Kings,6.88,history
@@ -406,7 +406,7 @@ season,team_id,team_name,delta,source
 2014,25,Oklahoma City Thunder,-35.48,history
 2014,26,Utah Jazz,10.09,history
 2014,27,Washington Wizards,24.54,history
-2014,28,Toronto Raptors,13.47,history
+2014,28,Toronto Raptors,13.48,history
 2014,29,Memphis Grizzlies,51.06,history
 2014,30,Charlotte Hornets,12.61,history
 2015,1,Atlanta Hawks,6.62,history
@@ -466,34 +466,34 @@ season,team_id,team_name,delta,source
 2016,28,Toronto Raptors,-2.85,history
 2016,29,Memphis Grizzlies,51.35,history
 2016,30,Charlotte Hornets,-23.35,history
-2017,1,Atlanta Hawks,-97.06,history
-2017,2,Boston Celtics,-25.5,history
-2017,5,Cleveland Cavaliers,-15.73,history
-2017,6,Dallas Mavericks,-33.98,history
-2017,7,Denver Nuggets,45.55,history
-2017,8,Detroit Pistons,15.63,history
-2017,9,Golden State Warriors,-37.53,history
-2017,10,Houston Rockets,60.96,history
-2017,11,Indiana Pacers,-87.99,history
-2017,12,LA Clippers,-33.48,history
-2017,13,Los Angeles Lakers,23.06,history
-2017,14,Miami Heat,8.92,history
-2017,15,Milwaukee Bucks,7.49,history
-2017,16,Minnesota Timberwolves,20.92,history
-2017,17,Brooklyn Nets,31.46,history
-2017,18,New York Knicks,-15.54,history
-2017,19,Orlando Magic,-12.4,history
-2017,20,Philadelphia 76ers,50.06,history
-2017,21,Phoenix Suns,21.71,history
-2017,22,Portland Trail Blazers,-1.92,history
-2017,23,Sacramento Kings,21.97,history
-2017,24,San Antonio Spurs,-76.68,history
-2017,25,Oklahoma City Thunder,18.46,history
-2017,26,Utah Jazz,7.7,history
-2017,27,Washington Wizards,28.71,history
-2017,28,Toronto Raptors,14.88,history
-2017,29,Memphis Grizzlies,1.02,history
-2017,30,Charlotte Hornets,59.3,history
+2017,1,Atlanta Hawks,-97.05,history
+2017,2,Boston Celtics,-25.49,history
+2017,5,Cleveland Cavaliers,-15.72,history
+2017,6,Dallas Mavericks,-33.97,history
+2017,7,Denver Nuggets,45.56,history
+2017,8,Detroit Pistons,15.64,history
+2017,9,Golden State Warriors,-37.52,history
+2017,10,Houston Rockets,60.98,history
+2017,11,Indiana Pacers,-87.98,history
+2017,12,LA Clippers,-33.46,history
+2017,13,Los Angeles Lakers,23.07,history
+2017,14,Miami Heat,8.93,history
+2017,15,Milwaukee Bucks,7.5,history
+2017,16,Minnesota Timberwolves,20.93,history
+2017,17,Brooklyn Nets,31.48,history
+2017,18,New York Knicks,-15.52,history
+2017,19,Orlando Magic,-12.39,history
+2017,20,Philadelphia 76ers,50.07,history
+2017,21,Phoenix Suns,21.4,history
+2017,22,Portland Trail Blazers,-1.91,history
+2017,23,Sacramento Kings,21.98,history
+2017,24,San Antonio Spurs,-76.67,history
+2017,25,Oklahoma City Thunder,18.47,history
+2017,26,Utah Jazz,7.71,history
+2017,27,Washington Wizards,28.72,history
+2017,28,Toronto Raptors,14.89,history
+2017,29,Memphis Grizzlies,1.03,history
+2017,30,Charlotte Hornets,59.31,history
 2018,1,Atlanta Hawks,-14.57,history
 2018,2,Boston Celtics,-6.86,history
 2018,5,Cleveland Cavaliers,-96.6,history
@@ -522,36 +522,36 @@ season,team_id,team_name,delta,source
 2018,28,Toronto Raptors,27.18,history
 2018,29,Memphis Grizzlies,8.1,history
 2018,30,Charlotte Hornets,-37.51,history
-2019,1,Atlanta Hawks,-11.67,history
-2019,2,Boston Celtics,-44.17,history
-2019,3,New Orleans Pelicans,-24.54,history
-2019,4,Chicago Bulls,27.51,history
-2019,5,Cleveland Cavaliers,12.85,history
-2019,6,Dallas Mavericks,-2.4,history
-2019,7,Denver Nuggets,-2.21,history
-2019,8,Detroit Pistons,1.68,history
-2019,9,Golden State Warriors,-119.78,history
-2019,10,Houston Rockets,49.75,history
-2019,11,Indiana Pacers,14.83,history
-2019,12,LA Clippers,92.84,history
-2019,13,Los Angeles Lakers,87.92,history
-2019,14,Miami Heat,-6.83,history
-2019,15,Milwaukee Bucks,-45.92,history
-2019,16,Minnesota Timberwolves,-22.03,history
-2019,17,Brooklyn Nets,82.12,history
-2019,18,New York Knicks,8.93,history
-2019,19,Orlando Magic,28.18,history
-2019,20,Philadelphia 76ers,26.71,history
-2019,21,Phoenix Suns,50.45,history
-2019,22,Portland Trail Blazers,-26.94,history
-2019,23,Sacramento Kings,13.09,history
-2019,24,San Antonio Spurs,2.44,history
-2019,25,Oklahoma City Thunder,-54.14,history
-2019,26,Utah Jazz,-70.77,history
-2019,27,Washington Wizards,-9.73,history
-2019,28,Toronto Raptors,-42.95,history
-2019,29,Memphis Grizzlies,2.73,history
-2019,30,Charlotte Hornets,-17.93,history
+2019,1,Atlanta Hawks,-11.79,history
+2019,2,Boston Celtics,-44.29,history
+2019,3,New Orleans Pelicans,-24.67,history
+2019,4,Chicago Bulls,27.38,history
+2019,5,Cleveland Cavaliers,12.73,history
+2019,6,Dallas Mavericks,-2.53,history
+2019,7,Denver Nuggets,-2.34,history
+2019,8,Detroit Pistons,1.55,history
+2019,9,Golden State Warriors,-119.9,history
+2019,10,Houston Rockets,49.62,history
+2019,11,Indiana Pacers,14.7,history
+2019,12,LA Clippers,92.71,history
+2019,13,Los Angeles Lakers,87.79,history
+2019,14,Miami Heat,-6.96,history
+2019,15,Milwaukee Bucks,-46.04,history
+2019,16,Minnesota Timberwolves,-22.15,history
+2019,17,Brooklyn Nets,81.99,history
+2019,18,New York Knicks,8.8,history
+2019,19,Orlando Magic,28.05,history
+2019,20,Philadelphia 76ers,26.58,history
+2019,21,Phoenix Suns,54.08,history
+2019,22,Portland Trail Blazers,-27.07,history
+2019,23,Sacramento Kings,12.96,history
+2019,24,San Antonio Spurs,2.31,history
+2019,25,Oklahoma City Thunder,-54.27,history
+2019,26,Utah Jazz,-70.89,history
+2019,27,Washington Wizards,-9.86,history
+2019,28,Toronto Raptors,-43.08,history
+2019,29,Memphis Grizzlies,2.61,history
+2019,30,Charlotte Hornets,-18.06,history
 2020,1,Atlanta Hawks,-3.1,history
 2020,2,Boston Celtics,-54.88,history
 2020,3,New Orleans Pelicans,17.74,history
@@ -732,33 +732,33 @@ season,team_id,team_name,delta,source
 2025,28,Toronto Raptors,9.94,history
 2025,29,Memphis Grizzlies,-41.39,history
 2025,30,Charlotte Hornets,38.16,history
-2026,1,Atlanta Hawks,-57.34,roster_mapping
-2026,2,Boston Celtics,90.32,roster_mapping
-2026,3,New Orleans Pelicans,5.38,roster_mapping
-2026,4,Chicago Bulls,-23.52,roster_mapping
-2026,5,Cleveland Cavaliers,48.3,roster_mapping
-2026,6,Dallas Mavericks,-22.22,roster_mapping
-2026,7,Denver Nuggets,-4.32,roster_mapping
-2026,8,Detroit Pistons,-16.69,roster_mapping
-2026,9,Golden State Warriors,28.03,roster_mapping
-2026,10,Houston Rockets,4.14,roster_mapping
-2026,11,Indiana Pacers,75.77,roster_mapping
-2026,12,LA Clippers,-163.1,roster_mapping
-2026,13,Los Angeles Lakers,-65.4,roster_mapping
-2026,14,Miami Heat,61.99,roster_mapping
-2026,15,Milwaukee Bucks,-95.97,roster_mapping
-2026,16,Minnesota Timberwolves,-64.02,roster_mapping
-2026,17,Brooklyn Nets,21.64,roster_mapping
-2026,18,New York Knicks,5.01,roster_mapping
-2026,19,Orlando Magic,18.98,roster_mapping
-2026,20,Philadelphia 76ers,-15.39,roster_mapping
-2026,21,Phoenix Suns,-12.11,roster_mapping
-2026,22,Portland Trail Blazers,61.67,roster_mapping
-2026,23,Sacramento Kings,-4.84,roster_mapping
-2026,24,San Antonio Spurs,11.94,roster_mapping
-2026,25,Oklahoma City Thunder,24.24,roster_mapping
-2026,26,Utah Jazz,-1.28,roster_mapping
-2026,27,Washington Wizards,114.46,roster_mapping
-2026,28,Toronto Raptors,45.41,roster_mapping
-2026,29,Memphis Grizzlies,-70.72,roster_mapping
-2026,30,Charlotte Hornets,-0.37,roster_mapping
+2026,1,Atlanta Hawks,-23.66,roster_mapping
+2026,2,Boston Celtics,2.76,roster_mapping
+2026,3,New Orleans Pelicans,-5.87,roster_mapping
+2026,4,Chicago Bulls,8.07,roster_mapping
+2026,5,Cleveland Cavaliers,-0.61,roster_mapping
+2026,6,Dallas Mavericks,-19.94,roster_mapping
+2026,7,Denver Nuggets,16.33,roster_mapping
+2026,8,Detroit Pistons,-23.99,roster_mapping
+2026,9,Golden State Warriors,-1.44,roster_mapping
+2026,10,Houston Rockets,6.55,roster_mapping
+2026,11,Indiana Pacers,51.91,roster_mapping
+2026,12,LA Clippers,-130.22,roster_mapping
+2026,13,Los Angeles Lakers,-59.47,roster_mapping
+2026,14,Miami Heat,34.38,roster_mapping
+2026,15,Milwaukee Bucks,-50.09,roster_mapping
+2026,16,Minnesota Timberwolves,-12.7,roster_mapping
+2026,17,Brooklyn Nets,4.53,roster_mapping
+2026,18,New York Knicks,6.19,roster_mapping
+2026,19,Orlando Magic,20.15,roster_mapping
+2026,20,Philadelphia 76ers,13.86,roster_mapping
+2026,21,Phoenix Suns,-1.96,roster_mapping
+2026,22,Portland Trail Blazers,62.93,roster_mapping
+2026,23,Sacramento Kings,-2.09,roster_mapping
+2026,24,San Antonio Spurs,16.12,roster_mapping
+2026,25,Oklahoma City Thunder,13.32,roster_mapping
+2026,26,Utah Jazz,-6.4,roster_mapping
+2026,27,Washington Wizards,74.38,roster_mapping
+2026,28,Toronto Raptors,44.67,roster_mapping
+2026,29,Memphis Grizzlies,-33.29,roster_mapping
+2026,30,Charlotte Hornets,-4.46,roster_mapping
