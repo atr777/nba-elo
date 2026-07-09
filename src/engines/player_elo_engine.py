@@ -229,8 +229,13 @@ class PlayerELOEngine:
 
                 rating_changes.append(rating_change)
 
+                # plus_minus is a float (the column carries NaN), so ':+d' raises
+                # ValueError. This line is inside the per-player loop and the
+                # f-string is evaluated even at INFO level, so the engine died on
+                # the first game whose plus_minus was non-integral. It froze every
+                # player rating at 2025-11-23 for five months. Keep this ':+.0f'.
                 logger.debug(f"{player_name}: {old_rating:.1f} -> {new_rating:.1f} ({rating_change:+.1f}) | "
-                           f"{minutes:.0f}min, +/-={plus_minus:+d}")
+                           f"{minutes:.0f}min, +/-={plus_minus:+.0f}")
 
         return {
             'avg_change': np.mean(np.abs(rating_changes)) if rating_changes else 0.0,

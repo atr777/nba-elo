@@ -212,10 +212,39 @@ def main():
     if not success:
         log("WARNING: Team ELO calculation had issues. Continuing...")
 
+    # Step 2.75: Rebuild the file the player-ELO engine actually READS.
+    #
+    # The scraper appends to player_boxscores_all.csv, but player_elo_engine.py
+    # defaults to --players data/raw/player_boxscores_with_bpm.csv, which nothing
+    # in this pipeline ever regenerated. That file went stale on 2025-11-24 and
+    # every player rating froze there for five months while the raw box scores
+    # kept arriving. Normalize first (the newer scraper writes "MM:SS" minutes and
+    # NBA team ids, which the engine cannot read), then recompute BPM.
+    #
+    # Guarded on mtime so we only pay for it when new box scores actually landed.
+    if not dry_run:
+        try:
+            box = 'data/raw/player_boxscores_all.csv'
+            bpm = 'data/raw/player_boxscores_with_bpm.csv'
+            stale = (not os.path.exists(bpm)) or os.path.getmtime(box) > os.path.getmtime(bpm)
+            if stale:
+                log("\n--- Step 2.75: Rebuilding BPM boxscores (player ratings depend on this) ---")
+                run_command('python scripts/normalize_boxscores.py',
+                            "Normalizing boxscore dialects", timeout=600)
+                run_command(f'python scripts/calculate_bpm.py --input {box} --output {bpm}',
+                            "Recomputing BPM", timeout=900)
+            else:
+                log("\n[OK] BPM boxscores current; player ratings will use fresh data.")
+        except Exception as e:
+            log(f"[WARN] BPM rebuild check failed: {e}")
+
     # Step 3: Recalculate player ELO
     log("\n--- Step 3: Recalculating Player ELO ---")
     success = run_command(
-        'python src/engines/player_elo_engine.py --metric bpm --output-ratings data/exports/player_ratings_bpm_adjusted.csv --output-history data/exports/player_elo_history_bpm.csv',
+        'python src/engines/player_elo_engine.py --metric bpm '
+        '--players data/raw/player_boxscores_with_bpm.csv '
+        '--output-ratings data/exports/player_ratings_bpm_adjusted.csv '
+        '--output-history data/exports/player_elo_history_bpm.csv',
         "Player ELO calculation (BPM)"
     )
     if not success:
