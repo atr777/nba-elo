@@ -27,6 +27,7 @@ are left alone; downstream code filters on team_id <= 30.
 
 import shutil
 import sys
+import unicodedata
 from pathlib import Path
 
 import pandas as pd
@@ -72,6 +73,40 @@ def parse_minutes(v):
         return pd.NA
 
 
+def norm_name(s):
+    if not isinstance(s, str):
+        return ""
+    s = "".join(c for c in unicodedata.normalize("NFKD", s)
+                if not unicodedata.combining(c))
+    return s.lower().strip()
+
+
+def canonicalize_player_ids(df):
+    """One player, one player_id.
+
+    The file mixes THREE player-id spaces: legacy ids, NBA ids (203507 = Giannis)
+    and ESPN ids (3032977 = the same Giannis). The rating engine keys on
+    player_id, so a single player accumulated two separate rating entities: the
+    real Giannis (882 games, 2024) and a phantom (11 games, 1506). Downstream
+    lookups build dict(name -> rating), so last-write-wins could return the
+    phantom, and Miami showed a NEGATIVE roster delta after adding him.
+
+    Collapse every id space onto the id that carries the most rows for that name.
+    Names are already the join key used by the ratings file and the roster
+    mapping, so this does not introduce a new source of ambiguity.
+    """
+    key = df.player_name.map(norm_name)
+    counts = df.assign(_k=key).groupby(["_k", "player_id"]).size()
+    canonical = counts.groupby(level=0).idxmax().map(lambda t: t[1])
+    multi = counts.groupby(level=0).size()
+    n_multi = int((multi > 1).sum())
+    remapped = df.player_id.values != key.map(canonical).values
+    df["player_id"] = key.map(canonical).values
+    print(f"canonicalized player ids: {n_multi:,} names had >1 id; "
+          f"{int(remapped.sum()):,} rows remapped")
+    return df
+
+
 def main():
     dry = "--dry-run" in sys.argv
     df = pd.read_csv(BOX, low_memory=False)
@@ -80,25 +115,26 @@ def main():
     is_new = df.team_id > 1_000_000
     n_new = int(is_new.sum())
     print(f"rows in the new dialect: {n_new:,} ({df.loc[is_new, 'game_id'].nunique():,} games)")
-    if n_new == 0:
-        print("nothing to normalize; file is already canonical.")
-        return
 
     before = pd.to_numeric(df.minutes, errors="coerce").notna().sum()
 
-    # minutes: MM:SS -> float (applied to every row; old rows are already numeric)
-    df["minutes"] = df.minutes.map(parse_minutes)
+    if n_new:
+        # minutes: MM:SS -> float (applied to every row; old rows are already numeric)
+        df["minutes"] = df.minutes.map(parse_minutes)
 
-    # team_id / team_name: NBA ids -> our DB ids + full names
-    mapped = df.loc[is_new, "team_id"].map(NBA_TO_DB)
-    known = mapped.notna()
-    df.loc[is_new & known, "team_name"] = [v[1] for v in mapped[known]]
-    df.loc[is_new & known, "team_id"] = [v[0] for v in mapped[known]]
-    print(f"remapped {int(known.sum()):,} rows to DB team ids "
-          f"({int((~known).sum()):,} non-NBA rows left alone)")
+        # team_id / team_name: NBA ids -> our DB ids + full names
+        mapped = df.loc[is_new, "team_id"].map(NBA_TO_DB)
+        known = mapped.notna()
+        df.loc[is_new & known, "team_name"] = [v[1] for v in mapped[known]]
+        df.loc[is_new & known, "team_id"] = [v[0] for v in mapped[known]]
+        print(f"remapped {int(known.sum()):,} rows to DB team ids "
+              f"({int((~known).sum()):,} non-NBA rows left alone)")
 
-    after = pd.to_numeric(df.minutes, errors="coerce").notna().sum()
-    print(f"rows with numeric minutes: {before:,} -> {after:,}  (+{after-before:,})")
+        after = pd.to_numeric(df.minutes, errors="coerce").notna().sum()
+        print(f"rows with numeric minutes: {before:,} -> {after:,}  (+{after-before:,})")
+
+    # Always run: id spaces mix even when the dialect is already canonical.
+    df = canonicalize_player_ids(df)
 
     if dry:
         print("\n--dry-run: nothing written.")
