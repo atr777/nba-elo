@@ -1,0 +1,20 @@
+{
+  "fit_window": [
+    2001,
+    2012
+  ],
+  "n_drafted": 517,
+  "rating": {
+    "intercept": 1450.3079407392481,
+    "log_pick_coef": 9.20665212653993
+  },
+  "mpg": {
+    "intercept": 31.62373097822303,
+    "log_pick_coef": -5.552907734632201
+  },
+  "undrafted": {
+    "rating": 1488.498725294114,
+    "mpg": 10.653473346180393
+  },
+  "note": "Fitted on rookie seasons <= FIT_THROUGH so the 2013-2025 rolling OOS validation window never informs the curve."
+}

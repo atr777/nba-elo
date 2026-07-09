@@ -57,6 +57,46 @@ ROTATION = 10              # talent is the quality of your rotation
 
 REAL_TEAMS = set(range(1, 31))   # exclude All-Star / exhibition team ids
 
+PRIORS_FILE = "config/rookie_priors.json"
+DRAFT_FILE = "data/raw/draft_history.csv"
+
+
+def load_rookie_priors(root: Path | str = "."):
+    """(rating_of_pick, mpg_of_pick, picks_by_name) or None if not fitted.
+
+    A flat rookie prior misprices the two things that actually vary with draft
+    position. Minutes vary enormously (a top-3 pick plays ~27 mpg, a late second
+    ~9), while the end-of-rookie-season RATING barely moves and in fact runs
+    backwards, because our player ELO moves in proportion to minutes played. So
+    the prior mostly needs to get the role weight right.
+
+    Curves are fitted on rookie seasons <= 2012 (scripts/fit_rookie_priors.py) so
+    they cannot leak into the 2013-2025 validation window.
+    """
+    import json
+    import math
+
+    root = Path(root)
+    pf, df = root / PRIORS_FILE, root / DRAFT_FILE
+    if not pf.exists() or not df.exists():
+        return None
+    p = json.loads(pf.read_text())
+
+    def rating_of(pick):
+        return p["rating"]["intercept"] + p["rating"]["log_pick_coef"] * math.log(max(1, pick))
+
+    def mpg_of(pick):
+        v = p["mpg"]["intercept"] + p["mpg"]["log_pick_coef"] * math.log(max(1, pick))
+        return min(MAX_MPG, max(3.0, v))
+
+    d = pd.read_csv(df, usecols=["PLAYER_NAME", "OVERALL_PICK"])
+    picks = {}
+    for n, pk in zip(d.PLAYER_NAME, d.OVERALL_PICK):
+        k = _norm(n)
+        if k and k not in picks and pd.notna(pk):
+            picks[k] = int(pk)
+    return rating_of, mpg_of, picks, p["undrafted"]
+
 
 def _position_multipliers() -> Dict[str, float]:
     from src.engines.player_elo_engine import POSITION_MULTIPLIERS
@@ -89,9 +129,27 @@ def compute_deltas(root: Path | str = ".",
                    rookie_mpg: float = ROOKIE_MPG,
                    center: bool = True,
                    opening_games: int = OPENING_GAMES,
+                   draft_priors: bool = False,
                    ) -> Dict[Tuple[int, int], float]:
-    """delta[(season, team_id)] in player-rating points. Positive = roster upgraded."""
+    """delta[(season, team_id)] in player-rating points. Positive = roster upgraded.
+
+    draft_priors=True prices each rookie by his draft position instead of a flat
+    (1450, 12 mpg). Validated separately; see docs/research.
+    """
+    priors = load_rookie_priors(root) if draft_priors else None
     h = load_history(root)
+    id_to_key = dict(zip(h.player_id, h.player_name.map(_norm)))
+
+    def rookie_prior(pid):
+        """(rating, mpg) for a player with no rating history."""
+        if not priors:
+            return rookie_rating, rookie_mpg
+        rating_of, mpg_of, picks, und = priors
+        pick = picks.get(id_to_key.get(pid, ""))
+        if pick is None:
+            return und["rating"], und["mpg"]
+        return rating_of(pick), mpg_of(pick)
+
     mult = _position_multipliers()
     h = h.sort_values("date")
 
@@ -135,7 +193,7 @@ def compute_deltas(root: Path | str = ".",
                 for p in new_roster:
                     r = latest_rating.get(p)
                     if r is None:               # never rated before => rookie
-                        new_pairs.append((rookie_rating, rookie_mpg))
+                        new_pairs.append(rookie_prior(p))
                     else:
                         new_pairs.append((r, latest_mpg.get(p) or rookie_mpg))
 
