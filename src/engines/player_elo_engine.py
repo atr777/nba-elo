@@ -21,44 +21,53 @@ from src.utils.logging_utils import get_logger
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# Position-based ELO adjustment multipliers
+# POSITION ADJUSTMENT (2026-07-09 rewrite)
 #
-# BPM systematically OVERVALUES rim protectors (high rebounds, low turnovers,
-# team defense credit) and UNDERVALUES elite shot creators (gravity, spacing,
-# pick-and-roll mastery don't show in box score).
+# Applied as an ADDITIVE offset in ELO points, NOT a multiplier. The old code did
+# `raw * multiplier`, but this scale's neutral point is 1500, not 0. An "8% boost"
+# therefore added 8% of ~1900 = +152 points, when boosting a player's SKILL ABOVE
+# AVERAGE by 8% should add 8% of ~400 = +32. That artifact put James Harden 3rd in
+# the league (consensus has him ~10th) and dropped Walker Kessler to 2,467th.
 #
-# Multipliers are applied post-hoc to stored ELO ratings.
-# To add a player: put their exact name and the multiplier.
+# RIM PROTECTORS: kept. BPM is inflated by blocks, rebounds and low turnovers,
+# which do not map cleanly onto wins. Direction is supported by our own data: with
+# rating level controlled, a plus/minus-based ELO rates these players a mean of
+# -45 points below what their BPM level implies (negative for 10 of 13). Magnitude
+# is EDITORIAL: -170 is the median of the old multiplicative dock, chosen to
+# preserve prior behaviour. Our evidence supports the sign, not the size. Say so.
+#
+# SHOT CREATORS: REMOVED. The old +8% assumed BPM undervalues creation. Our data
+# does not support it: level-controlled, the seven boosted players average -8 and
+# disagree violently with each other (Curry +67, Trae -70, Haliburton -46), which
+# is teammate quality, not archetype. A hardcoded list of eight star names with an
+# unvalidated constant is the least defensible thing we could publish. If we ever
+# want a creation adjustment, it must be FITTED against a teammate-adjusted impact
+# metric (RAPM/EPM/DARKO) with a holdout, not asserted.
+#
+# These ratings do NOT enter any prediction (top-player concentration is OFF).
+# Verified empirically: randomly shuffling every player rating changes predicted
+# win probability by 0.000000000000. Accuracy, Brier and the 70.6% are unaffected.
 # ---------------------------------------------------------------------------
 
-# Rim protectors: BPM inflated by ~250-300 pts — reduce by 10%
 RIM_PROTECTORS = {
     'Rudy Gobert', 'Jarrett Allen', 'Ivica Zubac', 'Brook Lopez',
     'Mitchell Robinson', 'Clint Capela', 'Walker Kessler', 'Mark Williams',
     'Isaiah Hartenstein', 'Onyeka Okongwu', 'Robert Williams III',
     'Precious Achiuwa', 'Bismack Biyombo', 'Nerlens Noel',
 }
-RIM_PROTECTOR_MULTIPLIER = 0.90
+RIM_PROTECTOR_OFFSET = -170.0   # ELO points, additive
 
-# Elite shot creators / playmakers: BPM undervalues gravity, spacing, creation
-# off the dribble. Boost by 8%.
-SHOT_CREATORS = {
-    'Stephen Curry', 'Steph Curry',
-    'James Harden',
-    'Damian Lillard',
-    'Trae Young',
-    'De\'Aaron Fox',
-    'Tyrese Haliburton',
-    'LaMelo Ball',
+# Retained only so nothing else imports a missing name. NO adjustment is applied.
+SHOT_CREATORS: set = set()
+
+POSITION_OFFSETS: Dict[str, float] = {
+    _name.lower(): RIM_PROTECTOR_OFFSET for _name in RIM_PROTECTORS
 }
-SHOT_CREATOR_MULTIPLIER = 1.08
 
-# Build a single lookup: name (lower) -> multiplier
+# Back-compat shim: some modules still import POSITION_MULTIPLIERS. Expose the
+# offsets under the old name would be a lie, so expose an empty dict and make the
+# offsets the single source of truth.
 POSITION_MULTIPLIERS: Dict[str, float] = {}
-for _name in RIM_PROTECTORS:
-    POSITION_MULTIPLIERS[_name.lower()] = RIM_PROTECTOR_MULTIPLIER
-for _name in SHOT_CREATORS:
-    POSITION_MULTIPLIERS[_name.lower()] = SHOT_CREATOR_MULTIPLIER
 
 
 class PlayerELOEngine:
@@ -258,16 +267,15 @@ class PlayerELOEngine:
             'rating_change': rating_change
         })
 
-    def _get_position_multiplier(self, player_id: str) -> float:
-        """Return the position-adjustment multiplier for a player (default 1.0)."""
+    def _get_position_offset(self, player_id: str) -> float:
+        """Additive position adjustment in ELO points (default 0.0)."""
         name = self.player_metadata[player_id].get('name', '').lower()
-        return POSITION_MULTIPLIERS.get(name, 1.0)
+        return POSITION_OFFSETS.get(name, 0.0)
 
     def get_player_rating(self, player_id: str) -> float:
         """Get position-adjusted rating for a player."""
         raw = self.current_ratings.get(player_id, self.base_rating)
-        multiplier = self._get_position_multiplier(player_id)
-        return raw * multiplier
+        return raw + self._get_position_offset(player_id)
 
     def get_team_rating(self, player_ids: List[str], minutes: List[float]) -> float:
         """
@@ -314,7 +322,7 @@ class PlayerELOEngine:
             games = self.player_metadata[player_id]['games']
             if games >= min_games:
                 player_name = self.player_metadata[player_id]['name']
-                adjusted = raw_rating * self._get_position_multiplier(player_id)
+                adjusted = raw_rating + self._get_position_offset(player_id)
                 qualified_players.append((player_id, player_name, adjusted, games))
 
         # Sort by rating descending

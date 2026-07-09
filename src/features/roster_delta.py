@@ -34,7 +34,7 @@ Definitions (each of these was a bug first; see docs/research/2026-07-09-roster-
 
 Data source: `data/exports/player_elo_history_bpm.csv` (DB team_ids, dates,
 minutes, per-game `rating_after`). `rating_after` is RAW, so the deployed
-position multipliers are re-applied here.
+position OFFSETS (additive, ELO points) are re-applied here.
 """
 
 from __future__ import annotations
@@ -98,9 +98,14 @@ def load_rookie_priors(root: Path | str = "."):
     return rating_of, mpg_of, picks, p["undrafted"]
 
 
-def _position_multipliers() -> Dict[str, float]:
-    from src.engines.player_elo_engine import POSITION_MULTIPLIERS
-    return POSITION_MULTIPLIERS
+def _position_offsets() -> Dict[str, float]:
+    """Deployed player-rating definition: rim protectors docked, ADDITIVE ELO pts.
+
+    The shot-creator boost was removed 2026-07-09 (unvalidated; it multiplied a
+    1500-anchored scale and put Harden 3rd in the league). See player_elo_engine.
+    """
+    from src.engines.player_elo_engine import POSITION_OFFSETS
+    return POSITION_OFFSETS
 
 
 def load_history(root: Path | str = ".") -> pd.DataFrame:
@@ -150,13 +155,13 @@ def compute_deltas(root: Path | str = ".",
             return und["rating"], und["mpg"]
         return rating_of(pick), mpg_of(pick)
 
-    mult = _position_multipliers()
+    off = _position_offsets()
     h = h.sort_values("date")
 
     # end-of-season, position-adjusted rating per (season, player)
     last = h.groupby(["season", "player_id"]).tail(1)
     names = last.player_name.str.lower().str.strip()
-    adj = last.rating_after.values * names.map(lambda n: mult.get(n, 1.0)).values
+    adj = last.rating_after.values + names.map(lambda n: off.get(n, 0.0)).values
     end_rating = dict(zip(zip(last.season, last.player_id), adj))
 
     # minutes per game, league-wide and per team
