@@ -64,10 +64,6 @@ POSITION_OFFSETS: Dict[str, float] = {
     _name.lower(): RIM_PROTECTOR_OFFSET for _name in RIM_PROTECTORS
 }
 
-# Back-compat shim: some modules still import POSITION_MULTIPLIERS. Expose the
-# offsets under the old name would be a lie, so expose an empty dict and make the
-# offsets the single source of truth.
-POSITION_MULTIPLIERS: Dict[str, float] = {}
 
 
 class PlayerELOEngine:
@@ -342,14 +338,14 @@ class PlayerELOEngine:
         data = []
         for player_id, raw_rating in self.current_ratings.items():
             metadata = self.player_metadata[player_id]
-            multiplier = self._get_position_multiplier(player_id)
-            adjusted = raw_rating * multiplier
+            offset = self._get_position_offset(player_id)
+            adjusted = raw_rating + offset
             data.append({
                 'player_id': player_id,
                 'player_name': metadata['name'],
                 'rating': adjusted,           # position-adjusted (used everywhere)
                 'raw_rating': raw_rating,     # pre-adjustment (for diagnostics)
-                'position_multiplier': multiplier,
+                'position_offset': offset,
                 'games_played': metadata['games'],
                 'last_season': metadata['last_season']
             })
