@@ -83,18 +83,32 @@ text only.
 
 ## Part 2: Contingency (fire only if the news breaks)
 
-**A. LeBron picks a team.** As of tonight he has left the Lakers, is not
-retiring, and Golden State, Cleveland, and Miami are the reported suitors. Do
-NOT name a destination until it is officially confirmed, and verify his rating
-and the team's number at fire time. When it is real, post:
+**A. LeBron picks a team.** Still undecided as of 7/8. He has left the Lakers and
+is not retiring. The suitor list has WIDENED since yesterday: Rich Paul publicly
+floated the Knicks, 76ers, and Celtics, and Golden State reportedly has a "low
+level of optimism." Treat no team as favorite. Do NOT name a destination until
+it is officially confirmed, and verify his rating and the team's number at fire
+time. When it is real, post (fills to ~227 chars, under X's 280 limit):
 
 ```
 LeBron James is a 1,947 in our system at age 41. [TEAM] finished last season with a team rating of [TEAM ELO]. He is the single biggest forecast-mover left on the board, and now we have a season to see how much he still moves it.
 ```
 
-Reference numbers to confirm before sending (do not publish until re-checked):
-LeBron 1,947. Finishing team ratings last season: Golden State 1,486, Cleveland
-1,636, Miami 1,505. Fill the correct one and delete the rest.
+Reference numbers to confirm before sending (do not publish until re-checked).
+LeBron: 1,947. Finishing team ratings last season, all six reported suitors:
+
+| Team | Finished 2025-26 at |
+|---|---|
+| Boston Celtics | 1,672 |
+| Cleveland Cavaliers | 1,636 |
+| New York Knicks | 1,633 |
+| Miami Heat | 1,505 |
+| Golden State Warriors | 1,486 |
+| Philadelphia 76ers | 1,486 |
+
+Fill the correct one and delete the rest. These are where each team FINISHED last
+season, not a 2026-27 forecast. Never call them a forecast; we do not have
+roster-adjusted preseason ratings yet.
 
 **B. A rookie goes off on opening night (Thu 7/9).** If a No. 1/No. 2 pick or
 anyone posts a monster Summer League line and the timeline overreacts, fire the
