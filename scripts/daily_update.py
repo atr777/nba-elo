@@ -189,19 +189,22 @@ def main():
     # Use the count of fetched games for boxscore scraping decision
     num_new_games = num_new_games_fetched
 
-    # Step 1.5: Only scrape boxscores if there are NEW games
-    if num_new_games > 0:
-        log("\n--- Step 1.5: Scraping Boxscores for New Games ONLY ---")
-        # CRITICAL FIX: Only process games that don't have boxscores yet
-        # The scraper will skip games already in the output file
-        success = run_command(
-            'python scripts/nba_box_scraper.py --input data/raw/nba_games_all.csv --output data/raw/player_boxscores_all.csv --rate-limit 0.5 --checkpoint 100',
-            "Scraping new game data (incremental)"
-        )
-        if not success:
-            log("WARNING: Boxscore scraping had issues. Continuing with existing data...")
-    else:
-        log("\n[SKIP] No boxscore scraping needed (database up to date)")
+    # Step 1.5: Fetch box scores for any completed game that lacks them.
+    #
+    # This used to call nba_box_scraper.py directly, which asks ESPN for
+    # `event=<game_id>`. Our games file stores NBA ids (22500058), not ESPN event
+    # ids, so every request 404'd and the scrape silently added nothing. The
+    # crosswalk script resolves (date + team pair) -> ESPN event id, then re-stamps
+    # each row with OUR game_id. It is idempotent and only fetches what is missing,
+    # so it is cheap on a normal day and self-heals any gap that opens.
+    log("\n--- Step 1.5: Box-score coverage (ESPN crosswalk, fetches only what's missing) ---")
+    success = run_command(
+        'python scripts/backfill_boxscores_espn.py',
+        "Backfilling missing box scores",
+        timeout=1800
+    )
+    if not success:
+        log("WARNING: Boxscore backfill had issues. Continuing with existing data...")
 
     # Step 2: Recalculate team ELO (Phase 1.6 with enhanced features)
     log("\n--- Step 2: Recalculating Team ELO (Enhanced Features) ---")
