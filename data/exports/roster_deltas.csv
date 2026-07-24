@@ -732,33 +732,33 @@ season,team_id,team_name,delta,source
 2025,28,Toronto Raptors,7.63,history
 2025,29,Memphis Grizzlies,-43.71,history
 2025,30,Charlotte Hornets,35.6,history
-2026,1,Atlanta Hawks,-35.15,roster_mapping
-2026,2,Boston Celtics,-0.63,roster_mapping
-2026,3,New Orleans Pelicans,-2.88,roster_mapping
-2026,4,Chicago Bulls,23.91,roster_mapping
-2026,5,Cleveland Cavaliers,-3.71,roster_mapping
-2026,6,Dallas Mavericks,-27.25,roster_mapping
-2026,7,Denver Nuggets,12.29,roster_mapping
-2026,8,Detroit Pistons,-18.44,roster_mapping
-2026,9,Golden State Warriors,1.84,roster_mapping
-2026,10,Houston Rockets,8.14,roster_mapping
-2026,11,Indiana Pacers,52.33,roster_mapping
-2026,12,LA Clippers,-129.5,roster_mapping
-2026,13,Los Angeles Lakers,-75.35,roster_mapping
-2026,14,Miami Heat,32.44,roster_mapping
-2026,15,Milwaukee Bucks,-44.74,roster_mapping
-2026,16,Minnesota Timberwolves,-28.82,roster_mapping
-2026,17,Brooklyn Nets,29.26,roster_mapping
-2026,18,New York Knicks,4.44,roster_mapping
-2026,19,Orlando Magic,19.02,roster_mapping
-2026,20,Philadelphia 76ers,44.41,roster_mapping
-2026,21,Phoenix Suns,-9.42,roster_mapping
-2026,22,Portland Trail Blazers,61.1,roster_mapping
-2026,23,Sacramento Kings,2.89,roster_mapping
-2026,24,San Antonio Spurs,10.91,roster_mapping
-2026,25,Oklahoma City Thunder,11.12,roster_mapping
-2026,26,Utah Jazz,-6.65,roster_mapping
-2026,27,Washington Wizards,67.86,roster_mapping
-2026,28,Toronto Raptors,36.43,roster_mapping
-2026,29,Memphis Grizzlies,-35.93,roster_mapping
-2026,30,Charlotte Hornets,0.07,roster_mapping
+2026,1,Atlanta Hawks,-23.1,roster_mapping
+2026,2,Boston Celtics,-0.25,roster_mapping
+2026,3,New Orleans Pelicans,-2.32,roster_mapping
+2026,4,Chicago Bulls,24.47,roster_mapping
+2026,5,Cleveland Cavaliers,-4.77,roster_mapping
+2026,6,Dallas Mavericks,-26.69,roster_mapping
+2026,7,Denver Nuggets,12.85,roster_mapping
+2026,8,Detroit Pistons,-17.88,roster_mapping
+2026,9,Golden State Warriors,2.29,roster_mapping
+2026,10,Houston Rockets,8.7,roster_mapping
+2026,11,Indiana Pacers,35.79,roster_mapping
+2026,12,LA Clippers,-110.96,roster_mapping
+2026,13,Los Angeles Lakers,-75.58,roster_mapping
+2026,14,Miami Heat,33.0,roster_mapping
+2026,15,Milwaukee Bucks,-44.18,roster_mapping
+2026,16,Minnesota Timberwolves,-42.4,roster_mapping
+2026,17,Brooklyn Nets,29.82,roster_mapping
+2026,18,New York Knicks,5.17,roster_mapping
+2026,19,Orlando Magic,19.58,roster_mapping
+2026,20,Philadelphia 76ers,44.97,roster_mapping
+2026,21,Phoenix Suns,-8.89,roster_mapping
+2026,22,Portland Trail Blazers,45.0,roster_mapping
+2026,23,Sacramento Kings,3.42,roster_mapping
+2026,24,San Antonio Spurs,12.24,roster_mapping
+2026,25,Oklahoma City Thunder,11.81,roster_mapping
+2026,26,Utah Jazz,-5.42,roster_mapping
+2026,27,Washington Wizards,56.79,roster_mapping
+2026,28,Toronto Raptors,37.0,roster_mapping
+2026,29,Memphis Grizzlies,-35.37,roster_mapping
+2026,30,Charlotte Hornets,14.88,roster_mapping
