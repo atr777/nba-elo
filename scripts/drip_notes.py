@@ -50,16 +50,19 @@ LOG = ROOT / "logs/notes_drip.log"
 MAX_PER_DAY = 2
 MIN_GAP_HOURS = 5
 
-# WINDOW_ET IS COUPLED TO THE VPS CRONTAB. The drip can only ever post when cron
-# fires it, so a window that contains no cron hour means it never posts. The VPS
-# runs on ET and fires run_daily_update.sh at 07:00, 11:00, 14:00, 18:00, 23:00.
-# Windows are half-open, [lo, hi).
+# THIS RUNS ON AARON'S PC, NOT THE VPS. Substack refuses note-writing POSTs from the
+# VPS: verified 2026-07-26, the identical request returns 400 (accepted, needs
+# content) from a residential IP and 403 with an HTML error page from the datacenter
+# IP, regardless of headers, while GETs from the VPS still return 200. Getting around
+# that would mean evading their bot protection and risking the account, so the drip
+# moved hosts instead.
 #
-# We take 11:00 (late morning) and 18:00 (early evening, nearest the 7-10PM ET
-# sports peak of the available slots). That is exactly MAX_PER_DAY slots, 7h apart,
-# which clears MIN_GAP_HOURS. 07:00 is too early and 23:00 too late to be worth a
-# note. If you change the crontab, change this, and vice versa.
-WINDOW_ET = [(11, 12), (18, 19)]
+# The PC is only on intermittently, so this is a broad window with a rate limit
+# rather than fixed hour slots: whenever the task fires inside good ET hours, it
+# posts if the daily cap and the gap allow. That yields up to MAX_PER_DAY notes a
+# day, at least MIN_GAP_HOURS apart, and it self-heals when the PC was off at any
+# particular hour. Window is half-open, [lo, hi).
+WINDOW_ET = [(9, 21)]
 ET_ZONE = "America/New_York"  # zoneinfo handles EDT/EST; the season spans both
 
 

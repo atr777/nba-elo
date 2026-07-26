@@ -72,20 +72,23 @@ def validate(text: str) -> None:
 
 
 def build_body_json(text: str) -> dict:
-    """TipTap doc. Blank lines separate paragraphs; single newlines are kept as
-    hard breaks so a note reads on Substack the way it reads in the bank."""
+    """TipTap doc: one paragraph per blank-line-separated block.
+
+    Single newlines are treated as SOFT WRAPS and joined with a space, for two
+    reasons. They are an artefact of how the queue YAML wraps long lines for
+    readability, so rendering them as line breaks would put breaks mid-sentence in
+    the published note. And a `hardBreak` node appears not to be accepted by
+    Substack's schema: with one in the content the endpoint answered HTTP 500 and an
+    empty error body, while the same request with plain paragraphs succeeds
+    (2026-07-26). Keep the node set to `paragraph` + `text` only.
+    """
     content = []
     for block in text.strip().split("\n\n"):
-        block = block.strip()
-        if not block:
+        line = " ".join(part.strip() for part in block.split("\n") if part.strip())
+        if not line:
             continue
-        nodes = []
-        for i, line in enumerate(block.split("\n")):
-            if i:
-                nodes.append({"type": "hardBreak"})
-            if line:
-                nodes.append({"type": "text", "text": line})
-        content.append({"type": "paragraph", "content": nodes})
+        content.append({"type": "paragraph",
+                        "content": [{"type": "text", "text": line}]})
     if not content:
         raise NoteRejected("note produced no paragraphs")
     return {"type": "doc", "attrs": {"schemaVersion": "v1"}, "content": content}
