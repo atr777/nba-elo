@@ -18,6 +18,7 @@ Logs to: logs/weekly_validation.log
 import sys
 import os
 import argparse
+import subprocess
 import time
 import logging
 from datetime import datetime, timezone
@@ -326,19 +327,35 @@ def refresh_rosters(dry_run=False):
         return new_df, trades, new_players, removed, failed_teams
 
     # ------------------------------------------------------------------
-    # Save refreshed mapping (no backup suffix needed — DATA_FRESHNESS.md
-    # documents every run; a dated backup is written for audit trail)
+    # DO NOT WRITE THE MAPPING HERE. `refresh_roster_mapping.py` is the single
+    # writer of player_team_mapping.csv (Roster Phase A, 2026-07-07), because it
+    # does two things this function does not:
+    #   1. strips accents, so names match the ASCII player-ratings file. Written
+    #      raw, "Nikola Jokic" and "Luka Doncic" arrive as "Jokic"/"Doncic" with
+    #      diacritics and the site's name join silently yields no team.
+    #   2. layers data/manual/roster_overrides.csv, the free-agency moves the NBA
+    #      API lags behind.
+    # It is also league-year aware, while SEASON above is pinned to '2025-26'.
+    #
+    # This function used to write the file directly, which quietly reverted all of
+    # that every Sunday at 09:00. Caught 2026-07-26 on the public site: Giannis
+    # back in Milwaukee, LeBron back on the Lakers, Jokic and Doncic showing no
+    # team at all. The roster comparison above is genuinely useful, so we keep it
+    # and delegate the write.
     # ------------------------------------------------------------------
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_path = MAPPING_PATH + f'.backup_{timestamp}'
-    if os.path.exists(MAPPING_PATH):
-        old_mapping.to_csv(backup_path, index=False)
-        log.info("Backup saved: %s", backup_path)
-
-    # Save with the standard 2-column format (player_name, team_name)
-    # plus extra columns so the file is richer than the old version.
-    new_df.to_csv(MAPPING_PATH, index=False)
-    log.info("[OK] Saved %d entries to %s", len(new_df), MAPPING_PATH)
+    canonical = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'refresh_roster_mapping.py')
+    log.info("Delegating the mapping write to refresh_roster_mapping.py "
+             "(accent-normalized + roster_overrides.csv applied)")
+    proc = subprocess.run([sys.executable, canonical, '--force'],
+                          capture_output=True, text=True)
+    for line in (proc.stdout or '').strip().splitlines():
+        log.info("  %s", line)
+    if proc.returncode != 0:
+        log.error("refresh_roster_mapping.py FAILED (rc=%s); mapping left as-is: %s",
+                  proc.returncode, (proc.stderr or '')[:400])
+    else:
+        log.info("[OK] Mapping refreshed by the canonical script")
 
     return new_df, trades, new_players, removed, failed_teams
 
