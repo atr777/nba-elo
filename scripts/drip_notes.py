@@ -160,6 +160,28 @@ def summary(items: list, led: dict) -> str:
     return ", ".join(f"{k}: {v}" for k, v in sorted(counts.items())) or "empty"
 
 
+def _portrait_warning(image: str) -> str | None:
+    """Feed images want 4:5 portrait (1080x1350): it occupies ~25% more mobile screen
+    than a square and materially outperforms landscape. Our chart house style is
+    landscape because it was built for the newsletter, so flag it rather than block."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+    path = Path(image)
+    if not path.is_absolute():
+        path = ROOT / path
+    try:
+        with Image.open(path) as im:
+            w, h = im.size
+    except Exception:
+        return None
+    if h and w / h > 1.05:
+        return (f"{w}x{h} is landscape (ratio {w/h:.2f}); portrait 4:5 (1080x1350) "
+                f"performs better in the feed")
+    return None
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Drip approved Substack Notes")
     p.add_argument("--live", action="store_true", help="actually publish")
@@ -199,6 +221,7 @@ def main() -> None:
 
     nid = str(item.get("id"))
     text = str(item.get("text", "")).strip()
+    image = item.get("image") or None
 
     try:
         validate(text)
@@ -212,7 +235,8 @@ def main() -> None:
         return
 
     if not a.live:
-        log(f"DRY RUN ({why}). Would post {nid}: {text[:90]!r}")
+        log(f"DRY RUN ({why}). Would post {nid}: {text[:90]!r}"
+            + (f" + image {image}" if image else " (text only)"))
         log("Add --live to publish.")
         return
 
@@ -223,8 +247,13 @@ def main() -> None:
     led[nid] = {"state": "sending", "at": stamp, "text": text[:120]}
     save_ledger(led)
 
+    if image:
+        warn = _portrait_warning(image)
+        if warn:
+            log(f"NOTE on {nid} image: {warn}")
+
     try:
-        res = post_note(text, live=True)
+        res = post_note(text, live=True, image=image)
     except NotePostFailed as e:
         if e.certainly_not_posted:
             # Substack rejected it, so nothing is live. Release the claim to retry.
@@ -248,7 +277,8 @@ def main() -> None:
         raise SystemExit(1)
 
     led[nid] = {"posted_at": stamp, "note_url": res.get("url"),
-                "http_status": res.get("http_status"), "text": text[:120]}
+                "http_status": res.get("http_status"), "text": text[:120],
+                "image": image}
     save_ledger(led)
     log(f"POSTED {nid} -> {res.get('url') or 'live (no id in response)'}")
 

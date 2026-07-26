@@ -16,6 +16,7 @@ it adds the approval gate, rate limits and the posting window.
 """
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -30,6 +31,8 @@ ROOT = Path(__file__).resolve().parent.parent
 # with an empty error body (2026-07-26). `attachmentIds` must be present even when
 # empty; omitting it was the other half of that 500.
 NOTE_ENDPOINT = "https://substack.com/api/v1/comment/feed"
+# Image upload and attachment creation live on the publication's own API host.
+PUB_API = "https://secondbounce.substack.com/api/v1"
 
 # Brand rules that are cheap to enforce mechanically (docs/growth/BRAND.md).
 EM_DASH = "—"
@@ -104,6 +107,42 @@ def build_payload(text: str) -> dict:
     }
 
 
+def upload_image(path: Path) -> str:
+    """Upload a local image, return the hosted URL. Publishes nothing.
+
+    Mime is taken from the extension on purpose: the substack library hardcodes
+    image/jpeg, and a JPEG round-trip visibly softens small text, which is most of
+    what our charts are. Sent as image/png the file stays a PNG server-side.
+    """
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".gif": "image/gif", ".webp": "image/webp"}.get(path.suffix.lower())
+    if not mime:
+        raise NoteRejected(f"unsupported image type: {path.suffix}")
+    payload = (f"data:{mime};base64,".encode()
+               + base64.b64encode(path.read_bytes()))
+    r = get_session().post(f"{PUB_API}/image", data={"image": payload}, timeout=120)
+    if r.status_code >= 400:
+        raise NotePostFailed(f"image upload HTTP {r.status_code}: {r.text[:200]}",
+                             certainly_not_posted=True)
+    url = (r.json() or {}).get("url")
+    if not url:
+        raise NotePostFailed("image upload returned no url", certainly_not_posted=True)
+    return url
+
+
+def create_attachment(image_url: str) -> str:
+    """Turn a hosted image URL into a note attachment id. Publishes nothing."""
+    r = get_session().post(f"{PUB_API}/comment/attachment",
+                           json={"type": "image", "url": image_url}, timeout=60)
+    if r.status_code >= 400:
+        raise NotePostFailed(f"attachment HTTP {r.status_code}: {r.text[:200]}",
+                             certainly_not_posted=True)
+    aid = (r.json() or {}).get("id")
+    if not aid:
+        raise NotePostFailed("attachment returned no id", certainly_not_posted=True)
+    return aid
+
+
 def get_session():
     load_dotenv(ROOT / ".env")
     cookies = os.getenv("SUBSTACK_COOKIES_STRING")
@@ -116,15 +155,27 @@ def get_session():
     return api._session
 
 
-def post_note(text: str, live: bool = False) -> dict:
+def post_note(text: str, live: bool = False, image: str | None = None) -> dict:
     """Validate, then (only if live) publish. Returns a result dict.
 
-    On success returns {"posted": True, "id": ..., "url": ...}.
+    `image` is an optional local path. Visual notes outperform text-only ones
+    (docs/research/2026-07-26-substack-growth-and-virality.md), and uploading is
+    harmless on its own: nothing is public until the final post.
     """
     validate(text)
     payload = build_payload(text)
     if not live:
+        if image:
+            payload["_image_to_upload"] = str(image)
         return {"posted": False, "dry_run": True, "payload": payload}
+
+    if image:
+        path = Path(image)
+        if not path.is_absolute():
+            path = ROOT / path
+        if not path.exists():
+            raise NoteRejected(f"image not found: {path}")
+        payload["attachmentIds"] = [create_attachment(upload_image(path))]
 
     import requests
 
