@@ -37,6 +37,21 @@ class NoteRejected(Exception):
     """Content failed a house rule. Never auto-fix; a human rewrites it."""
 
 
+class NotePostFailed(Exception):
+    """A send did not complete. `certainly_not_posted` distinguishes the two cases
+    that matter for a public, irreversible action:
+
+      True  -> Substack answered with an error, so nothing was published and the
+               note is safe to retry.
+      False -> we never saw a usable answer (connection dropped, timeout). The note
+               MAY be live. Never retry automatically; a human checks the feed.
+    """
+
+    def __init__(self, msg: str, certainly_not_posted: bool):
+        super().__init__(msg)
+        self.certainly_not_posted = certainly_not_posted
+
+
 def validate(text: str) -> None:
     t = (text or "").strip()
     if not t:
@@ -103,13 +118,31 @@ def post_note(text: str, live: bool = False) -> dict:
     if not live:
         return {"posted": False, "dry_run": True, "payload": payload}
 
-    r = get_session().post(NOTE_ENDPOINT, json=payload, timeout=45)
+    import requests
+
+    try:
+        r = get_session().post(NOTE_ENDPOINT, json=payload, timeout=45)
+    except requests.RequestException as e:
+        # No usable response. The request may or may not have reached Substack.
+        raise NotePostFailed(f"no response: {type(e).__name__}: {e}",
+                             certainly_not_posted=False)
+
     if r.status_code >= 400:
-        raise RuntimeError(f"Substack returned {r.status_code}: {r.text[:300]}")
-    data = r.json() if r.content else {}
-    nid = data.get("id") or data.get("comment", {}).get("id")
+        raise NotePostFailed(f"HTTP {r.status_code}: {r.text[:200]}",
+                             certainly_not_posted=True)
+
+    # From here the note IS published. Nothing below may raise, or a caller could
+    # conclude the send failed and post it a second time.
+    data = {}
+    try:
+        if r.content:
+            data = r.json() or {}
+    except ValueError:
+        data = {}
+    nid = data.get("id") or (data.get("comment") or {}).get("id")
     url = f"https://substack.com/@secondbounce/note/c-{nid}" if nid else None
-    return {"posted": True, "id": nid, "url": url, "raw": data}
+    return {"posted": True, "id": nid, "url": url,
+            "http_status": r.status_code, "raw": data}
 
 
 def main() -> None:

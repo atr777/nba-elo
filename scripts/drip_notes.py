@@ -34,7 +34,12 @@ from zoneinfo import ZoneInfo
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from substack_notes import NoteRejected, post_note, validate  # noqa: E402
+from substack_notes import (  # noqa: E402
+    NotePostFailed,
+    NoteRejected,
+    post_note,
+    validate,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 # Env overrides exist so tests can point at scratch files; production uses defaults.
@@ -208,16 +213,41 @@ def main() -> None:
         log("Add --live to publish.")
         return
 
+    # Write-ahead: claim the id BEFORE sending. If this process dies mid-send, the
+    # claim survives and the next cron skips the note instead of double-posting to
+    # a public feed. Posting twice is worse than not posting.
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    led[nid] = {"state": "sending", "at": stamp, "text": text[:120]}
+    save_ledger(led)
+
     try:
         res = post_note(text, live=True)
-    except Exception as e:  # network/API failure: no ledger write, retry next cron
-        log(f"FAILED to post {nid}: {type(e).__name__}: {str(e)[:200]}")
+    except NotePostFailed as e:
+        if e.certainly_not_posted:
+            # Substack rejected it, so nothing is live. Release the claim to retry.
+            led.pop(nid, None)
+            save_ledger(led)
+            log(f"NOT POSTED {nid} (safe to retry): {e}")
+        else:
+            led[nid] = {"state": "unknown", "at": stamp, "error": str(e)[:200],
+                        "text": text[:120]}
+            save_ledger(led)
+            log(f"UNKNOWN outcome for {nid}: {e}. It may be live. Left claimed so "
+                f"it is NOT retried. Check the feed, then delete its entry from "
+                f"{LEDGER.name} if it never posted.")
+        raise SystemExit(1)
+    except Exception as e:  # unexpected: keep the claim, do not risk a repeat
+        led[nid] = {"state": "unknown", "at": stamp,
+                    "error": f"{type(e).__name__}: {str(e)[:180]}", "text": text[:120]}
+        save_ledger(led)
+        log(f"UNEXPECTED error posting {nid}: {type(e).__name__}: {str(e)[:200]}. "
+            f"Left claimed; check the feed before clearing it.")
         raise SystemExit(1)
 
-    led[nid] = {"posted_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "note_url": res.get("url"), "text": text[:120]}
+    led[nid] = {"posted_at": stamp, "note_url": res.get("url"),
+                "http_status": res.get("http_status"), "text": text[:120]}
     save_ledger(led)
-    log(f"POSTED {nid} -> {res.get('url') or res.get('id')}")
+    log(f"POSTED {nid} -> {res.get('url') or 'live (no id in response)'}")
 
 
 if __name__ == "__main__":
