@@ -96,7 +96,7 @@
 # --- Calibration, the credential we should be leading with (2026-07-26) ---
 
 - id: w30-04
-  status: hold
+  status: approved
   text: |
     Our model's stated confidence is honest, which is rarer than being right.
     When it said 80 to 90 percent last season, it won 79.6 percent. When it said
