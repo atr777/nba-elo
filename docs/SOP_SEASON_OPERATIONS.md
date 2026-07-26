@@ -61,18 +61,45 @@ daily X graphic if in season.
 | Phase | Trigger | Action |
 |---|---|---|
 | Now–Aug | — | 2 posts/week free content; X 3-4/week; grow list |
-| Sept | — | Preseason series (30 teams / 30 days); founding-member waitlist mention |
-| Late Sept | List ≥ 300 | Activate paid tier: $6/mo, $50/yr, $100 founding |
-| Late Sept | List < 300 | Still activate, but lead with founding tier only (scarcity framing) |
-| Opening night | — | Premium launch post: full-slate picks begin |
-| In season | Paid conversion < 4% after 4 weeks | Add premium-only sample posts (open one Deep Dive free per month) |
+| Sept | — | Preseason series (30 teams / 30 days) |
+| Opening night | — | Season launch post: full-slate picks begin, free |
+| In season | — | Weekly receipt post; audience growth is the only revenue KPI |
 
-**KPIs reviewed weekly:** free subs, weekly sub growth, open rate, X followers,
-(in season) paid subs + churn. Growth stall = content mix problem: bias toward
-receipts and contrarian model takes, away from methodology.
+### REVISED 2026-07-26 (Aaron's decision): stay free, pursue sponsorship
 
-**The credential line (use everywhere):** "70.6% accuracy across 657 games in
-2025-26, verified by walk-forward audit, tracked in public."
+**There is no paid tier for 2026-27.** The earlier plan (activate $6/mo late Sept)
+was not executable: Substack paid runs exclusively on Stripe and **Stripe does not
+support Guatemala**. Rather than stand up alternative rails, Aaron chose to stay
+free and monetize through brand partnerships once the audience justifies it.
+Full reasoning: `docs/research/2026-07-26-strategic-competitive-monetization-review.md`.
+
+Consequences, and they are the whole strategy now:
+
+- **Audience size is the only metric that matters.** Sponsorship needs roughly
+  5k followers/subscribers before anyone pays real money. Everything is judged
+  against list growth.
+- **The sponsor pool is narrower than the category's.** Sportsbooks and
+  prediction markets dominate basketball-newsletter sponsorship (Kalshi sponsors
+  halfpast\*noon). **The no-betting rule stands and rules them out.** Realistic
+  targets: data/analytics tools, sports media apps, ticketing, apparel, DTC.
+  Never take a book or a prediction-market sponsor, however good the offer.
+- **No paywall means no conversion gate**, so the old 300-subscriber trigger and
+  the paid-conversion KPI are retired.
+- Revisit paid in 2027 if the list clears ~3k, at which point a US entity for
+  Stripe becomes worth the paperwork.
+
+**KPIs reviewed weekly:** free subs, weekly sub growth, open rate, X followers.
+Growth stall = content mix problem: bias toward receipts and contrarian model
+takes, away from methodology. **Subscriber count is currently unmeasured** (the
+stored Substack cookie 403s on stats endpoints); fix or log it manually, because
+it is now the primary business metric.
+
+**The credential line.** Lead with auditability and calibration, not raw accuracy:
+"Every pick logged before tip-off, graded after the final, never recomputed. When
+the model says 80%, it wins 80%." Quote "70.6% across 657 games in 2025-26,
+verified by walk-forward audit" when asked for the number, and never 73.5%. Do not
+frame us as beating the market: measured 2026-07-26, we sit slightly behind Vegas
+on both accuracy and Brier. See `model-tuning-exhausted` in project memory.
 
 ## Incident playbook
 
