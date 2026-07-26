@@ -79,67 +79,58 @@ def abbr(name: str) -> str:
 
 # ------------------------------------------------------------------ texture
 def paper(w: int, h: int, seed: int = 7, strength: float = 1.0) -> Image.Image:
-    """Photographed thermal paper.
+    """Thermal-paper stock: soft cloudy mottling, a cross fold, fine grain.
 
-    Retuned 2026-07-26 after Aaron could not make the first version out. The lesson:
-    fine grain is invisible once the feed scales the image down. What survives is
-    BROAD luminance variation, so the weight is on large-scale uneven lighting, fold
-    shading and a vignette, with grain as a top note rather than the main event.
+    Built from low-resolution noise upscaled smoothly (that is what gives the broad
+    cloudy variation of real paper, rather than uniform static), then a little
+    high-frequency grain on top, then fold seams.
 
-    Layers, coarse to fine:
-      1. uneven lighting   very low-res noise, upscaled: the cloudy look of real stock
-      2. mottling          medium-res noise
-      3. fold              antisymmetric shading either side of the seam (dark on one
-                           side, lifted on the other, which is how a fold catches
-                           light), plus a narrow crease line
-      4. creases           two soft diagonals
-      5. vignette          corners fall off, as in a photo
-      6. grain             fine noise
-    `strength` scales every amplitude, so it can be dialled from the CLI.
+    RESTORED 2026-07-26 at Aaron's request. A heavier, photoreal version (uneven
+    lighting, antisymmetric fold shading, corner vignette) was tried and rejected as
+    too dirty; this quieter stock is the house look. `strength` scales every
+    amplitude, so it can still be nudged from the CLI without another rewrite.
     """
     rng = np.random.default_rng(seed)
     s = strength
 
-    def upscaled(ny, nx, amp):
-        low = rng.normal(0, 1, (ny, nx))
-        img = Image.fromarray(((low - low.min()) / np.ptp(low) * 255).astype(np.uint8))
-        a = np.array(img.resize((w, h), Image.BICUBIC), dtype=np.float32)
-        return (a - a.mean()) / 128.0 * amp
+    # broad mottling: 16x20 noise stretched to full size
+    low = rng.normal(0, 1, (20, 16))
+    mottle = np.array(Image.fromarray(
+        ((low - low.min()) / np.ptp(low) * 255).astype(np.uint8)
+    ).resize((w, h), Image.BICUBIC), dtype=np.float32)
+    mottle = (mottle - mottle.mean()) / 255.0 * 13.0 * s  # +-13 levels, subtle
 
-    field = upscaled(6, 5, 17.0 * s)          # uneven lighting
-    field += upscaled(22, 18, 11.0 * s)       # mottling
+    grain = rng.normal(0, 2.1 * s, (h, w))
 
-    # fold: antisymmetric profile d*exp(-d^2), darkening one side and lifting the other
-    yy = np.arange(h, dtype=np.float32)[:, None]
-    xx = np.arange(w, dtype=np.float32)[None, :]
-    dy = (yy - h * 0.47) / (h * 0.10)
-    dx = (xx - w * 0.52) / (w * 0.16)
-    field += (-15.0 * s) * dy * np.exp(-dy * dy)
-    field += (-11.0 * s) * dx * np.exp(-dx * dx)
+    base = 250.0 + mottle + grain
+    # very slightly cool paper, like the reference photo
+    arr = np.stack([base - 1.0, base - 0.4, base], axis=2)
 
-    # the crease itself: a narrow dark line along each fold
-    field += (-16.0 * s) * np.exp(-((dy * 9.0) ** 2))
-    field += (-11.0 * s) * np.exp(-((dx * 9.0) ** 2))
+    # cross fold: one horizontal seam, one vertical, each a dark line with a
+    # lighter lift beside it, blurred. Real folds catch light on one side.
+    fold_y, fold_x = int(h * 0.47), int(w * 0.52)
+    seam = np.zeros((h, w), dtype=np.float32)
+    for off, val in ((-2, 5.0), (-1, 3.0), (0, -7.0), (1, -3.0), (2, 3.5)):
+        val *= s
+        yy, xx = fold_y + off, fold_x + off
+        if 0 <= yy < h:
+            seam[yy, :] += val
+        if 0 <= xx < w:
+            seam[:, xx] += val
+    seam = np.array(Image.fromarray(
+        np.clip(seam + 128, 0, 255).astype(np.uint8)).filter(
+        ImageFilter.GaussianBlur(1.6)), dtype=np.float32) - 128.0
+    arr += seam[:, :, None]
 
-    # two soft diagonal creases
-    for (x0, y0, x1, y1), amp in (
-        ((int(w * .08), int(h * .24), int(w * .96), int(h * .32)), 13.0),
-        ((int(w * .04), int(h * .72), int(w * .92), int(h * .63)), 10.0),
-    ):
+    # a couple of faint diagonal creases so it does not read as a flat gradient
+    for (x0, y0, x1, y1) in ((int(w * .1), int(h * .22), int(w * .95), int(h * .30)),
+                             (int(w * .05), int(h * .70), int(w * .9), int(h * .62))):
         cre = Image.new("L", (w, h), 128)
-        ImageDraw.Draw(cre).line([x0, y0, x1, y1], fill=88, width=4)
-        blurred = np.array(cre.filter(ImageFilter.GaussianBlur(14.0)), dtype=np.float32)
-        field += (blurred - 128.0) * (amp * s / 6.0)
+        ImageDraw.Draw(cre).line([x0, y0, x1, y1], fill=121, width=3)
+        arr += (np.array(cre.filter(ImageFilter.GaussianBlur(3.0)),
+                         dtype=np.float32) - 128.0)[:, :, None] * 0.9 * s
 
-    # vignette: normalised radius, corners pulled down
-    r = np.sqrt(((xx / w - 0.5) * 2) ** 2 + ((yy / h - 0.5) * 2) ** 2) / 1.4142
-    field += (-13.0 * s) * (r ** 2)
-
-    field += rng.normal(0, 3.4 * s, (h, w))   # grain
-
-    base = 247.0 + field
-    arr = np.stack([base - 1.6, base - 0.7, base], axis=2)   # faintly cool stock
-    return Image.fromarray(np.clip(arr, 0, 252).astype(np.uint8), "RGB")
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
 
 
 def barcode(d: ImageDraw.ImageDraw, cx: int, y: int, seed_text: str,
