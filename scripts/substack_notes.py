@@ -25,7 +25,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
-NOTE_ENDPOINT = "https://secondbounce.substack.com/api/v1/comment/draft"
+# Notes are published on substack.com itself, not the publication subdomain, and the
+# path is /comment/feed. Posting to the subdomain's /comment/draft answered HTTP 500
+# with an empty error body (2026-07-26). `attachmentIds` must be present even when
+# empty; omitting it was the other half of that 500.
+NOTE_ENDPOINT = "https://substack.com/api/v1/comment/feed"
 
 # Brand rules that are cheap to enforce mechanically (docs/growth/BRAND.md).
 EM_DASH = "—"
@@ -90,6 +94,7 @@ def build_body_json(text: str) -> dict:
 def build_payload(text: str) -> dict:
     return {
         "bodyJson": build_body_json(text),
+        "attachmentIds": [],  # required field; images/links would populate it
         "tabId": "for-you",
         "surface": "feed",
         "replyMinimumRole": "everyone",
