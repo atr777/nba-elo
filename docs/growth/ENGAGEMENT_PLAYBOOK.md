@@ -157,6 +157,19 @@ screenshot-shaped, which is the format the feed rewards.
 
     python scripts/generate_receipt_note.py season       # games, record, accuracy
     python scripts/generate_receipt_note.py calibration  # stated vs actual
+    python scripts/generate_receipt_note.py nightly      # one night's graded slate
+    python scripts/generate_receipt_note.py nightly --date 20260410
+
+**`nightly` is the in-season workhorse.** It itemises every pick from one night with
+the confidence stated before tip and whether it landed, then totals the night. It
+defaults to the most recent date in the log, so in the offseason it renders the last
+game played. The slip grows and shrinks with the slate: a two-game night prints a
+short receipt, and on a 15-game night the row pitch tightens and the closing slogan
+is dropped before any game is, because the itemised picks are the whole point.
+
+Come October this is the one graphic that can go out daily with no writing at all,
+and it is the format the "misses published with the same energy as wins" rule was
+made for: a MISS line sits on the same slip as the hits.
 
 Every figure is read from `prediction_tracking_honest.csv` at render time, never
 typed in, so a receipt cannot drift from what the audit would reproduce.
