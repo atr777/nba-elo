@@ -12,6 +12,14 @@
 # only edit needed. Nothing posts without BOTH `approved` here AND --live on the
 # command (the VPS cron passes --live).
 #
+# IMAGES: add an optional `image:` path to attach a graphic. Feed images should be
+# 4:5 portrait (1080x1350); the drip warns on landscape. Build them with
+# `python scripts/generate_receipt_note.py season|calibration`.
+#
+# USE THEM SPARINGLY (Aaron, 2026-07-26): if every note carries a graphic the feed
+# looks automated. The receipt is for notes making a claim that wants proof; the
+# observational and human notes stay text-only. Roughly 1 in 3 is the target.
+#
 # Rules enforced automatically before anything is sent: no em dashes, no unfilled
 # [placeholders], no mention of 73.5%, non-empty, under 2800 chars. A note that
 # fails is recorded as rejected and never retried silently.
@@ -28,6 +36,7 @@
 
 - id: w27-02
   status: hold
+  image: docs/growth/posts/assets/receipts/receipt_calibration_20260726.png
   text: |
     Rule we operate by: no number ships unless a strict walk-forward replay can
     reproduce it. It cost us almost three points of marketing this week. Worth it.
@@ -52,12 +61,14 @@
 
 - id: w27-06
   status: hold
+  image: docs/growth/posts/assets/receipts/receipt_season_20260726.png
   text: |
     Our prediction engine went 16 for 20 in the playoffs. It also lost two 90%
     calls in the same series. Both facts are on the same public log.
 
 - id: w27-07
   status: hold
+  image: docs/growth/posts/assets/receipts/receipt_season_20260726.png
   text: |
     New here: we run an NBA prediction model that publishes every pick before
     tip-off and never deletes a miss. 70.6% across 657 games last season,

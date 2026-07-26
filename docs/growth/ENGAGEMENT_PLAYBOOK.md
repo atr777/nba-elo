@@ -147,7 +147,36 @@ opening move that makes the ask land.
 
 ---
 
-## 5. What this is not
+## 5. The visual format: THE RECEIPT (chosen 2026-07-26)
+
+Our house image for Notes is a **thermal-receipt slip**: monospace on torn paper,
+1080x1350 portrait. Chosen from three candidates because BRAND.md already names the
+receipt as our one ownable signature and we had only ever rendered it as a one-line
+stamp. Nothing else in NBA media is shaped like it, and it is inherently
+screenshot-shaped, which is the format the feed rewards.
+
+    python scripts/generate_receipt_note.py season       # games, record, accuracy
+    python scripts/generate_receipt_note.py calibration  # stated vs actual
+
+Every figure is read from `prediction_tracking_honest.csv` at render time, never
+typed in, so a receipt cannot drift from what the audit would reproduce.
+
+**Do NOT put an image on every note (Aaron, 2026-07-26).** A feed where every post
+carries a graphic reads as an automated broadcast, and the research is clear that
+casual, observational notes travel too. **Target roughly one in three.** The split:
+
+| Gets a receipt | Stays text-only |
+|---|---|
+| A claim that wants proof ("70.6% across 657 games") | Observations and opinions |
+| Record, calibration, graded results | One-liners in the model's voice |
+| Anything a sceptic would want to verify | Confessions and asides |
+| Season and weekly summaries | Replies and conversational notes |
+
+Landscape images get a warning from the drip. Our existing charts are all landscape
+because they were built for the newsletter; re-render for the feed rather than
+reusing them.
+
+## 6. What this is not
 
 This is not automation, and it should not become automation. The Notes drip
 (`scripts/drip_notes.py`) handles our own broadcast on a schedule. Engagement is
