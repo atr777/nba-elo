@@ -78,52 +78,68 @@ def abbr(name: str) -> str:
 
 
 # ------------------------------------------------------------------ texture
-def paper(w: int, h: int, seed: int = 7) -> Image.Image:
-    """Thermal-paper stock: soft cloudy mottling, a cross fold, fine grain.
+def paper(w: int, h: int, seed: int = 7, strength: float = 1.0) -> Image.Image:
+    """Photographed thermal paper.
 
-    Built from low-resolution noise upscaled smoothly (that is what gives the broad
-    cloudy variation of real paper, rather than uniform static), then a little
-    high-frequency grain on top, then fold seams.
+    Retuned 2026-07-26 after Aaron could not make the first version out. The lesson:
+    fine grain is invisible once the feed scales the image down. What survives is
+    BROAD luminance variation, so the weight is on large-scale uneven lighting, fold
+    shading and a vignette, with grain as a top note rather than the main event.
+
+    Layers, coarse to fine:
+      1. uneven lighting   very low-res noise, upscaled: the cloudy look of real stock
+      2. mottling          medium-res noise
+      3. fold              antisymmetric shading either side of the seam (dark on one
+                           side, lifted on the other, which is how a fold catches
+                           light), plus a narrow crease line
+      4. creases           two soft diagonals
+      5. vignette          corners fall off, as in a photo
+      6. grain             fine noise
+    `strength` scales every amplitude, so it can be dialled from the CLI.
     """
     rng = np.random.default_rng(seed)
+    s = strength
 
-    # broad mottling: 16x20 noise stretched to full size
-    low = rng.normal(0, 1, (20, 16))
-    mottle = np.array(Image.fromarray(
-        ((low - low.min()) / np.ptp(low) * 255).astype(np.uint8)
-    ).resize((w, h), Image.BICUBIC), dtype=np.float32)
-    mottle = (mottle - mottle.mean()) / 255.0 * 13.0  # +-13 levels, subtle
+    def upscaled(ny, nx, amp):
+        low = rng.normal(0, 1, (ny, nx))
+        img = Image.fromarray(((low - low.min()) / np.ptp(low) * 255).astype(np.uint8))
+        a = np.array(img.resize((w, h), Image.BICUBIC), dtype=np.float32)
+        return (a - a.mean()) / 128.0 * amp
 
-    grain = rng.normal(0, 2.1, (h, w))
+    field = upscaled(6, 5, 17.0 * s)          # uneven lighting
+    field += upscaled(22, 18, 11.0 * s)       # mottling
 
-    base = 250.0 + mottle + grain
-    # very slightly cool paper, like the reference photo
-    arr = np.stack([base - 1.0, base - 0.4, base], axis=2)
+    # fold: antisymmetric profile d*exp(-d^2), darkening one side and lifting the other
+    yy = np.arange(h, dtype=np.float32)[:, None]
+    xx = np.arange(w, dtype=np.float32)[None, :]
+    dy = (yy - h * 0.47) / (h * 0.10)
+    dx = (xx - w * 0.52) / (w * 0.16)
+    field += (-15.0 * s) * dy * np.exp(-dy * dy)
+    field += (-11.0 * s) * dx * np.exp(-dx * dx)
 
-    # cross fold: one horizontal seam, one vertical, each a dark line with a
-    # lighter lift beside it, blurred. Real folds catch light on one side.
-    fold_y, fold_x = int(h * 0.47), int(w * 0.52)
-    seam = np.zeros((h, w), dtype=np.float32)
-    for off, val in ((-2, 5.0), (-1, 3.0), (0, -7.0), (1, -3.0), (2, 3.5)):
-        yy, xx = fold_y + off, fold_x + off
-        if 0 <= yy < h:
-            seam[yy, :] += val
-        if 0 <= xx < w:
-            seam[:, xx] += val
-    seam = np.array(Image.fromarray(
-        np.clip(seam + 128, 0, 255).astype(np.uint8)).filter(
-        ImageFilter.GaussianBlur(1.6)), dtype=np.float32) - 128.0
-    arr += seam[:, :, None]
+    # the crease itself: a narrow dark line along each fold
+    field += (-16.0 * s) * np.exp(-((dy * 9.0) ** 2))
+    field += (-11.0 * s) * np.exp(-((dx * 9.0) ** 2))
 
-    # a couple of faint diagonal creases so it does not read as a flat gradient
-    for (x0, y0, x1, y1) in ((int(w * .1), int(h * .22), int(w * .95), int(h * .30)),
-                             (int(w * .05), int(h * .70), int(w * .9), int(h * .62))):
+    # two soft diagonal creases
+    for (x0, y0, x1, y1), amp in (
+        ((int(w * .08), int(h * .24), int(w * .96), int(h * .32)), 13.0),
+        ((int(w * .04), int(h * .72), int(w * .92), int(h * .63)), 10.0),
+    ):
         cre = Image.new("L", (w, h), 128)
-        ImageDraw.Draw(cre).line([x0, y0, x1, y1], fill=121, width=3)
-        arr += (np.array(cre.filter(ImageFilter.GaussianBlur(3.0)),
-                         dtype=np.float32) - 128.0)[:, :, None] * 0.9
+        ImageDraw.Draw(cre).line([x0, y0, x1, y1], fill=88, width=4)
+        blurred = np.array(cre.filter(ImageFilter.GaussianBlur(14.0)), dtype=np.float32)
+        field += (blurred - 128.0) * (amp * s / 6.0)
 
-    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+    # vignette: normalised radius, corners pulled down
+    r = np.sqrt(((xx / w - 0.5) * 2) ** 2 + ((yy / h - 0.5) * 2) ** 2) / 1.4142
+    field += (-13.0 * s) * (r ** 2)
+
+    field += rng.normal(0, 3.4 * s, (h, w))   # grain
+
+    base = 247.0 + field
+    arr = np.stack([base - 1.6, base - 0.7, base], axis=2)   # faintly cool stock
+    return Image.fromarray(np.clip(arr, 0, 252).astype(np.uint8), "RGB")
 
 
 def barcode(d: ImageDraw.ImageDraw, cx: int, y: int, seed_text: str,
@@ -274,7 +290,8 @@ def _fit(blocks: list, x0: int, x1: int):
     return blocks, 30, _emit(blocks, None, x0, x1, 0, pitch=30) + 40
 
 
-def render(blocks: list, out: Path, barcode_seed: str = "") -> Path:
+def render(blocks: list, out: Path, barcode_seed: str = "",
+           texture: float = 1.0) -> Path:
     x0, x1 = PAD + 58, W - PAD - 58
 
     # pass 1: measure and make it FIT. A 15-game slate overruns the slip, so tighten
@@ -293,7 +310,8 @@ def render(blocks: list, out: Path, barcode_seed: str = "") -> Path:
                                 fill=120)
     img.paste(Image.new("RGB", (W, H), (0, 0, 0)),
               (0, 0), sh.filter(ImageFilter.GaussianBlur(18)))
-    img.paste(paper(slip[2] - slip[0], slip[3] - slip[1]), (slip[0], slip[1]))
+    img.paste(paper(slip[2] - slip[0], slip[3] - slip[1], strength=texture),
+              (slip[0], slip[1]))
 
     d = ImageDraw.Draw(img)
 
@@ -381,6 +399,8 @@ def main() -> None:
     p.add_argument("--date", help="nightly only: YYYYMMDD (default: latest in log)")
     p.add_argument("--list", action="store_true")
     p.add_argument("--out")
+    p.add_argument("--texture", type=float, default=1.0,
+                   help="paper texture strength (0 = flat, 1 = default, 1.6 = heavy)")
     a = p.parse_args()
     if a.list:
         print("types:", ", ".join(sorted(TYPES)))
@@ -398,7 +418,7 @@ def main() -> None:
         note = f"{s['n']} graded games, accuracy {s['accuracy']:.2f}%"
 
     out = Path(a.out) if a.out else OUT_DIR / f"receipt_{a.type}_{stamp}.png"
-    render(blocks, out, barcode_seed=seed)
+    render(blocks, out, barcode_seed=seed, texture=a.texture)
     print(f"wrote {out}\n  from {note}")
 
 
