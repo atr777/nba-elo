@@ -1,19 +1,23 @@
 # Substack Notes queue. The machine drips from here; Aaron approves.
 #
+# THIS FILE IS THE PLAN, NOT THE RECORD. The drip never writes to it, so it is
+# safe to edit from anywhere (including GitHub on your phone) while the VPS pulls.
+# What has already been sent is tracked separately in data/exports/notes_posted.json
+# on the VPS, which is also what stops a note going out twice.
+#
 # status:  hold      -> will NEVER post (default for everything new)
-#          approved  -> eligible for the next drip slot, oldest first
-#          posted    -> already out; posted_at + note_url are the record
-#          rejected  -> failed a house rule (see rejected_reason)
+#          approved  -> eligible for the next drip slot, top of the file first
 #
-# To approve a note, change its status to `approved`. That is the only switch.
-# Nothing posts without BOTH `approved` here AND --live on the command.
+# TO APPROVE: change that note's `status: hold` to `status: approved`. That is the
+# only edit needed. Nothing posts without BOTH `approved` here AND --live on the
+# command (the VPS cron passes --live).
 #
-# Rules enforced automatically before anything is sent: no em dashes, no
-# unfilled [placeholders], no mention of 73.5%, non-empty, under 2800 chars.
+# Rules enforced automatically before anything is sent: no em dashes, no unfilled
+# [placeholders], no mention of 73.5%, non-empty, under 2800 chars. A note that
+# fails is recorded as rejected and never retried silently.
 #
-# Seeded 2026-07-26 from docs/growth/banks/2026-W27-bank.md. Notes 1 and 7 of
-# that bank were reworded here to drop the retracted 73.5% figure, which the
-# validator refuses to publish.
+# Seeded 2026-07-26 from docs/growth/banks/2026-W27-bank.md. Notes 1 and 7 of that
+# bank were reworded here to drop the retracted 73.5% figure.
 
 - id: w27-01
   status: hold
@@ -21,48 +25,36 @@
     We cut our own published accuracy after auditing our tracker and finding it
     was flattering the model. Best decision we've made. Trust compounds faster
     than hype.
-  posted_at: null
-  note_url: null
 
 - id: w27-02
   status: hold
   text: |
     Rule we operate by: no number ships unless a strict walk-forward replay can
     reproduce it. It cost us almost three points of marketing this week. Worth it.
-  posted_at: null
-  note_url: null
 
 - id: w27-03
   status: hold
   text: |
     Giannis moving is 2,280 rating points changing conferences. For scale: an
     average NBA player is 1,500, and this summer's second-biggest mover is 1,947.
-  posted_at: null
-  note_url: null
 
 - id: w27-04
   status: hold
   text: |
     The market and our model disagree about Walker Kessler by exactly $130
     million. Receipts on file, we'll settle it by June.
-  posted_at: null
-  note_url: null
 
 - id: w27-05
   status: hold
   text: |
     Box scores flatter rim protectors and undercount shot creators. Half our
     player-rating layer is just correcting for what counting stats get wrong.
-  posted_at: null
-  note_url: null
 
 - id: w27-06
   status: hold
   text: |
     Our prediction engine went 16 for 20 in the playoffs. It also lost two 90%
     calls in the same series. Both facts are on the same public log.
-  posted_at: null
-  note_url: null
 
 - id: w27-07
   status: hold
@@ -70,16 +62,12 @@
     New here: we run an NBA prediction model that publishes every pick before
     tip-off and never deletes a miss. 70.6% across 657 games last season,
     verified by a walk-forward audit.
-  posted_at: null
-  note_url: null
 
 - id: w27-08
   status: hold
   text: |
     The model's most human trait: it was most wrong about the teams everyone was
     most sure about.
-  posted_at: null
-  note_url: null
 
 # --- From the LeBron reaction pack (2026-07-24), post is now live ---
 
@@ -90,8 +78,6 @@
     likes the move, plus 45 points, top three this offseason. It also keeps them
     12th, because a season of below-average results does not vanish under new
     names.
-  posted_at: null
-  note_url: null
 
 - id: w30-02
   status: hold
@@ -99,8 +85,6 @@
     A reminder on our preseason numbers: they revert toward league average by
     design, so most good teams' ratings fall between June and October. That is
     uncertainty, not decline.
-  posted_at: null
-  note_url: null
 
 - id: w30-03
   status: hold
@@ -108,8 +92,6 @@
     OKC is still our number one at 1631. Philadelphia's new-look roster comes in
     at 1530, closer to the middle of the league than to the top. LeBron improved
     a contender without making it the favorite.
-  posted_at: null
-  note_url: null
 
 # --- Calibration, the credential we should be leading with (2026-07-26) ---
 
@@ -119,5 +101,3 @@
     Our model's stated confidence is honest, which is rarer than being right.
     When it said 80 to 90 percent last season, it won 79.6 percent. When it said
     70 to 80, it won 73.2. Every one of those picks was logged before tip-off.
-  posted_at: null
-  note_url: null

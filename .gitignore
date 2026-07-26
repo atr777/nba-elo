@@ -265,3 +265,7 @@ scripts/*.bat
 # Site template (needed by export_github_pages.py)
 !templates/
 !templates/origin.html
+
+# Notes drip ledger: VPS-local record of sent notes, must never be committed
+# (it is machine state; the queue in data/manual/ is the human-owned plan)
+data/exports/notes_posted.json
