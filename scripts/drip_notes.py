@@ -27,8 +27,9 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import yaml
 
@@ -43,10 +44,18 @@ LOG = ROOT / "logs/notes_drip.log"
 
 MAX_PER_DAY = 2
 MIN_GAP_HOURS = 5
-# ET hours in which a note may go out. Sports audience peaks 7-10PM ET, with a
-# morning slot; ET = UTC-4 in season (EDT).
-WINDOW_ET = [(9, 11), (13, 14), (19, 22)]
-ET_OFFSET = -4
+
+# WINDOW_ET IS COUPLED TO THE VPS CRONTAB. The drip can only ever post when cron
+# fires it, so a window that contains no cron hour means it never posts. The VPS
+# runs on ET and fires run_daily_update.sh at 07:00, 11:00, 14:00, 18:00, 23:00.
+# Windows are half-open, [lo, hi).
+#
+# We take 11:00 (late morning) and 18:00 (early evening, nearest the 7-10PM ET
+# sports peak of the available slots). That is exactly MAX_PER_DAY slots, 7h apart,
+# which clears MIN_GAP_HOURS. 07:00 is too early and 23:00 too late to be worth a
+# note. If you change the crontab, change this, and vice versa.
+WINDOW_ET = [(11, 12), (18, 19)]
+ET_ZONE = "America/New_York"  # zoneinfo handles EDT/EST; the season spans both
 
 
 def log(msg: str) -> None:
@@ -82,7 +91,9 @@ def save_ledger(led: dict) -> None:
 
 
 def now_et() -> datetime:
-    return datetime.now(timezone.utc) + timedelta(hours=ET_OFFSET)
+    """Real ET, so this behaves the same on the ET server and on Aaron's PC in
+    Guatemala, and does not drift an hour when the season crosses EST/EDT."""
+    return datetime.now(timezone.utc).astimezone(ZoneInfo(ET_ZONE))
 
 
 def in_window(dt_et: datetime) -> bool:
