@@ -1,0 +1,170 @@
+# METRIC REGISTRY: one definition per published number.
+#
+# Added 2026-07-26 after the AtScale piece on semantic layers, whose diagnosis fits
+# this project even though its product does not: metric definitions live in prose,
+# prose drifts from reality, and nothing checks. We already had the symptom. Project
+# memory was still publishing 68.11% overall and 61.07% close-game from March while
+# the honest log said 70.62% and 58.27%, and "close game" and "toss-up" are two
+# different filters (58.27% vs 55.17%) that read as synonyms in English.
+#
+# THE SPLIT (the article's one durable rule): a human owns the definition, the
+# machine checks reality against it. This file is the definition. Nothing computes
+# from it; `scripts/validate_metrics.py` recomputes each metric from source and fails
+# if the world has moved. Every field here is prose a human wrote on purpose.
+#
+#   python scripts/validate_metrics.py          # check everything, non-zero on drift
+#   python scripts/validate_metrics.py --update # rewrite `value` to observed truth
+#
+# When a metric legitimately changes, run --update and COMMIT the diff. The diff is
+# the point: a changed published number should be a reviewable event, not a silent one.
+
+metrics:
+
+  season_accuracy:
+    label: Overall accuracy, 2025-26 tracked season
+    definition: >
+      Share of pre-game logged predictions that named the eventual winner, over every
+      graded game in the honest tracking log. Predictions are written before tip-off
+      and graded after the final; nothing is recomputed afterwards.
+    source: data/exports/prediction_tracking_honest.csv
+    filter: rows where `correct` is not null
+    value: 70.62
+    unit: percent
+    tolerance: 0.01
+    sample: 657
+    status: authoritative
+    quote_as: 70.6% across 657 games in 2025-26, verified by walk-forward audit
+    published_in:
+      - site stat block (scripts/export_github_pages.py)
+      - docs/growth/BRAND.md receipt stamp
+      - docs/SOP_SEASON_OPERATIONS.md credential line
+      - the receipt note images (scripts/generate_receipt_note.py)
+
+  season_correct:
+    label: Correct picks, 2025-26
+    definition: Count of graded predictions that named the eventual winner.
+    source: data/exports/prediction_tracking_honest.csv
+    value: 464
+    unit: count
+    tolerance: 0
+    status: authoritative
+
+  season_brier:
+    label: Brier score, 2025-26 tracked season
+    definition: >
+      Mean squared error of the predicted home-win probability against the binary
+      outcome. Lower is better. Measures calibration and sharpness together.
+    source: data/exports/prediction_tracking_honest.csv
+    value: 0.2046
+    unit: score
+    tolerance: 0.0005
+    status: authoritative
+    note: >
+      Slightly behind the market (Vegas closing lines run about 0.195). Never frame
+      this as an edge. See docs/research/2026-07-26-strategic-competitive-monetization-review.md.
+
+  close_game_accuracy:
+    label: Accuracy on close games
+    definition: >
+      Accuracy restricted to rows flagged `is_close_game`. DISTINCT FROM
+      toss_up_accuracy: these are two different filters and they disagree by about
+      three points. Do not use the words interchangeably in content.
+    source: data/exports/prediction_tracking_honest.csv
+    filter: is_close_game == True
+    value: 58.27
+    unit: percent
+    tolerance: 0.01
+    sample: 254
+    status: authoritative
+
+  toss_up_accuracy:
+    label: Accuracy on toss-up games
+    definition: >
+      Accuracy restricted to rows flagged `is_toss_up` (pre-game rating gap under 30).
+      This is the number the public site shows under the label "Toss-Up Games".
+    source: data/exports/prediction_tracking_honest.csv
+    filter: is_toss_up == True
+    value: 55.17
+    unit: percent
+    tolerance: 0.01
+    sample: 145
+    status: authoritative
+    published_in:
+      - site stat block, labelled "Toss-Up Games"
+
+  calibration_80_90:
+    label: Win rate when the model stated 80-90% confidence
+    definition: >
+      Of picks whose stated confidence fell in (0.80, 0.90], the share that won. The
+      credential we lead with, because it is verifiable and does not lose a
+      comparison to the market the way raw accuracy does.
+    source: data/exports/prediction_tracking_honest.csv
+    filter: 0.80 < confidence <= 0.90
+    value: 79.60
+    unit: percent
+    tolerance: 0.05
+    sample: 201
+    status: authoritative
+    quote_as: When it said 80 to 90 percent, it won 79.6 percent
+
+  calibration_70_80:
+    label: Win rate when the model stated 70-80% confidence
+    definition: Of picks whose stated confidence fell in (0.70, 0.80], the share that won.
+    source: data/exports/prediction_tracking_honest.csv
+    filter: 0.70 < confidence <= 0.80
+    value: 73.24
+    unit: percent
+    tolerance: 0.05
+    sample: 142
+    status: authoritative
+
+# Numbers that must never appear in anything public again. The validator scans
+# content surfaces for these and fails on a hit.
+forbidden:
+  - pattern: "73.5"
+    reason: >
+      Leakage-inflated accuracy, published then publicly corrected on 2026-07-02.
+      The correction is our founding credibility story; requoting the number as though
+      it were our record undoes it.
+    # Scan OUTGOING CONTENT ONLY. Internal docs, research write-ups, archives and the
+    # posting packs all discuss the correction on purpose, and flagging them buries
+    # the one case that matters under ten that do not. The notes drip enforces the
+    # same rule again at send time (substack_notes.validate), so this is the
+    # editing-time net, not the last line.
+    scan:
+      - docs/growth/posts/*.md
+    allow:
+      - docs/growth/posts/2026-07-01-season-recap.md
+
+# SINGLE-WRITER CONTRACTS. Which script is allowed to write which artifact.
+# This is the other half of the same idea: not just "one definition per number" but
+# "one producer per file". On 2026-07-26 weekly_validation.py was found writing
+# player_team_mapping.csv with different logic to refresh_roster_mapping.py, which
+# silently reverted accent handling and every roster override every Sunday, live on
+# the public site. The validator greps for second writers.
+artifacts:
+
+  data/exports/player_team_mapping.csv:
+    owner: scripts/refresh_roster_mapping.py
+    why: >
+      Strips accents so names join to the ASCII ratings file, applies
+      data/manual/roster_overrides.csv, and is league-year aware. A writer missing any
+      of those silently breaks the site's player-team join.
+
+  data/exports/player_ratings_bpm_adjusted.csv:
+    owner: src/engines/player_elo_engine.py
+    why: >
+      Position offsets are ADDITIVE on a 1500-anchored scale. Regenerate rather than
+      hand-edit; a stale copy of this file mispriced the roster deltas on 2026-07-24.
+
+  data/exports/roster_deltas.csv:
+    owner: scripts/build_roster_deltas.py
+
+  data/exports/preseason_ratings.csv:
+    owner: scripts/generate_preseason_ratings.py
+
+  data/exports/notes_posted.json:
+    owner: scripts/drip_notes.py
+    why: >
+      The send ledger. A second writer could cause a note to publish twice, which is
+      irreversible and public.

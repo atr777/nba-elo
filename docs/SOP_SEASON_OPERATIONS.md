@@ -44,6 +44,23 @@ daily X graphic if in season.
   more than 5pp on 50+ games → recalibration investigation.
 - VPS health: disk, cron log tail, billing status (auto-renew ON as of Jul 2026).
 
+## Metric integrity
+
+`config/metrics.yaml` is the registry: one human-owned definition per published
+number, with its source, filter, sample size and where it appears.
+`python scripts/validate_metrics.py` recomputes each from the honest log and exits
+non-zero on drift. It also refuses retracted figures in outgoing posts and checks
+that each derived artifact still has exactly one writing script.
+
+Run it before publishing any number and at the end of a session. When a figure
+legitimately moves, `--update` rewrites the registry and you commit the diff, so a
+changed public number is a reviewable event rather than a silent one.
+
+Two real failures motivated this, both found 2026-07-26: project memory had been
+publishing March figures (68.11%, 61.07%) for months, and `weekly_validation.py` had
+quietly become a second writer of the roster mapping, reverting accent handling and
+every free-agency override every Sunday, live on the site.
+
 ## Change management
 
 - Feature/parameter changes: branch → walk-forward on 2024-25 AND 2025-26 →
