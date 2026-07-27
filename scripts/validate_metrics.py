@@ -78,6 +78,32 @@ def _brier():
     return float(np.mean((d["predicted_home_prob"] - y) ** 2)), len(d)
 
 
+def _team_rows(tid: int):
+    """(home rows, away rows) for one team. Split, because 'this team won' and
+    'this team was favoured' both flip meaning with venue."""
+    d = _log()
+    return d[d["home_team_id"] == tid], d[d["away_team_id"] == tid]
+
+
+def _team_accuracy(tid: int):
+    def f():
+        h, a = _team_rows(tid)
+        correct = pd.concat([h["correct"], a["correct"]])
+        return 100 * correct.mean(), len(correct)
+    return f
+
+
+def _team_win_gap(tid: int):
+    """Actual wins minus expected wins, where expected is the sum of the pre-game
+    probabilities we actually published. Negative = the model over-rated them."""
+    def f():
+        h, a = _team_rows(tid)
+        expected = h["predicted_home_prob"].sum() + a["predicted_away_prob"].sum()
+        actual = (h["actual_winner"] == "home").sum() + (a["actual_winner"] == "away").sum()
+        return float(actual - expected), len(h) + len(a)
+    return f
+
+
 COMPUTE = {
     "season_accuracy": _accuracy,
     "season_correct": _correct,
@@ -86,6 +112,11 @@ COMPUTE = {
     "toss_up_accuracy": _flag("is_toss_up"),
     "calibration_80_90": _bucket(0.80, 0.90),
     "calibration_70_80": _bucket(0.70, 0.80),
+    # Team ids are the project's own (see data/raw/nba_games_all.csv), not NBA ids.
+    "team_accuracy_portland": _team_accuracy(22),
+    "team_accuracy_new_orleans": _team_accuracy(3),
+    "team_win_gap_milwaukee": _team_win_gap(15),
+    "team_win_gap_minnesota": _team_win_gap(16),
 }
 
 

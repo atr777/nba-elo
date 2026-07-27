@@ -98,7 +98,7 @@
     uncertainty, not decline.
 
 - id: w30-03
-  status: hold
+  status: approved
   text: |
     OKC is still our number one at 1631. Philadelphia's new-look roster comes in
     at 1530, closer to the middle of the league than to the top. LeBron improved
@@ -112,3 +112,147 @@
     Our model's stated confidence is honest, which is rarer than being right.
     When it said 80 to 90 percent last season, it won 79.6 percent. When it said
     70 to 80, it won 73.2. Every one of those picks was logged before tip-off.
+
+# --- LEAGUE-WIDE LENS (2026-07-27) -------------------------------------------
+# Aaron asked to point the social lens at the rest of the league instead of the
+# LeBron / Giannis / self-audit rotation the queue had been running.
+#
+# Three sources, all reproducible:
+#   * the honest 657-game log, per team. Every figure quoted below is registered in
+#     config/metrics.yaml (team_accuracy_*, team_win_gap_*) and recomputed by
+#     scripts/validate_metrics.py. SAMPLE CAVEAT: the log is 657 of 1,361 games, so
+#     a team appears 37 to 52 times. The notes say "the games we logged" on purpose.
+#     Do not edit that to "last season".
+#   * data/exports/preseason_ratings.csv, regenerated 2026-07-27 after completing a
+#     half-applied trade in the roster mapping (see roster_overrides.csv).
+#   * ESPN's offseason power rankings, published 2026-07-24, as the consensus foil.
+#
+# The overlay is NOT the engine (w31-05 says so out loud, keep it near the front of
+# the approval order). Never imply our daily picks use it.
+
+- id: w31-01
+  status: hold
+  text: |
+    Across the 657 games we logged last season, our model's accuracy ranged from 60
+    percent on Portland games to 87.5 percent on New Orleans games. That spread says
+    less about those teams than about us. A team that loses predictably is the
+    easiest thing a rating system can face. Portland is where we actually had to
+    work.
+
+- id: w31-02
+  status: hold
+  text: |
+    The team our model read worst last season was Milwaukee. Across the games we
+    logged it expected them to win about 23 and they won 13. Almost ten wins of
+    daylight between the rating and the result, the widest gap of any team in the
+    league.
+
+- id: w31-03
+  status: hold
+  text: |
+    Minnesota went the other way. Our model expected about 25 wins from them in the
+    games we logged and they delivered 31, the largest positive gap in the league.
+    We were late on them for months, and the log shows exactly how long it took us
+    to catch up.
+
+- id: w31-04
+  status: hold
+  text: |
+    Every prediction model has teams it cannot read. Ours spent last season
+    over-rating Milwaukee and under-rating Minnesota, and both are sitting in the
+    public log with timestamps. Publishing your own blind spots is cheaper than
+    waiting for someone else to find them.
+
+- id: w31-05
+  status: hold
+  text: |
+    Worth being clear about what our preseason table is. It takes where each team
+    finished, pulls that toward league average, then prices in the roster changes.
+    It is an analytical overlay. The model that makes our daily picks does not use
+    it. We publish it so it can be graded in June, not because it is the thing doing
+    the predicting.
+
+- id: w31-06
+  status: hold
+  text: |
+    The biggest disagreement between our preseason numbers and the consensus is
+    Charlotte. ESPN's July power rankings have them 21st. Our overlay has them 8th,
+    because they finished last season a lot stronger than the conversation around
+    them suggested. One of us is going to look silly by December, in public.
+
+- id: w31-07
+  status: hold
+  text: |
+    Utah is the same argument in reverse. The July consensus has them 17th and our
+    overlay has them 30th, for a boring reason: we weight what actually happened,
+    and what happened was a 1286 rating. If they make the playoffs this season, that
+    is a result our method could not have seen coming, and we will say so.
+
+- id: w31-08
+  status: hold
+  text: |
+    Our overlay has Indiana 22nd. The consensus has them 15th, and here the
+    consensus is probably right. Our rating is anchored to a season Tyrese
+    Haliburton missed in full, and he is reportedly on track for opening night. A
+    number built purely from results cannot see a healthy star walking back through
+    the door.
+
+- id: w31-09
+  status: hold
+  text: |
+    Consensus has Minnesota 7th. Our overlay has them 15th. Our roster math reads
+    their summer as a loss of about 43 rating points, the fourth largest downgrade
+    in the league. Two very different readings of the same offseason, both on the
+    record before a game gets played.
+
+- id: w31-10
+  status: hold
+  text: |
+    By our roster math the biggest talent gain of this offseason belongs to
+    Washington, up about 56 rating points. They also finished last season as the
+    lowest rated team in the league, so that buys them a move from 30th to 24th in
+    our table. Improving and contending are different problems, and only one of them
+    got solved.
+
+- id: w31-11
+  status: hold
+  text: |
+    The largest roster downgrade in our numbers is the Clippers, down about 111
+    points, and nearly all of it is Kawhi Leonard leaving. Our system rates the
+    players coming back close to replacement level. One caveat we would rather state
+    than bury: that trade is on hold pending a league investigation, so treat the
+    number as provisional.
+
+- id: w31-12
+  status: hold
+  text: |
+    Toronto gains almost 40 rating points in our preseason table, the fourth biggest
+    move of the summer, and every point of it assumes a trade the league has not
+    cleared yet. We would rather publish the number with the asterisk attached than
+    sit on it until the story gets tidy.
+
+- id: w31-13
+  status: hold
+  text: |
+    A warning about reading our own preseason table. Brooklyn, Sacramento and
+    Chicago all show large rating gains, and most of that is not talent. It is our
+    season reset pulling every team toward league average, which flatters whoever
+    was worst. Read the roster column, not the change column.
+
+- id: w31-14
+  status: hold
+  text: |
+    Milwaukee sits 27th in our preseason table, and the interesting part is not the
+    superstar exit. Our ratings had them 22nd at the end of last season, in a year
+    he was available for 36 games. The number says the rebuild started well before
+    the trade did.
+
+- id: w31-15
+  status: hold
+  image: docs/growth/posts/assets/receipts/receipt_season_20260726.png
+  text: |
+    New here: we run an NBA prediction model that publishes every pick before tip
+    off and grades it in public. 70.6 percent across 657 games last season, verified
+    by a walk forward audit. This month we are pointing the same treatment at our
+    preseason numbers for all 30 teams, on the record, before anyone can claim we
+    knew all along.

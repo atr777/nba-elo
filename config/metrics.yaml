@@ -88,6 +88,75 @@ metrics:
     unit: percent
     tolerance: 0.01
     sample: 145
+
+  # ---------------------------------------------------------------- per team
+  # Added 2026-07-27 for the league-wide Notes run. A HUMAN NAMES THE TEAM, the
+  # machine checks the number: if the log ever changes such that Portland is no
+  # longer our worst team, this entry does NOT quietly re-point at whoever is worst
+  # now, it drifts and fails. That is deliberate. The "worst/best" wording lives in
+  # the label, which no code reads.
+  #
+  # SAMPLE CAVEAT, applies to every metric in this block: the honest log covers 657
+  # of the season's 1,361 games (2025-11-30 to 2026-05-10), so a team appears 37 to
+  # 52 times, not 82. Never write "last season Portland" about these; write "across
+  # the games we logged". Team samples this small carry roughly a 7pp standard error
+  # on accuracy, so the spread is real but the exact ordering is not.
+
+  team_accuracy_portland:
+    label: Accuracy on Portland Trail Blazers games (our worst team)
+    definition: >
+      Accuracy over logged games with Portland as home or away team. The lowest of
+      the 30 teams.
+    source: data/exports/prediction_tracking_honest.csv
+    filter: home_team_id == 22 or away_team_id == 22
+    value: 60.0
+    unit: percent
+    tolerance: 0.01
+    sample: 45
+    status: authoritative
+
+  team_accuracy_new_orleans:
+    label: Accuracy on New Orleans Pelicans games (our best team)
+    definition: >
+      Accuracy over logged games with New Orleans as home or away team. The highest
+      of the 30 teams. Reads as a strength but is not one: a team that loses
+      predictably is the easiest thing a rating system can face.
+    source: data/exports/prediction_tracking_honest.csv
+    filter: home_team_id == 3 or away_team_id == 3
+    value: 87.5
+    unit: percent
+    tolerance: 0.01
+    sample: 40
+    status: authoritative
+
+  team_win_gap_milwaukee:
+    label: Milwaukee wins above/below model expectation (our biggest miss)
+    definition: >
+      Actual wins minus summed pre-game win probability, over logged Milwaukee games.
+      Negative means the model expected more from them than they delivered. The most
+      negative of the 30 teams. Expectation is a sum of probabilities, so it is
+      fractional by construction.
+    source: data/exports/prediction_tracking_honest.csv
+    filter: home_team_id == 15 or away_team_id == 15
+    value: -9.83
+    unit: wins
+    tolerance: 0.01
+    sample: 39
+    status: authoritative
+
+  team_win_gap_minnesota:
+    label: Minnesota wins above/below model expectation (our biggest under-rate)
+    definition: >
+      As team_win_gap_milwaukee, for Minnesota. Positive means they beat the model's
+      expectation. Philadelphia's +8.53 is larger but is contaminated as content:
+      that roster no longer exists, so the number cannot be graded going forward.
+    source: data/exports/prediction_tracking_honest.csv
+    filter: home_team_id == 16 or away_team_id == 16
+    value: 6.08
+    unit: wins
+    tolerance: 0.01
+    sample: 49
+    status: authoritative
     status: authoritative
     published_in:
       - site stat block, labelled "Toss-Up Games"
