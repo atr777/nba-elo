@@ -130,6 +130,29 @@ def upload_image(path: Path) -> str:
     return url
 
 
+def create_link_attachment(url: str) -> str:
+    """Turn a URL into a note attachment id, which renders as a preview card.
+    Publishes nothing.
+
+    Verified 2026-07-27: the same /comment/attachment endpoint takes
+    {"type": "link"}, and for one of our own post URLs answers with an attachment
+    of type "post", i.e. the card with our title and cover image rather than a
+    generic link box. That is the format other Substack writers use to drive reads
+    from Notes, and it is why this exists as its own function: `type` in, different
+    `type` out, and the difference is the whole point.
+    """
+    r = get_session().post(f"{PUB_API}/comment/attachment",
+                           json={"type": "link", "url": url}, timeout=60)
+    if r.status_code >= 400:
+        raise NotePostFailed(f"link attachment HTTP {r.status_code}: {r.text[:200]}",
+                             certainly_not_posted=True)
+    aid = (r.json() or {}).get("id")
+    if not aid:
+        raise NotePostFailed("link attachment returned no id",
+                             certainly_not_posted=True)
+    return aid
+
+
 def create_attachment(image_url: str) -> str:
     """Turn a hosted image URL into a note attachment id. Publishes nothing."""
     r = get_session().post(f"{PUB_API}/comment/attachment",
@@ -155,19 +178,32 @@ def get_session():
     return api._session
 
 
-def post_note(text: str, live: bool = False, image: str | None = None) -> dict:
+def post_note(text: str, live: bool = False, image: str | None = None,
+              link: str | None = None) -> dict:
     """Validate, then (only if live) publish. Returns a result dict.
 
     `image` is an optional local path. Visual notes outperform text-only ones
     (docs/research/2026-07-26-substack-growth-and-virality.md), and uploading is
     harmless on its own: nothing is public until the final post.
+
+    `link` is an optional URL, rendered as a preview card. Use it to point a note
+    at one of our posts. IMAGE AND LINK ARE MUTUALLY EXCLUSIVE: a note carries one
+    attachment list, and quietly dropping one of the two would publish something
+    other than what the queue says.
     """
     validate(text)
+    if image and link:
+        raise NoteRejected("a note takes an image or a link, not both")
     payload = build_payload(text)
     if not live:
         if image:
             payload["_image_to_upload"] = str(image)
+        if link:
+            payload["_link_to_attach"] = link
         return {"posted": False, "dry_run": True, "payload": payload}
+
+    if link:
+        payload["attachmentIds"] = [create_link_attachment(link)]
 
     if image:
         path = Path(image)

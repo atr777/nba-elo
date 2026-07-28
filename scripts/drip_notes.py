@@ -222,8 +222,11 @@ def main() -> None:
     nid = str(item.get("id"))
     text = str(item.get("text", "")).strip()
     image = item.get("image") or None
+    link = item.get("link") or None
 
     try:
+        if image and link:
+            raise NoteRejected("has both an image and a link; pick one")
         validate(text)
     except NoteRejected as e:
         # Record it so a bad note is not retried on all five daily crons.
@@ -235,8 +238,9 @@ def main() -> None:
         return
 
     if not a.live:
-        log(f"DRY RUN ({why}). Would post {nid}: {text[:90]!r}"
-            + (f" + image {image}" if image else " (text only)"))
+        extra = (f" + image {image}" if image
+                 else f" + link card {link}" if link else " (text only)")
+        log(f"DRY RUN ({why}). Would post {nid}: {text[:90]!r}{extra}")
         log("Add --live to publish.")
         return
 
@@ -253,7 +257,7 @@ def main() -> None:
             log(f"NOTE on {nid} image: {warn}")
 
     try:
-        res = post_note(text, live=True, image=image)
+        res = post_note(text, live=True, image=image, link=link)
     except NotePostFailed as e:
         if e.certainly_not_posted:
             # Substack rejected it, so nothing is live. Release the claim to retry.
@@ -278,7 +282,7 @@ def main() -> None:
 
     led[nid] = {"posted_at": stamp, "note_url": res.get("url"),
                 "http_status": res.get("http_status"), "text": text[:120],
-                "image": image}
+                "image": image, "link": link}
     save_ledger(led)
     log(f"POSTED {nid} -> {res.get('url') or 'live (no id in response)'}")
 

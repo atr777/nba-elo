@@ -16,6 +16,11 @@
 # 4:5 portrait (1080x1350); the drip warns on landscape. Build them with
 # `python scripts/generate_receipt_note.py season|calibration`.
 #
+# LINKS: add an optional `link:` URL to attach a preview card, which is how a note
+# sends readers to one of our posts. For a Second Bounce URL Substack renders the
+# post card (title + cover), not a plain link box. A note takes an IMAGE OR A LINK,
+# not both; the drip rejects a note carrying both rather than guessing.
+#
 # USE THEM SPARINGLY (Aaron, 2026-07-26): if every note carries a graphic the feed
 # looks automated. The receipt is for notes making a claim that wants proof; the
 # observational and human notes stay text-only. Roughly 1 in 3 is the target.
@@ -277,12 +282,15 @@
 
 - id: w31-16
   status: hold
+  link: https://secondbounce.substack.com/p/the-last-decision
   text: |
     LeBron James will earn about 3.9 million dollars in Philadelphia next season,
     down from nearly 53 million. Our ratings have him 13th among active NBA
     players. What we can add to the discount story: it does not make Philadelphia a
     favorite. Our preseason table moves them from 1486 to 1530, which is 12th. A
     minimum contract for a top 15 player is a bargain, not a coronation.
+
+    We wrote the long version when he signed.
 
 - id: w31-17
   status: hold
