@@ -67,11 +67,28 @@ ET_ZONE = "America/New_York"  # zoneinfo handles EDT/EST; the season spans both
 
 
 def log(msg: str) -> None:
-    LOG.parent.mkdir(parents=True, exist_ok=True)
+    """Never raises. Logging is bookkeeping, and bookkeeping must not be able to
+    stop, or half-finish, a public irreversible action.
+
+    This was not hypothetical. The .bat used to redirect python into this same
+    file, cmd's `>>` holds an exclusive write handle, and so every scheduled run
+    died here with PermissionError on the first call. 22 crashed runs, no notes
+    posted by the scheduler at all. The redirect is fixed in run_notes_drip.bat;
+    this is the belt to that braces, because the failure mode is silent and the
+    worst version of it lands mid-send.
+    """
     line = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}"
-    with LOG.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
-    print(line)
+    try:
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        with LOG.open("a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+    except OSError as e:
+        line += f"   (WARNING: could not write {LOG.name}: {e})"
+    try:
+        print(line)
+    except (OSError, ValueError, AttributeError):
+        # No usable stdout: pythonw.exe, or a closed/redirected handle.
+        pass
 
 
 def load_queue() -> list:
