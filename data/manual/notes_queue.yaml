@@ -41,11 +41,17 @@
     Rule we operate by: no number ships unless a strict walk-forward replay can
     reproduce it. It cost us almost three points of marketing this week. Worth it.
 
+# CORRECTED 2026-07-27. Was "2,280" and "second-biggest mover is 1,947", both from
+# before the 2026-07-09 player-ratings rebuild (additive position offsets + the
+# full-season box-score backfill). Current: Giannis 2,030, and the second biggest
+# mover is Anthony Davis at 1,848, not LeBron at 1,844. The same stale pair is still
+# sitting in the two unposted packs and the W27 bank.
 - id: w27-03
   status: hold
   text: |
-    Giannis moving is 2,280 rating points changing conferences. For scale: an
-    average NBA player is 1,500, and this summer's second-biggest mover is 1,947.
+    Giannis moving is 2,030 rating points changing conferences. For scale, an
+    average NBA player is 1,500, and the second biggest mover this summer, Anthony
+    Davis, is 1,848.
 
 - id: w27-04
   status: hold
@@ -164,7 +170,7 @@
     waiting for someone else to find them.
 
 - id: w31-05
-  status: hold
+  status: approved
   text: |
     Worth being clear about what our preseason table is. It takes where each team
     finished, pulls that toward league average, then prices in the roster changes.
@@ -189,7 +195,7 @@
     is a result our method could not have seen coming, and we will say so.
 
 - id: w31-08
-  status: hold
+  status: approved
   text: |
     Our overlay has Indiana 22nd. The consensus has them 15th, and here the
     consensus is probably right. Our rating is anchored to a season Tyrese
@@ -198,7 +204,7 @@
     the door.
 
 - id: w31-09
-  status: hold
+  status: approved
   text: |
     Consensus has Minnesota 7th. Our overlay has them 15th. Our roster math reads
     their summer as a loss of about 43 rating points, the fourth largest downgrade
@@ -206,7 +212,7 @@
     record before a game gets played.
 
 - id: w31-10
-  status: hold
+  status: approved
   text: |
     By our roster math the biggest talent gain of this offseason belongs to
     Washington, up about 56 rating points. They also finished last season as the
@@ -215,7 +221,7 @@
     got solved.
 
 - id: w31-11
-  status: hold
+  status: approved
   text: |
     The largest roster downgrade in our numbers is the Clippers, down about 111
     points, and nearly all of it is Kawhi Leonard leaving. Our system rates the
@@ -224,7 +230,7 @@
     number as provisional.
 
 - id: w31-12
-  status: hold
+  status: approved
   text: |
     Toronto gains almost 40 rating points in our preseason table, the fourth biggest
     move of the summer, and every point of it assumes a trade the league has not
@@ -256,3 +262,33 @@
     by a walk forward audit. This month we are pointing the same treatment at our
     preseason numbers for all 30 teams, on the record, before anyone can claim we
     knew all along.
+
+# --- Reaction to the LeBron contract coverage (2026-07-27) --------------------
+# Neil Paine published "LeBron James Just Took the Biggest Discount of Any Modern
+# Star" on 2026-07-26. The contract reporting is his and everyone else's; what we
+# add is the model's read on whether the bargain changes the forecast. Do not
+# restate his production-vs-pay analysis, we have no salary data to check it with.
+#
+# Contract verified 2026-07-27 (ESPN, CBS, Yahoo): 2 years / $8M, veteran minimum,
+# $3,876,529 in 2026-27 with a $4,070,355 player option for 2027-28, down from
+# nearly $53M with the Lakers. Ratings are from the post-rebuild file: LeBron is
+# 1,844 and 13th among the 541 players active in 2026, NOT the 1,947 still sitting
+# in the July 8 and July 9 packs.
+
+- id: w31-16
+  status: hold
+  text: |
+    LeBron James will earn about 3.9 million dollars in Philadelphia next season,
+    down from nearly 53 million. Our ratings have him 13th among active NBA
+    players. What we can add to the discount story: it does not make Philadelphia a
+    favorite. Our preseason table moves them from 1486 to 1530, which is 12th. A
+    minimum contract for a top 15 player is a bargain, not a coronation.
+
+- id: w31-17
+  status: hold
+  text: |
+    Philadelphia added the 13th rated active player in our system for close to the
+    minimum. Miami added the 3rd. Washington added the 10th. Our preseason table
+    still has all three of them outside the top ten, because a roster is more than
+    its best addition, and last season does not stop counting because the summer
+    was loud.
