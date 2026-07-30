@@ -769,9 +769,46 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
     # Full rated roster for the client-side player lookup (compact JSON)
     players_json = json.dumps(get_all_players(), separators=(',', ':'), ensure_ascii=False)
 
+    # ---- Share + discovery metadata ---- #
+    # Built from the same acc_pct / total_games the receipt uses, so the card, the
+    # page and the meta tags cannot disagree. SITE_URL keeps its trailing slash:
+    # og:image is built by concatenation, and a canonical URL that redirects
+    # (github.io drops the trailing slash on a directory) costs the signal.
+    site_url = 'https://atr777.github.io/nba-predictions/'
+    share_title = f'Second Bounce · {acc_pct}% on {total_games} NBA games, logged before tip-off'
+    meta_description = (
+        f'An NBA prediction model with a public track record: {acc_pct}% across '
+        f'{total_games} games, every pick published before tip-off and graded after '
+        f'the final. Daily predictions, win probabilities and player ratings, with '
+        f'the misses left in.'
+    )
+    json_ld = json.dumps({
+        '@context': 'https://schema.org',
+        '@type': 'Dataset',
+        'name': 'Second Bounce NBA prediction record',
+        'description': meta_description,
+        'url': site_url,
+        'creator': {'@type': 'Organization', 'name': 'Second Bounce', 'url': site_url},
+        'isAccessibleForFree': True,
+        'license': 'https://creativecommons.org/licenses/by/4.0/',
+        'temporalCoverage': '2025-11-30/..',
+        'keywords': ['NBA', 'predictions', 'Elo rating', 'sports analytics',
+                     'forecast accuracy', 'calibration'],
+        'variableMeasured': [
+            {'@type': 'PropertyValue', 'name': 'Prediction accuracy',
+             'value': acc_pct, 'unitText': 'percent'},
+            {'@type': 'PropertyValue', 'name': 'Games graded',
+             'value': total_games, 'unitText': 'games'},
+        ],
+    }, indent=2)
+
     replacements = {
         '{{DATE_STR}}':     date_str,
         '{{DATE_STAMP}}':   date_stamp,
+        '{{SITE_URL}}':         site_url,
+        '{{SHARE_TITLE}}':      share_title,
+        '{{META_DESCRIPTION}}': meta_description,
+        '{{JSON_LD}}':          json_ld,
         '{{STATS}}':        stats_html,
         '{{PREDICTIONS}}':  predictions_html,
         '{{RESULTS}}':      results_html,
@@ -820,6 +857,27 @@ def main():
         f.write(html)
 
     print(f"  Saved: pages/index.html ({len(html):,} bytes)")
+
+    # sitemap.xml is generated rather than static so <lastmod> stays honest: the
+    # page changes every pipeline run, and a sitemap claiming otherwise is worse
+    # than no sitemap. robots.txt IS static (pages/robots.txt) because it does not
+    # carry a date.
+    sitemap = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        '  <url>\n'
+        '    <loc>https://atr777.github.io/nba-predictions/</loc>\n'
+        f'    <lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>\n'
+        '    <changefreq>daily</changefreq>\n'
+        '    <priority>1.0</priority>\n'
+        '  </url>\n'
+        '</urlset>\n'
+    )
+    sitemap_path = os.path.join(pages_dir, 'sitemap.xml')
+    with open(sitemap_path, 'w', encoding='utf-8') as f:
+        f.write(sitemap)
+    print(f"  Saved: pages/sitemap.xml")
+
     return out_path
 
 

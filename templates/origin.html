@@ -4,6 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Second Bounce · {{DATE_STR}}</title>
+
+<!-- ============================================================ -->
+<!-- SHARE + DISCOVERY METADATA                                     -->
+<!--                                                                -->
+<!-- Added 2026-07-29. Until then the page had a <title> and nothing -->
+<!-- else: no description, no canonical, no Open Graph, no Twitter   -->
+<!-- card. Every link shared anywhere rendered as a bare URL with no -->
+<!-- title, image or blurb, which is the worst possible state for a  -->
+<!-- site whose only distribution channel is X.                      -->
+<!--                                                                -->
+<!-- The numbers here are TOKENS, filled from the honest log by      -->
+<!-- export_github_pages.py. Never hardcode a figure into a meta     -->
+<!-- tag: this is the most-seen and least-reviewed surface we own,   -->
+<!-- so it is where a stale number would live longest.               -->
+<!-- ============================================================ -->
+<meta name="description" content="{{META_DESCRIPTION}}">
+<link rel="canonical" href="{{SITE_URL}}">
+<meta name="robots" content="index, follow, max-image-preview:large">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Second Bounce">
+<meta property="og:url" content="{{SITE_URL}}">
+<meta property="og:title" content="{{SHARE_TITLE}}">
+<meta property="og:description" content="{{META_DESCRIPTION}}">
+<meta property="og:image" content="{{SITE_URL}}assets/og_card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{SHARE_TITLE}}">
+
+<!-- summary_large_image is what gives X the full-width card. Without an
+     explicit twitter:card, X falls back to a small thumbnail or nothing. -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@SecondBounceNBA">
+<meta name="twitter:creator" content="@SecondBounceNBA">
+<meta name="twitter:title" content="{{SHARE_TITLE}}">
+<meta name="twitter:description" content="{{META_DESCRIPTION}}">
+<meta name="twitter:image" content="{{SITE_URL}}assets/og_card.png">
+<meta name="twitter:image:alt" content="{{SHARE_TITLE}}">
+
+<!-- Structured data. Dataset rather than Article: the page is a standing,
+     dated record of predictions, and Dataset is what search and AI answer
+     engines look for when deciding whether a claimed statistic is sourced. -->
+<script type="application/ld+json">
+{{JSON_LD}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
