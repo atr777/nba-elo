@@ -37,21 +37,41 @@ CLOUD = (245, 245, 247)
 ASH = (159, 159, 160)
 IRIS = (132, 125, 255)
 
-FONTS = "C:/Windows/Fonts/"
+# FONTS MUST RESOLVE ON BOTH HOSTS. This runs on Aaron's Windows PC by hand and on
+# the Ubuntu VPS from cron, and the older receipt generator hardcodes C:/Windows/
+# Fonts/, which simply does not exist there. Each role lists Windows first, then the
+# DejaVu equivalents that ship with the VPS, and the first hit wins.
+FONT_CANDIDATES = {
+    "mono": ["C:/Windows/Fonts/consola.ttf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"],
+    "mono_bold": ["C:/Windows/Fonts/consolab.ttf",
+                  "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"],
+    "serif_bold": ["C:/Windows/Fonts/georgiab.ttf",
+                   "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"],
+    "sans": ["C:/Windows/Fonts/segoeui.ttf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
+}
+
+
+def _font(role: str, sz: int):
+    for path in FONT_CANDIDATES[role]:
+        if Path(path).exists():
+            return ImageFont.truetype(path, sz)
+    sys.exit(f"no font available for {role!r}; tried {FONT_CANDIDATES[role]}")
 
 
 def mono(sz, bold=False):
-    return ImageFont.truetype(FONTS + ("consolab.ttf" if bold else "consola.ttf"), sz)
+    return _font("mono_bold" if bold else "mono", sz)
 
 
 def serif(sz):
-    # DM Serif Display is a webfont we do not ship; Georgia is the closest thing
-    # every Windows box already has, and this renders once into a PNG anyway.
-    return ImageFont.truetype(FONTS + "georgiab.ttf", sz)
+    # DM Serif Display is a webfont we do not ship. Georgia on Windows, DejaVu Serif
+    # on the VPS; this renders once into a PNG so the substitution is invisible.
+    return _font("serif_bold", sz)
 
 
 def sans(sz):
-    return ImageFont.truetype(FONTS + "segoeui.ttf", sz)
+    return _font("sans", sz)
 
 
 def figures() -> tuple[float, int]:

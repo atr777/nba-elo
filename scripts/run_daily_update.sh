@@ -32,7 +32,14 @@ $PYTHON scripts/daily_update.py >> "$LOG" 2>&1
 
 # Step 2: Social card, before the HTML that references it. Reads the honest log, so
 # the shared image can never show a number the record does not support.
-$PYTHON scripts/generate_og_card.py >> "$LOG" 2>&1
+#
+# NON-FATAL ON PURPOSE. This is the least important artifact in the pipeline and it
+# has the most fragile dependency (Pillow, plus Windows font paths that do not exist
+# here). On 2026-07-29 a missing PIL took down the entire site update under set -e:
+# a link preview image stopped the predictions from publishing. The site keeps its
+# previous card and carries on.
+$PYTHON scripts/generate_og_card.py >> "$LOG" 2>&1 \
+  || echo "[WARN] og card generation failed, keeping the previous one" >> "$LOG"
 
 # Step 3: Generate GitHub Pages HTML (also writes pages/sitemap.xml)
 $PYTHON scripts/export_github_pages.py >> "$LOG" 2>&1
@@ -55,8 +62,15 @@ mkdir -p assets
 cp "$SITE_SRC/index.html" .
 cp "$SITE_SRC/robots.txt" .
 cp "$SITE_SRC/sitemap.xml" .
-cp "$SITE_SRC/assets/og_card.png" assets/
-git add index.html robots.txt sitemap.xml assets/og_card.png
+git add index.html robots.txt sitemap.xml
+
+# The card is optional (step 2 is allowed to fail), so its copy must be too, or a
+# skipped card would abort the deploy under set -e and take the site with it. If it
+# was not regenerated this run, whatever is already committed stays live.
+if [ -f "$SITE_SRC/assets/og_card.png" ]; then
+  cp "$SITE_SRC/assets/og_card.png" assets/
+  git add assets/og_card.png
+fi
 
 # Only sitemap's <lastmod> and the page's timestamp change on a quiet day, so this
 # still commits most runs. That is fine and intended: the site says when it last ran.
