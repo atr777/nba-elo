@@ -1,0 +1,43 @@
+# Second Bounce · https://atr777.github.io/nba-predictions/
+#
+# Added 2026-07-29. The site had no robots.txt at all, which is not neutral: with
+# no sitemap reference, discovery depends entirely on inbound links, and we have
+# almost none.
+#
+# AI crawlers are allowed ON PURPOSE. The whole product is a checkable public
+# record, so being quotable by an answer engine is distribution, not leakage.
+# Everything here is already published on the page.
+
+User-agent: *
+Allow: /
+
+# Answer engines, named explicitly so a future blanket disallow cannot catch them
+# by accident.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://atr777.github.io/nba-predictions/sitemap.xml

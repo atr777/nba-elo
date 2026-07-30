@@ -878,6 +878,20 @@ def main():
         f.write(sitemap)
     print(f"  Saved: pages/sitemap.xml")
 
+    # robots.txt is copied out of templates/ rather than kept in pages/, because
+    # pages/ is NOT tracked by this repo: locally it is a clone of the
+    # atr777/nba-predictions repo, and on the VPS it is a scratch output dir. A
+    # static file living only there would be absent on the VPS, the deploy's `cp`
+    # would fail, and because that copy chain is joined by && the whole site update
+    # would stop. Found the hard way 2026-07-29.
+    robots_src = os.path.join(os.path.dirname(__file__), '..', 'templates', 'robots.txt')
+    robots_path = os.path.join(pages_dir, 'robots.txt')
+    with open(robots_src, encoding='utf-8') as f:
+        robots = f.read()
+    with open(robots_path, 'w', encoding='utf-8') as f:
+        f.write(robots)
+    print(f"  Saved: pages/robots.txt")
+
     return out_path
 
 
