@@ -140,7 +140,26 @@ def main():
                 _games = _pd.read_csv('data/raw/nba_games_all.csv')
                 _latest = _dt.strptime(str(int(_games['date'].max())), '%Y%m%d')
                 _yesterday = _dt.now() - _td(days=1)
-                if _latest.date() < _yesterday.date():
+                # CAP THE WINDOW. The old CDN fallback pulled the whole season in one
+                # request, so the gap size did not matter. ESPN is one request per
+                # day, so it does. Between June and October `latest` is always weeks
+                # behind "yesterday" simply because the season is over, and without
+                # this cap every run of every day crawled ~46 empty dates: slow,
+                # pointless, and 5x/day of needless traffic at the source we now
+                # depend on. Introduced and caught the same night, 2026-07-30.
+                #
+                # The fallback's job is a night or two the API missed. A larger hole
+                # is either the offseason or a real backlog, and a real backlog wants
+                # a human running fetch_missing_games_fallback.py with an explicit
+                # range, not a cron quietly grinding through it.
+                _MAX_FALLBACK_DAYS = 10
+                _gap = (_yesterday.date() - _latest.date()).days
+                if _gap > _MAX_FALLBACK_DAYS:
+                    log(f"[FALLBACK] Skipped: {_gap} days behind, beyond the "
+                        f"{_MAX_FALLBACK_DAYS}-day window. Normal in the offseason. "
+                        f"For a real backlog run: python "
+                        f"scripts/fetch_missing_games_fallback.py --start ... --end ...")
+                elif _latest.date() < _yesterday.date():
                     _start = (_latest + _td(days=1)).strftime('%Y-%m-%d')
                     _end = _yesterday.strftime('%Y-%m-%d')
                     log(f"[FALLBACK] Fetching {_start} to {_end} from ESPN...")
