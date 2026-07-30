@@ -1,5 +1,16 @@
 # Posting pack: the correction essay (2026-07-29)
 
+**PUBLISHED 2026-07-29:**
+https://secondbounce.substack.com/p/how-we-caught-our-own-model-cheating
+
+Verified live: both images render as PNG, the footer reads once, the narration is
+attached, and the share card comes back `summary_large_image` with a 1200x675 image.
+
+The canonical URL above is what the tweets use. Aaron's share link carries
+`?showWelcomeOnShare=true`, which pops a subscribe prompt for new arrivals; that is
+worth something at this subscriber count, so swap it in if you prefer the prompt over
+the shorter URL. Both render the same card.
+
 Post: `docs/growth/posts/2026-07-29-how-we-caught-our-own-model-cheating.md`
 Substack draft: id **209055629** (the earlier 209054364 was deleted, its images were
 broken and its footer rendered twice).
@@ -96,7 +107,7 @@ A prediction you can recompute later is an opinion with a date on it.
 ```
 Full write-up, including the chart and the harness we used:
 
-[POST URL]
+https://secondbounce.substack.com/p/how-we-caught-our-own-model-cheating
 
 If you publish a forecasting record, the question worth asking isn't about your
 model. It's when your predictions were written down, and who could check.

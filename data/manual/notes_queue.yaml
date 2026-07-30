@@ -281,7 +281,7 @@
 # in the July 8 and July 9 packs.
 
 - id: w31-16
-  status: hold
+  status: approved
   link: https://secondbounce.substack.com/p/the-last-decision
   text: |
     LeBron James will earn about 3.9 million dollars in Philadelphia next season,
@@ -300,3 +300,19 @@
     still has all three of them outside the top ten, because a roster is more than
     its best addition, and last season does not stop counting because the summer
     was loud.
+
+# --- The correction essay went live 2026-07-29 -------------------------------
+# https://secondbounce.substack.com/p/how-we-caught-our-own-model-cheating
+# Uses the canonical URL as a link card, so the note renders the post's own title
+# and cover rather than a bare link. Time-sensitive: a note pointing at a fresh post
+# is worth more this week than next, so this is the one to approve first.
+
+- id: w31-18
+  status: hold
+  link: https://secondbounce.substack.com/p/how-we-caught-our-own-model-cheating
+  text: |
+    We cut our own published accuracy after catching a leak in our tracker. It had
+    been asking who would win each game using ratings that had already absorbed that
+    game's result. 48 games flipped one way, 29 the other, net 19 wins we had not
+    earned. The honest number is 70.6 percent across 657 games. Here is the whole
+    autopsy.

@@ -80,8 +80,19 @@ def load_history() -> list:
 
 def save_row(row: dict) -> None:
     """One row per date. Re-running on the same day overwrites that day rather than
-    appending a duplicate, so a trend never double-counts a day the PC ran twice."""
-    rows = [r for r in load_history() if r.get("date") != row["date"]]
+    appending a duplicate, so a trend never double-counts a day the PC ran twice.
+
+    A same-day re-run KEEPS a subscriber count already recorded for that date. It is
+    the one field a human had to read off a dashboard, so silently blanking it on the
+    next automated run destroys the only number that cannot be re-collected. Ran into
+    exactly that within an hour of writing the script.
+    """
+    history = load_history()
+    prior = next((r for r in history if r.get("date") == row["date"]), None)
+    if prior and not row.get("subscribers") and prior.get("subscribers"):
+        row["subscribers"] = prior["subscribers"]
+        row["subscribers_source"] = prior.get("subscribers_source", "")
+    rows = [r for r in history if r.get("date") != row["date"]]
     rows.append({k: row.get(k, "") for k in FIELDS})
     rows.sort(key=lambda r: r["date"])
     OUT.parent.mkdir(parents=True, exist_ok=True)
