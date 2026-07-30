@@ -330,3 +330,41 @@
     still has all three of them outside the top ten, because a roster is more than
     its best addition, and last season does not stop counting because the summer
     was loud.
+
+# --- AWARENESS TIER (2026-07-30) ---------------------------------------------
+# From the growth case study Aaron sent (docs/research/2026-07-30-substack-growth-
+# case-study.md). Its three note types are Awareness / Education / Conviction, and an
+# audit of this queue found we write almost exclusively the last two: numbers and
+# claims. Nothing here would stop a scroll from someone who does not already care
+# about ELO ratings, which is most people, and all of the people we do not have.
+#
+# These three lead with a human observation and let the number arrive second. No
+# graphics on purpose: the receipt is for claims that want proof, and these are not
+# claims.
+#
+# If these get restacks and the Education notes do not, that is the answer to why the
+# feed has produced 0 restacks in 10 notes, and the queue should shift accordingly.
+
+- id: w31-19
+  status: hold
+  text: |
+    Our model has no idea which team you support. It does not know a jersey from a
+    logo, has never watched a game, and cannot tell you why anything happened. Last
+    season it still called 7 games in 10 correctly. Basketball is more predictable
+    than it feels while you are watching it.
+
+- id: w31-20
+  status: hold
+  text: |
+    The strangest thing about running a prediction model is that its worst nights are
+    the ones you enjoy most. A 90 percent favourite losing is the model failing and
+    the sport working. We log those in the same place as the wins, which makes them
+    easier to admit and no easier to watch.
+
+- id: w31-21
+  status: hold
+  text: |
+    We spent a summer trying to make our NBA model smarter and mostly proved it was
+    already done. Recalibration made it worse. A home-advantage sweep changed nothing.
+    A one-line "higher rating wins" rule scores about the same as the full engine. Some
+    projects end not when they fail but when they stop moving.
