@@ -2,6 +2,8 @@
 
 *We published a 73.5% record, audited our own tracker, and cut it to 70.6%. Here's the bug that inflated it, and why this kind of error survives review.*
 
+![The withdrawn record beside the one that survived a walk-forward audit](assets/correction_hero.png)
+
 We run a model that predicts NBA games. Every pick gets published before tip-off and graded after the final whistle, and the whole log is public. That log is the product. The model is just the thing that fills it in.
 
 In early July we sat down to write a season recap and needed one number: how often were we right? The tracker said 73.5%, across 657 games. It was a good number. Good enough that we almost led with it.
@@ -64,4 +66,4 @@ Mostly, though, because we think our 70.6% is roughly what an honest NBA model l
 
 Ours are logged before tip-off, and the log is public, misses included. Check us.
 
-*The walk-forward harness is `audit_tracking_leakage.py`. Our full game-by-game record is at [atr777.github.io/nba-predictions](https://atr777.github.io/nba-predictions/).*
+The walk-forward harness is `audit_tracking_leakage.py`. Our full game-by-game record, misses included, is at [atr777.github.io/nba-predictions](https://atr777.github.io/nba-predictions/).

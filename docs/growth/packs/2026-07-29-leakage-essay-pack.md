@@ -1,7 +1,13 @@
 # Posting pack: the correction essay (2026-07-29)
 
 Post: `docs/growth/posts/2026-07-29-how-we-caught-our-own-model-cheating.md`
-Graphic: `posts/assets/leakage_cumulative_accuracy.png`
+Substack draft: id **209055629** (the earlier 209054364 was deleted, its images were
+broken and its footer rendered twice).
+Graphics, both already uploaded into the draft as PNG:
+`posts/assets/correction_hero.png` (header) and
+`posts/assets/leakage_cumulative_accuracy.png` (the two-line chart).
+Narration: `posts/assets/2026-07-29-how-we-caught-our-own-model-cheating-voice-of-the-model.mp3`,
+also copied to `Desktop/SecondBounce_Brand/`. STT-verified word for word, 623 of 623.
 Substack URL: fill in after Aaron publishes, then update the note in the queue.
 
 **Strategy note.** Written for engineers and analysts, not NBA fans, because at one
@@ -146,9 +152,12 @@ that outcome. 48 games flipped one way, 29 the other, net 19 wins we hadn't earn
 
 1. Read the post. It names our own error in public, so you should be comfortable
    with every line before it ships.
-2. Publish the Substack draft (it is pushed and waiting).
-3. Paste the live URL back to me. I'll fill `[POST URL]` in tweet 8 and add the
+2. **Attach the audio.** In the Substack editor: `+` menu, then Audio, then upload
+   `2026-07-29-how-we-caught-our-own-model-cheating-voice-of-the-model.mp3` from
+   `Desktop/SecondBounce_Brand/`. Both images are already in the draft body.
+3. Publish the Substack draft (id 209055629).
+4. Paste the live URL back to me. I'll fill `[POST URL]` in tweet 8 and add the
    Note to the queue with a link card.
-4. Post thread 1 on X. Best window for this audience is a weekday morning ET.
-5. When someone replies with a technical question, answer it yourself rather than
+5. Post thread 1 on X. Best window for this audience is a weekday morning ET.
+6. When someone replies with a technical question, answer it yourself rather than
    letting it sit. Replies are the only thing that has moved our numbers at all.

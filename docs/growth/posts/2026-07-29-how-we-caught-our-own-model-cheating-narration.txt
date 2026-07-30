@@ -1,0 +1,29 @@
+We published an accuracy record of seventy-three point five percent. Then we audited our own tracker, and cut it to seventy point six.
+
+Same model. The same six hundred and fifty-seven games. The same season. The difference was entirely in how we were measuring.
+
+Here is the bug, because it is a good one.
+
+Our ratings work like chess Elo. Every team carries a number, every result nudges those numbers, and a prediction is a comparison of two numbers at a moment in time. The word doing all the damage there is moment.
+
+The old tracker walked back through the season, took each completed game, and asked the model who would win. That sounds reasonable. But the ratings it asked were today's ratings, already updated with every result the season had produced. Including the game it was being asked about.
+
+So when it asked who wins Boston at Denver on January fourteenth, the rating it consulted had already absorbed the fact that Denver won that game. Not by much. One game out of a thousand or so. But in the direction of the answer, every single time, six hundred and fifty-seven times in a row.
+
+The model was not guessing. It was remembering, slightly.
+
+This is the kind of error that survives review. Nothing crashes. No error appears in a log. The code does what it says, the arithmetic is right, the games and the outcomes are real. If you had asked us to read that function we would have read it and shrugged, because the flaw is not in any line of it. It is in the order the lines run, relative to time.
+
+The fix for a question about time is to be strict about time. So we rebuilt the season as a walk-forward replay. Start with ratings that know nothing. Take the games in the order they were played. For each one, predict first, using only what a rating built from earlier games could know. Then record the result. Then let the ratings update. Then move on. Never let the third step happen before the second.
+
+Run that against the same games, and one detail is worth sitting with. The leak did not quietly lift every prediction. It flipped forty-eight games from wrong to right, and it also flipped twenty-nine from right to wrong. Seventy-seven games changed their answer, and the net was nineteen wins we had not earned. Four hundred and eighty-three correct became four hundred and sixty-four.
+
+It was not a small consistent bonus. It was noise with a thumb on the scale. A leak does not have to be large to disqualify a record. It only has to be systematic.
+
+What changed, other than the number, is that predictions are now written down when they are made. Every night, before games start, each pick is logged with a timestamp and its probability. When the game finishes, it is graded. Nothing is recomputed afterward, because nothing needs to be. The log is not a reconstruction of what we would have said. It is what we said.
+
+That is the whole idea, and it is dull on purpose. A prediction that can be recomputed later is not a prediction. It is an opinion with a date attached.
+
+Seventy point six percent is roughly what an honest model of this game looks like. Vegas closing lines land near seventy-three. We are behind the market, and we say so. If you see a model claiming to beat it comfortably, the useful question is not about the model. It is when the predictions were written down, and who could check.
+
+Ours are logged before tip-off. The log is public, misses included.
