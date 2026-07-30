@@ -128,7 +128,11 @@ def main():
             log(f"[WARN] NBA API fetch failed: {str(e)}")
             log("Falling back to NBA CDN schedule...")
 
-        # CDN fallback: used when API times out or returns nothing but there may still be a gap
+        # SECOND-SOURCE fallback, when the API times out or returns nothing while a
+        # gap may still exist. Was the NBA CDN until 2026-07-30; that endpoint has
+        # been 403 since 2026-07-09 and is not coming back, so this now goes to ESPN,
+        # which is genuinely independent of stats.nba.com. See
+        # scripts/fetch_missing_games_fallback.py for the full history.
         if not api_succeeded or num_new_games_fetched == 0:
             try:
                 import pandas as _pd
@@ -139,23 +143,29 @@ def main():
                 if _latest.date() < _yesterday.date():
                     _start = (_latest + _td(days=1)).strftime('%Y-%m-%d')
                     _end = _yesterday.strftime('%Y-%m-%d')
-                    log(f"[CDN] Fetching {_start} to {_end} from NBA CDN...")
+                    log(f"[FALLBACK] Fetching {_start} to {_end} from ESPN...")
                     import subprocess as _sp
+                    # Timeout scales with the range: this walks one request per day,
+                    # and the old flat 60s would have killed a multi-week catch-up
+                    # part way through.
+                    _days = (_dt.strptime(_end, '%Y-%m-%d') - _dt.strptime(_start, '%Y-%m-%d')).days + 1
                     _r = _sp.run(
-                        f'python scripts/fetch_missing_from_cdn.py --start {_start} --end {_end}',
-                        shell=True, capture_output=True, text=True, timeout=60
+                        f'{sys.executable} scripts/fetch_missing_games_fallback.py '
+                        f'--start {_start} --end {_end}',
+                        shell=True, capture_output=True, text=True,
+                        timeout=max(120, 8 * _days),
                     )
                     log(_r.stdout.strip())
                     if _r.returncode == 0:
                         _games2 = _pd.read_csv('data/raw/nba_games_all.csv')
                         num_new_games_fetched = len(_games2) - len(_games)
-                        log(f"[CDN] Added {num_new_games_fetched} new games via CDN fallback")
+                        log(f"[FALLBACK] Added {num_new_games_fetched} new games via ESPN")
                     else:
-                        log(f"[CDN] CDN fallback failed: {_r.stderr.strip()}")
+                        log(f"[FALLBACK] ESPN fallback failed: {_r.stderr.strip()}")
                 else:
-                    log("[CDN] Database already current through yesterday — no CDN fetch needed")
+                    log("[FALLBACK] Database already current through yesterday, no fetch needed")
             except Exception as e2:
-                log(f"[ERROR] CDN fallback also failed: {str(e2)}")
+                log(f"[ERROR] ESPN fallback also failed: {str(e2)}")
     else:
         log("[DRY RUN] Skipping game fetch")
 

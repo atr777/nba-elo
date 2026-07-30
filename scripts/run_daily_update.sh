@@ -19,6 +19,21 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] === Pipeline starting ===" >> "$LOG"
 # (regenerated CSVs) that would otherwise block the pull.
 git pull --autostash origin master >> "$LOG" 2>&1 || echo "[WARN] git pull failed" >> "$LOG"
 
+# Step 0: source health, ONCE A DAY on the 07:00 run only.
+#
+# Not on all five runs: the nba_api probes are slow, and hammering them four extra
+# times a day to learn the same thing is how you get rate-limited by the source you
+# are trying to monitor. Non-fatal, like the card step, because a monitoring check
+# must never be able to stop the thing it monitors.
+#
+# This exists because the CDN schedule endpoint sat dead for three weeks in the
+# offseason and nobody noticed: with no games, a broken ingest looks exactly like a
+# quiet night. Opening night would have been the first time it showed.
+if [ "$(date +%H)" = "07" ]; then
+  $PYTHON scripts/check_data_sources.py --quiet >> "$LOG" 2>&1 \
+    || echo "[WARN] a REQUIRED data source is down, see above" >> "$LOG"
+fi
+
 # Step 1: Full daily update (fetch games + recalculate ELO)
 $PYTHON scripts/daily_update.py >> "$LOG" 2>&1
 

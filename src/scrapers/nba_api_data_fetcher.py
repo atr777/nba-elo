@@ -49,71 +49,81 @@ NBA_API_TO_DB_ID = {
 }
 
 
-def fetch_games_from_nba_cdn(date_str):
-    """
-    Fallback: Fetch games from NBA CDN schedule when API doesn't have data.
+def fetch_games_from_espn(date_str):
+    """Second-source schedule for one date, when the NBA API returns nothing.
 
-    Args:
-        date_str: Date string in YYYY-MM-DD format
+    REPLACES fetch_games_from_nba_cdn. That read cdn.nba.com/static/json/staticData/
+    scheduleLeagueV2.json, which has answered 403 from Akamai's edge since
+    2026-07-09. Re-tested 2026-07-30 from both Aaron's PC and the VPS, with browser
+    User-Agent / Referer / Origin, and on the sibling paths: every combination is
+    denied. The path is closed to us, so no header trick brings it back.
 
-    Returns:
-        List of game dictionaries or empty list if unavailable
+    Also: the old pairing was not really a fallback. Primary was stats.nba.com and
+    fallback was cdn.nba.com, both NBA-owned, so one decision on their side took out
+    both legs at once. ESPN is independent, and this repo already relies on it for
+    box-score backfill and injuries.
+
+    Returns the SAME final shape get_todays_games returns, so the caller can use it
+    directly. The old CDN version returned an NBA-API-shaped intermediate that then
+    got re-translated; going straight to the final shape removes a translation step
+    that only existed because the source was NBA-flavoured.
+
+    game_id is `YYYYMMDD_home_away`, our own triple, because ESPN does not know NBA
+    game ids and inventing a plausible-looking one would add a fifth id space to a
+    project that has already lost weeks to four.
     """
     try:
         import requests
 
-        url = 'https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json'
-        response = requests.get(url, timeout=10)
-
-        if response.status_code != 200:
+        r = requests.get(
+            'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',
+            params={'dates': date_str.replace('-', '')},
+            headers={'User-Agent': 'Mozilla/5.0 (compatible; SecondBounce/1.0)'},
+            timeout=20,
+        )
+        if r.status_code != 200:
+            print(f"[WARNING] ESPN schedule fallback HTTP {r.status_code}")
             return []
 
-        data = response.json()
-        game_dates = data.get('leagueSchedule', {}).get('gameDates', [])
+        from nba_api.stats.static import teams as _nba_teams
+        by_nba_id = {t['id']: t['full_name'] for t in _nba_teams.get_teams()}
+        name_to_db = {by_nba_id[k]: v for k, v in NBA_API_TO_DB_ID.items()
+                      if k in by_nba_id}
+        aliases = {'LA Clippers': 'Los Angeles Clippers'}
 
-        # Convert YYYY-MM-DD to MM/DD/YYYY for matching
-        target_date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-        target_date_cdn = target_date_obj.strftime('%m/%d/%Y')
+        date_int = date_str.replace('-', '')
+        games = []
+        for ev in r.json().get('events', []) or []:
+            comp = (ev.get('competitions') or [{}])[0]
+            status = (comp.get('status') or {}).get('type') or {}
+            side = {}
+            for c in comp.get('competitors') or []:
+                raw = (c.get('team') or {}).get('displayName', '')
+                side[c.get('homeAway')] = aliases.get(raw, raw)
+            if 'home' not in side or 'away' not in side:
+                continue
+            home_id = name_to_db.get(side['home'])
+            away_id = name_to_db.get(side['away'])
+            if home_id is None or away_id is None:
+                print(f"[WARNING] ESPN name not mapped: {side}")
+                continue
 
-        # Find matching date
-        for game_date in game_dates:
-            gd = game_date.get('gameDate', '')
-            if gd.startswith(target_date_cdn):
-                games = game_date.get('games', [])
-
-                # Convert to our format
-                result_games = []
-                for game in games:
-                    home_team = game.get('homeTeam', {})
-                    away_team = game.get('awayTeam', {})
-
-                    result_games.append({
-                        'gameId': game.get('gameId', ''),
-                        'gameStatus': 1,  # Scheduled
-                        'gameStatusText': game.get('gameStatusText', 'Scheduled'),
-                        'gameCode': f"{target_date_obj.strftime('%Y%m%d')}/{away_team.get('teamTricode', '')}{home_team.get('teamTricode', '')}",
-                        'homeTeam': {
-                            'teamId': home_team.get('teamId', 0),
-                            'teamCity': home_team.get('teamCity', ''),
-                            'teamName': home_team.get('teamName', ''),
-                            'teamTricode': home_team.get('teamTricode', '')
-                        },
-                        'awayTeam': {
-                            'teamId': away_team.get('teamId', 0),
-                            'teamCity': away_team.get('teamCity', ''),
-                            'teamName': away_team.get('teamName', ''),
-                            'teamTricode': away_team.get('teamTricode', '')
-                        },
-                        'gameTimeUTC': game.get('gameTimeUTC', ''),
-                        'gameEt': game.get('gameEt', '')
-                    })
-
-                return result_games
-
-        return []
+            state = status.get('name', '')
+            code = 3 if state == 'STATUS_FINAL' else (2 if state == 'STATUS_IN_PROGRESS' else 1)
+            games.append({
+                'home_team': side['home'],
+                'away_team': side['away'],
+                'time': status.get('shortDetail') or status.get('detail') or 'TBD',
+                'home_id': home_id,
+                'away_id': away_id,
+                'status': 'Final' if code == 3 else ('Live' if code == 2 else 'Scheduled'),
+                'game_status_code': code,
+                'game_id': f"{date_int}_{home_id}_{away_id}",
+            })
+        return games
 
     except Exception as e:
-        print(f"[WARNING] NBA CDN fallback failed: {e}")
+        print(f"[WARNING] ESPN schedule fallback failed: {e}")
         return []
 
 
@@ -320,52 +330,20 @@ def get_todays_games(date_str=None):
                 'game_id': game.get('gameId', '')
             })
 
-        # If no games found, try CDN fallback
+        # If the NBA API gave us nothing, go to the independent source. ESPN returns
+        # this function's final shape already, so it is used as-is; the old CDN path
+        # returned an NBA-shaped intermediate and re-ran the whole filtering block
+        # below it, which is a translation step that only existed because the
+        # fallback was also NBA-flavoured.
         if len(games) == 0:
-            # Use provided date or today's date
             fallback_date = date_str if date_str else target_date.strftime('%Y-%m-%d')
-            print(f"[INFO] No games found from API for {fallback_date}, trying NBA CDN fallback...")
-            cdn_games = fetch_games_from_nba_cdn(fallback_date)
-
-            if len(cdn_games) > 0:
-                print(f"[SUCCESS] Found {len(cdn_games)} games from NBA CDN")
-                # Re-process CDN games through the same filtering logic
-                games_data = cdn_games
-                games = []
-
-                for game in games_data:
-                    game_code = game.get('gameCode', '')
-                    if game_code and '/' in game_code:
-                        game_date_str = game_code.split('/')[0]
-
-                        if game_date_str != target_date_str:
-                            continue
-
-                        home_team_data = game.get('homeTeam', {})
-                        away_team_data = game.get('awayTeam', {})
-
-                        home_team_id_nba = home_team_data.get('teamId')
-                        away_team_id_nba = away_team_data.get('teamId')
-
-                        home_team_id = NBA_API_TO_DB_ID.get(home_team_id_nba, home_team_id_nba)
-                        away_team_id = NBA_API_TO_DB_ID.get(away_team_id_nba, away_team_id_nba)
-
-                        home_team = f"{home_team_data.get('teamCity', '')} {home_team_data.get('teamName', '')}".strip()
-                        away_team = f"{away_team_data.get('teamCity', '')} {away_team_data.get('teamName', '')}".strip()
-
-                        # Use gameStatusText which contains the ET time (e.g., "8:00 pm ET")
-                        time_str = game.get('gameStatusText', 'TBD')
-
-                        games.append({
-                            'home_team': home_team,
-                            'away_team': away_team,
-                            'time': time_str,
-                            'home_id': home_team_id,
-                            'away_id': away_team_id,
-                            'status': 'Scheduled',
-                            'game_status_code': 1,
-                            'game_id': game.get('gameId', '')
-                        })
+            print(f"[INFO] No games from the NBA API for {fallback_date}, "
+                  f"trying the ESPN fallback...")
+            espn_games = fetch_games_from_espn(fallback_date)
+            if espn_games:
+                print(f"[SUCCESS] Found {len(espn_games)} games via ESPN")
+                return espn_games
+            print(f"[INFO] ESPN had nothing for {fallback_date} either")
 
         return games
 
