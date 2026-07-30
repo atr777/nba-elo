@@ -89,6 +89,38 @@ metrics:
     tolerance: 0.01
     sample: 145
 
+  # ------------------------------------------------- the retracted figure
+  # Registered 2026-07-29 so the number we WITHDREW is reproducible too. It is quoted
+  # in exactly one place, the correction essay, and the founding credibility story
+  # depends on the gap being real and checkable. An unverifiable claim about our own
+  # dishonesty is still an unverifiable claim.
+
+  leaked_accuracy:
+    label: The withdrawn 2025-26 accuracy (leakage inflated)
+    definition: >
+      Accuracy as the old tracker reported it, over the same 657 games. That tracker
+      predicted each game using ratings already updated with every completed game,
+      including the one being predicted, so the model had partly seen the answer.
+      NEVER quote this as our record; it exists to be compared against
+      season_accuracy.
+    source: data/exports/prediction_tracking_vps_final.csv
+    value: 73.52
+    unit: percent
+    tolerance: 0.01
+    sample: 657
+    status: withdrawn
+
+  leaked_correct:
+    label: Correct picks the leak manufactured
+    definition: >
+      Correct picks in the withdrawn file. The difference against season_correct (464)
+      is 19 games, which is the whole size of the lie.
+    source: data/exports/prediction_tracking_vps_final.csv
+    value: 483
+    unit: count
+    tolerance: 0
+    status: withdrawn
+
   # ---------------------------------------------------------------- per team
   # Added 2026-07-27 for the league-wide Notes run. A HUMAN NAMES THE TEAM, the
   # machine checks the number: if the log ever changes such that Portland is no
@@ -204,6 +236,10 @@ forbidden:
       - docs/growth/posts/*.md
     allow:
       - docs/growth/posts/2026-07-01-season-recap.md
+      # The correction essay. Quoting the withdrawn figure IS the subject here, and
+      # both sides of it are registered above (leaked_accuracy / leaked_correct) so
+      # the story's own numbers are recomputed like any other.
+      - docs/growth/posts/2026-07-29-how-we-caught-our-own-model-cheating.md
 
 # SINGLE-WRITER CONTRACTS. Which script is allowed to write which artifact.
 # This is the other half of the same idea: not just "one definition per number" but

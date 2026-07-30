@@ -78,6 +78,24 @@ def _brier():
     return float(np.mean((d["predicted_home_prob"] - y) ** 2)), len(d)
 
 
+def _leaky():
+    """The WITHDRAWN tracking file, kept so the correction stays checkable."""
+    p = ROOT / "data/exports/prediction_tracking_vps_final.csv"
+    if not p.exists():
+        raise FileNotFoundError(p)
+    return pd.read_csv(p).dropna(subset=["correct"])
+
+
+def _leaked_accuracy():
+    d = _leaky()
+    return 100 * d["correct"].mean(), len(d)
+
+
+def _leaked_correct():
+    d = _leaky()
+    return int(d["correct"].sum()), len(d)
+
+
 def _team_rows(tid: int):
     """(home rows, away rows) for one team. Split, because 'this team won' and
     'this team was favoured' both flip meaning with venue."""
@@ -112,6 +130,8 @@ COMPUTE = {
     "toss_up_accuracy": _flag("is_toss_up"),
     "calibration_80_90": _bucket(0.80, 0.90),
     "calibration_70_80": _bucket(0.70, 0.80),
+    "leaked_accuracy": _leaked_accuracy,
+    "leaked_correct": _leaked_correct,
     # Team ids are the project's own (see data/raw/nba_games_all.csv), not NBA ids.
     "team_accuracy_portland": _team_accuracy(22),
     "team_accuracy_new_orleans": _team_accuracy(3),
