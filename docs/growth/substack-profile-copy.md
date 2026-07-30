@@ -1,40 +1,54 @@
-# Substack profile copy: tagline and welcome email
+# Substack profile: what is actually missing, and the copy for it
 
-**Why this file exists.** Checked the publication settings on 2026-07-30 and found
-`welcome_email_body` **empty** and `hero_text` **empty**. So every new subscriber gets
-a subject line ("Welcome to Second Bounce") and a blank email, and the landing page has
-no tagline under the title. At one subscriber, the first impression is the most
-expensive thing we own to waste.
+**Corrected 2026-07-30.** An earlier version of this file claimed four gaps: empty
+tagline, empty welcome email, no logo, no cover photo. **Three of those were wrong.**
 
-Flagged by the growth case study Aaron sent, whose 15-minute profile checklist includes
-a warm welcome email that links to the best past piece. See
-`docs/research/2026-07-30-substack-growth-case-study.md`.
+I read them from `/api/v1/publication`, where `hero_text`, `logo_url` and
+`cover_photo_url` are indeed empty. But the publication runs with
+**`is_personal_mode: true`**, which means it renders from Aaron's *personal profile*
+fields instead. Checked against the live page: the tagline text is on it, the ball mark
+appears as the logo, and a header image is present. Nothing to fix.
 
-**Aaron applies these.** They are outbound copy that goes to every future subscriber,
-so they are drafted here rather than set silently by me. Click-by-click is at the
-bottom. No em dashes in either, per house rules.
+**Lesson for next time: verify a "missing" setting against the rendered page before
+acting on it.** An empty field in one API object is not the same as a gap on the site.
 
 ---
 
-## 1. Tagline (`hero_text`)
+## The one real item: the welcome email for FREE subscribers
 
-Shown under the publication name on the landing page. Keep it short; it gets truncated.
+Substack keeps **five** separate welcome emails. The one that matters for us is the
+free-subscriber one, because we have no paid tier and never will
+([[substack-paid-tier-blocked]]).
+
+| Substack label | Field | Relevant to us? |
+|---|---|---|
+| Welcome email to **free** subscribers | `unfinished_subscription_email_content` | **YES, this one** |
+| Welcome email to paid subscribers | `welcome_email_content` | No, no paid tier |
+| Welcome email to founding subscribers | `founding_tier_welcome_email_content` | No |
+| Welcome email to imported subscribers | `imported_welcome_email_content` | No |
+| Paid expiry / renewal emails | various | No |
+
+Note the trap: the field named `welcome_email_content`, the one you would reach for, is
+the **paid** email. It would never fire. The free one is oddly named
+`unfinished_subscription_email_content`.
+
+**I could not confirm whether it currently has content.** Its value is loaded by the
+editor rather than sent with the settings page, so the only way to know is to open it.
+If there is already something reasonable in there, leave it.
+
+### Direct link
 
 ```
-NBA predictions with a public track record. Every pick logged before tip-off, graded after the final, misses left in.
+https://secondbounce.substack.com/publish/settings/edit?title=Welcome%20email%20to%20free%20subscribers&bodyField=unfinished_subscription_email_content&titleField=unfinished_subscription_email_subject&titlePlaceholder=Email%20subject...&redirect=https%3A%2F%2Fsecondbounce.substack.com%2Fpublish%2Fsettings
 ```
 
-Shorter alternative if it wraps badly:
+### Subject
 
 ```
-NBA predictions, logged before tip-off and graded in public. 70.6% across 657 games.
+Welcome to Second Bounce
 ```
 
----
-
-## 2. Welcome email
-
-Subject is already set to "Welcome to Second Bounce" and is fine. This is the body.
+### Body
 
 ```
 Thanks for subscribing.
@@ -66,30 +80,6 @@ Aaron
 Second Bounce
 ```
 
-**Note on the 73.5% figure.** It appears here deliberately, the same exception the
-correction essay gets in `config/metrics.yaml`. The retracted number is the subject of
-the sentence, not a claim about our record. Do not reuse this phrasing anywhere the
-number is not being explicitly withdrawn.
-
----
-
-## Aaron: where to put these
-
-**Tagline**
-1. Go to https://secondbounce.substack.com/publish/settings
-2. Under **Basics**, find the short description or tagline field under the publication
-   name.
-3. Paste section 1. Save.
-
-**Welcome email**
-1. Same settings page, find **Emails** in the left menu (sometimes under
-   "Subscriber welcome page" / "Welcome email").
-2. Paste section 2 into the body. Leave the subject as it is.
-3. Make the post title a real link on the URL beneath it if the editor allows.
-4. Save, then use "send test email" to yourself if the option is there. Worth doing
-   once: it is the only way to see what a new subscriber actually receives.
-
-**Also worth 2 minutes while you are in there:** the publication has no logo or cover
-photo set (`logo_url` and `cover_photo_url` are both empty). We already have art that
-fits: `pages/assets/og_card.png` for a cover, and the ball mark at
-`docs/growth/posts/assets/logo_substack.png` for a logo.
+**On the 73.5% figure:** it appears deliberately, as the number being withdrawn, which
+is the same exception the correction essay carries in `config/metrics.yaml`. Do not
+reuse this phrasing anywhere the number is not explicitly being retracted.
