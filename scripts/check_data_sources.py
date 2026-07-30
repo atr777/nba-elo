@@ -39,10 +39,25 @@ def check_nba_api_games():
 
 
 def check_nba_api_scoreboard():
+    """Deliberately probes ScoreboardV2, because that is what production uses
+    (src/scrapers/nba_api_data_fetcher.py). Checking V3 here would test an endpoint
+    we do not depend on and report health we do not have.
+
+    V2 emits a DeprecationWarning about line-score data for early-season games. It
+    does NOT apply to us: we read only frame [0] (GameHeader, i.e. teams and status),
+    and quarter scores come from BoxScoreSummaryV3 in fetch_quarter_scores.py, which
+    is already V3. Verified 2026-07-30. Suppressed so it stops filling the daily log,
+    but the migration is still worth doing before the season on general principle.
+    """
+    import warnings
+
     from nba_api.stats.endpoints import scoreboardv2
 
-    d = scoreboardv2.ScoreboardV2(game_date="2026-04-10", timeout=45).get_data_frames()[0]
-    return len(d) > 0, f"{len(d)} games"
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        d = scoreboardv2.ScoreboardV2(game_date="2026-04-10",
+                                      timeout=45).get_data_frames()[0]
+    return len(d) > 0, f"{len(d)} games (V2 GameHeader, the frame we actually read)"
 
 
 def check_espn_scoreboard():
