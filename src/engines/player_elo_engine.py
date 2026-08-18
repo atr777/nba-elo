@@ -403,15 +403,43 @@ def run_player_elo_engine(
     games_processed = 0
     total_players_updated = 0
 
+    # JOIN ON STRINGS, AND INDEX ONCE. Two separate bugs lived in the old line
+    # `players_df[players_df['game_id'] == game_id]`.
+    #
+    # 1. CORRECTNESS. The two files are read independently, so pandas infers each
+    #    game_id column on its own. The box scores infer int; the games file infers
+    #    object as soon as ONE row holds a non-numeric id. The ESPN fallback added
+    #    exactly that on 2026-07-30 (ids of the form 20260613_24_18, deliberately,
+    #    because ESPN does not know NBA game ids), which silently retyped the whole
+    #    column to str. `str == int` is False, so the lookup stopped matching for
+    #    almost every historical game, the engine saw 413 players instead of 2,733,
+    #    and the site's Top Players table filled up with role players on 19 games.
+    #    It failed silently for 19 days: no crash, just a quietly wrong table.
+    #    Casting both sides to str is format-agnostic and cannot regress this way.
+    #
+    # 2. SPEED. The old line rescanned all ~888k box-score rows for each of ~32k
+    #    games, which is why a full rebuild took about 20 minutes. Grouping once
+    #    turns that into a dict lookup.
+    players_df = players_df.copy()
+    players_df['game_id'] = players_df['game_id'].astype(str)
+    players_by_game = {gid: grp.to_dict('records')
+                       for gid, grp in players_df.groupby('game_id', sort=False)}
+    logger.info(f"Indexed box scores for {len(players_by_game):,} games")
+
+    missing_games = 0
     for idx, game in games_df.iterrows():
-        game_id = game['game_id']
+        game_id = str(game['game_id'])
         date = game['date']
 
-        # Get player data for this game
-        game_players = players_df[players_df['game_id'] == game_id].to_dict('records')
+        game_players = players_by_game.get(game_id)
 
-        if len(game_players) == 0:
-            logger.warning(f"Game {game_id}: No player data found")
+        if not game_players:
+            missing_games += 1
+            # One line per game drowned the log in tens of thousands of warnings,
+            # which is how the real problem stayed invisible. Counted, summarised
+            # after the loop, and only the first few are named.
+            if missing_games <= 5:
+                logger.warning(f"Game {game_id}: no box-score rows")
             continue
 
         # Process game
@@ -427,6 +455,23 @@ def run_player_elo_engine(
 
     logger.info(f"Processed {games_processed:,} games")
     logger.info(f"Updated {total_players_updated:,} player-game records")
+    if missing_games:
+        logger.warning(f"{missing_games:,} of {len(games_df):,} games had no box-score "
+                       f"rows ({100 * missing_games / len(games_df):.1f}%)")
+
+    # A join that has quietly broken looks exactly like a season with no data, so
+    # fail loudly rather than writing a plausible-looking file. The historical
+    # baseline is ~2,700 rated players across 32k games; 413 is what the broken
+    # string/int comparison produced, and it published for 19 days without a murmur.
+    coverage = games_processed / max(len(games_df), 1)
+    if coverage < 0.90:
+        raise SystemExit(
+            f"REFUSING TO WRITE: only {coverage:.1%} of games matched box scores "
+            f"({games_processed:,}/{len(games_df):,}). That is a broken join, not a "
+            f"data gap. Check that game_id types agree between the games file and "
+            f"the box scores; both sides are cast to str here, so a failure this "
+            f"large means the ids themselves disagree."
+        )
 
     # Export results
     logger.info("Exporting rating history...")
