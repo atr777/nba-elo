@@ -171,8 +171,13 @@ def get_todays_games(date_str=None):
                     print(f"[INFO] Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 else:
-                    # Final attempt failed, re-raise the exception
-                    raise
+                    # Do NOT re-raise. The live board is cdn.nba.com/static/json/
+                    # liveData, 403 since 2026-07 like the rest of that path, and
+                    # raising here skipped the ESPN fallback below. That blanked
+                    # the site and the pre-game tracker on opening night 2026-10-20.
+                    print(f"[WARNING] NBA live scoreboard unavailable ({e}); "
+                          f"falling back to ESPN")
+                    games_data = []
     else:
         # Use scoreboardv2 for dates 2+ days in future or past dates
         game_date_formatted = target_date_obj.strftime('%m/%d/%Y')

@@ -135,6 +135,29 @@ def _load(path):
     return pd.read_csv(path) if path.exists() else pd.DataFrame()
 
 
+def _todays_schedule(today_int):
+    """Today's NOT-YET-STARTED games as games-file rows. Live and final games are
+    dropped: logging one would be a prediction made after tip-off, which is
+    exactly the leakage this tracker exists to prevent."""
+    cols = ["date", "home_team_id", "away_team_id",
+            "home_team_name", "away_team_name"]
+    try:
+        from src.scrapers.nba_api_data_fetcher import get_todays_games
+        d = str(today_int)
+        sched = get_todays_games(f"{d[:4]}-{d[4:6]}-{d[6:]}")
+    except Exception as e:
+        log(f"[WARN] schedule feed failed ({e})")
+        return pd.DataFrame(columns=cols)
+    rows = [{"date": today_int, "home_team_id": g["home_id"],
+             "away_team_id": g["away_id"], "home_team_name": g["home_team"],
+             "away_team_name": g["away_team"]}
+            for g in sched if g.get("game_status_code", 1) == 1]
+    skipped = len(sched) - len(rows)
+    if skipped:
+        log(f"Skipped {skipped} game(s) already live or final: too late to lock")
+    return pd.DataFrame(rows, columns=cols)
+
+
 def predict_pending(today_int=None, games=None):
     """Log locked predictions for today's still-unplayed games (once each)."""
     if today_int is None:
@@ -147,11 +170,22 @@ def predict_pending(today_int=None, games=None):
         & (games["home_score"].astype(int) == 0)
         & (games["away_score"].astype(int) == 0)
     ].copy()
+    # Ingestion only adds COMPLETED games through yesterday, so nothing in the
+    # live pipeline writes today's 0-0 rows; the filter above found zero games
+    # from launch until opening night 2026-10-20. Today's slate comes from the
+    # schedule feed (NBA live board, ESPN fallback) instead.
+    scheduled = pd.concat([scheduled, _todays_schedule(today_int)],
+                          ignore_index=True)
 
     pending, tracked = _load(PENDING_FILE), _load(TRACKING_FILE)
     known = set(pending["game_id"]) if len(pending) else set()
     known |= set(tracked["game_id"]) if len(tracked) else set()
-    todo = [g for _, g in scheduled.iterrows() if game_id(g) not in known]
+    todo, seen = [], set()
+    for _, g in scheduled.iterrows():
+        gid = game_id(g)
+        if gid not in known and gid not in seen:
+            seen.add(gid)
+            todo.append(g)
     if not todo:
         log(f"No new games to log for {today_int}")
         return 0
