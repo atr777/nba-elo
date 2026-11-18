@@ -235,6 +235,8 @@ def get_today_predictions():
                 'home_elo': home_elo,
                 'away_elo': away_elo,
                 'game_status_code': game.get('game_status_code', 1),
+                'home_score': game.get('home_score'),
+                'away_score': game.get('away_score'),
                 'home_id': home_id,
                 'away_id': away_id,
                 'logged_at': None,
@@ -246,7 +248,7 @@ def get_today_predictions():
 
         # Sort: scheduled first, then live, then final
         _overlay_logged(predictions)
-        status_order = {1: 0, 2: 1, 3: 2}
+        status_order = {2: 0, 1: 1, 3: 2}
         predictions.sort(key=lambda x: (status_order.get(x.get('game_status_code', 1), 0), x['time']))
         return predictions
     except Exception as e:
@@ -625,21 +627,46 @@ def _abbr(team_name):
 
 def _ticket(p, n, total, date_iso):
     status = p.get('game_status_code', 1)
-    if status == 3:
-        status_html = '<span class="t-status">Final</span>'
+    away_pick = not p['is_home_win']
+    hs, as_ = p.get('home_score'), p.get('away_score')
+    has_score = hs is not None and as_ is not None
+    pick_pts, opp_pts = (as_, hs) if away_pick else (hs, as_)
+
+    state, stamp, mid_note = '', '', ''
+    if status == 3 and has_score and hs != as_:
+        won = pick_pts > opp_pts
+        state = ' is-won' if won else ' is-miss'
+        top_right = (f'<span class="t-badge {"won" if won else "miss"}">'
+                     f'{"&#10003; Pick won" if won else "&#10007; Pick missed"}</span>')
+        stamp = f'<div class="t-stamp {"won" if won else "miss"}">{"Won" if won else "Miss"}</div>'
+        mid_note = 'Final'
+    elif status == 3:
+        top_right = '<span class="t-status">Final</span>'
     elif status == 2:
-        status_html = f'<span class="t-status live">Live &middot; {p["time"]}</span>'
+        state = ' is-live'
+        top_right = f'<span class="t-badge live"><i></i>Live &middot; {p["time"]}</span>'
+        if has_score:
+            diff = pick_pts - opp_pts
+            mid_note = (f'<span class="up">Pick up {diff}</span>' if diff > 0 else
+                        f'<span class="down">Pick down {-diff}</span>' if diff < 0 else 'Tied')
     else:
         t = _clean_time(p['time'])
         iso = _to_iso_et(date_iso, p['time'])
-        status_html = (f'<span class="t-status" data-iso="{iso}">{t}</span>' if iso
-                       else f'<span class="t-status">{t}</span>')
+        top_right = (f'<span class="t-status" data-iso="{iso}">{t}</span>' if iso
+                     else f'<span class="t-status">{t}</span>')
 
-    away_pick = not p['is_home_win']
+    if has_score and status > 1:
+        lo_a = ' lo' if status == 3 and as_ < hs else ''
+        lo_h = ' lo' if status == 3 and hs < as_ else ''
+        mid = (f'<div class="t-mid"><div class="t-sc"><b class="{lo_a.strip()}">{as_}</b>'
+               f'<span>&ndash;</span><b class="{lo_h.strip()}">{hs}</b></div>'
+               f'<div class="t-note mono">{mid_note}</div></div>')
+    else:
+        mid = '<div class="t-mid"><div class="t-at mono">at</div></div>'
+
     pick_pct = round(p['win_prob'] * 100)
     teams = []
-    for side, name, elo, is_pick in (('away', p['away'], p['away_elo'], away_pick),
-                                     ('home', p['home'], p['home_elo'], not away_pick)):
+    for side, name, is_pick in (('away', p['away'], away_pick), ('home', p['home'], not away_pick)):
         teams.append(
             f'<div class="t-team {side}{" is-pick" if is_pick else ""}">'
             f'<div class="abbr"><img src="{get_logo_by_abbrev(_abbr(name))}" alt="" '
@@ -649,18 +676,17 @@ def _ticket(p, n, total, date_iso):
     proj = ''
     if p.get('predicted_home_score'):
         proj = f"Proj {p['predicted_away_score']}&ndash;{p['predicted_home_score']}"
-
     if p.get('logged_at'):
         stub_cls, stub_foot = 't-stub', f'Logged {p["logged_at"]} ET'
     else:
         stub_cls, stub_foot = 't-stub unlogged', 'Not in the record'
 
     return f"""
-      <article class="ticket">
+      <article class="ticket{state}">
         <a class="ticket-link" href="{p['nba_url']}" target="_blank" rel="noopener" aria-label="{p['away']} at {p['home']} on NBA.com"></a>
         <div class="t-main">
-          <div class="t-top mono"><span>Game {n:02d} / {total:02d}</span>{status_html}</div>
-          <div class="t-route">{teams[0]}<div class="t-at mono">at</div>{teams[1]}</div>
+          <div class="t-top mono"><span>Game {n:02d} / {total:02d}</span>{top_right}</div>
+          <div class="t-route">{teams[0]}{mid}{teams[1]}</div>
           <div class="t-bar{' home-pick' if not away_pick else ''}"><i class="p" style="width:{pick_pct}%"></i></div>
           <div class="t-foot mono"><span>{p['conf_label']}</span><span>{proj}</span></div>
         </div>
@@ -669,6 +695,7 @@ def _ticket(p, n, total, date_iso):
           <div class="pr">{pick_pct}<small>%</small></div>
           {_barcode(f"{date_iso}_{p.get('home_id')}_{p.get('away_id')}")}
           <div class="lg mono">{stub_foot}</div>
+          {stamp}
         </div>
       </article>"""
 
