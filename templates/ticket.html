@@ -34,6 +34,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="assets/logo_substack.png">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" crossorigin>
 
 <style>
 /* Second Bounce, "Ticket" design (2026-11). Light paper, poster-scale grotesk,
@@ -295,10 +296,15 @@ footer { background: var(--ink); color: #d9d7d2; margin-top: 40px; padding: 72px
 .f-mark {
   font-family: var(--display); font-weight: 700; text-transform: uppercase; white-space: nowrap;
   font-size: min(11.2vw, 164px); letter-spacing: -0.06em; line-height: 0.8; color: #1f1f1f;
-  margin: 64px 0 0 -0.4vw; user-select: none;
+  margin: 120px 0 0 -0.4vw; user-select: none;
 }
 .f-bottom { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid #2a2a2a; padding-top: 20px; margin-top: 8px; color: #8d8a83; }
 .f-bottom .mono { font-size: 11.5px; }
+
+/* ---------- The ball (WebGL overlay; never takes a click) ---------- */
+#ballCanvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 40; }
+@media print { #ballCanvas { display: none; } }
+.receipt-stack { padding-top: 132px; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1080px) {
@@ -560,6 +566,361 @@ footer { background: var(--ink); color: #d9d7d2; margin-top: 40px; padding: 72px
     input.addEventListener('input', render);
     clear.addEventListener('click', function () { input.value = ''; render(); input.focus(); });
   })();
+</script>
+
+<!-- ============================================================
+     THE BALL. A real-time 3D basketball that rides the page.
+     Fully procedural (no model file, no texture downloads): seams, pebbled
+     leather, seam grooves and the printed wordmark are all computed per pixel
+     in the shader, so it stays sharp at any size and DPR. Motion is a small
+     physics sim in CSS-pixel space: gravity, restitution, squash on impact,
+     rolling spin. The "floor" is whichever page element the ball is perched on;
+     as you scroll, the floor moves and the ball reacts to it like a trampoline,
+     and hops to the next perch when the current one leaves the screen.
+     ============================================================ -->
+<canvas id="ballCanvas" aria-hidden="true"></canvas>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const canvas = document.getElementById('ballCanvas');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+} catch (e) { canvas.remove(); throw e; }
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+// Orthographic camera in CSS pixels (y up, so ball y is negated).
+const camera = new THREE.OrthographicCamera(0, 1, 0, -1, -2000, 2000);
+camera.position.z = 1000;
+let VW = 1, VH = 1;
+function resize() {
+  VW = innerWidth; VH = innerHeight;
+  renderer.setSize(VW, VH, false);
+  camera.right = VW; camera.bottom = -VH; camera.updateProjectionMatrix();
+}
+resize();
+addEventListener('resize', resize);
+
+const key = new THREE.DirectionalLight(0xfff4e6, 2.6); key.position.set(-2.2, 3.2, 3.0); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffd2a8, 1.6); rim.position.set(2.8, 1.4, -2.2); scene.add(rim);
+const fill = new THREE.DirectionalLight(0xbcd2ff, 0.45); fill.position.set(1.5, -2.5, 2.0); scene.add(fill);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a6a4a, 0.35));
+
+// ---------- printed wordmark (canvas -> texture) ----------
+function wordmark() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 300;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.font = '700 124px "Inter Tight", "Inter", Arial, sans-serif';
+  if ('letterSpacing' in g) g.letterSpacing = '-1px';
+  g.fillText('SECOND BOUNCE', 512, 150);
+  // the brand's bounce arcs under BOUNCE: first bounce big, second smaller
+  const bw = g.measureText('SECOND BOUNCE').width, bx = 512 + bw / 2 - g.measureText('BOUNCE').width;
+  const ex = 512 + bw / 2, mid = bx + (ex - bx) * 0.66;
+  g.strokeStyle = '#fff'; g.lineWidth = 11; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(bx + 6, 262); g.quadraticCurveTo((bx + mid) / 2, 196, mid, 262); g.stroke();
+  g.beginPath(); g.moveTo(mid, 262); g.quadraticCurveTo((mid + ex) / 2, 226, ex - 4, 262); g.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  t.colorSpace = THREE.NoColorSpace;
+  return t;
+}
+
+// ---------- the material ----------
+const logoDir = new THREE.Vector3(0.32, 0.34, 0.884).normalize();
+const up = new THREE.Vector3(0, 1, 0);
+const logoU = new THREE.Vector3().crossVectors(up, logoDir).normalize();
+const logoV = new THREE.Vector3().crossVectors(logoDir, logoU).normalize();
+const uniforms = {
+  uNormalMatrix: { value: new THREE.Matrix3() },
+  uBase:   { value: new THREE.Color('#bf4f1a') },
+  uSeam:   { value: new THREE.Color('#14100d') },
+  uInk:    { value: new THREE.Color('#1a120c') },
+  uLogo:   { value: null },
+  uLogoDir:{ value: logoDir }, uLogoU: { value: logoU }, uLogoV: { value: logoV },
+};
+const mat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff, roughness: 0.68, metalness: 0.0,
+  sheen: 0.18, sheenRoughness: 0.6, sheenColor: new THREE.Color('#ff9a5c'),
+  envMapIntensity: 0.45,
+});
+mat.onBeforeCompile = (sh) => {
+  Object.assign(sh.uniforms, uniforms);
+  sh.vertexShader = 'varying vec3 vObjPos;\n' + sh.vertexShader.replace(
+    '#include <begin_vertex>', '#include <begin_vertex>\n vObjPos = position;');
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', `#include <common>
+      uniform mat3 uNormalMatrix; uniform vec3 uBase, uSeam, uInk;
+      uniform sampler2D uLogo; uniform vec3 uLogoDir, uLogoU, uLogoV;
+      varying vec3 vObjPos;
+      vec3 hash33(vec3 p3) {
+        p3 = fract(p3 * vec3(.1031, .1030, .0973));
+        p3 += dot(p3, p3.yxz + 33.33);
+        return fract((p3.xxy + p3.yxx) * p3.zyx);
+      }
+      // Worley F1 + F2. r1/r2 = vectors from p to the nearest and second-nearest
+      // feature points. Leather pebbles are the cells; the channels between them
+      // are where F2 - F1 is small.
+      void worley2(vec3 p, out vec3 r1, out vec3 r2) {
+        vec3 i = floor(p), f = fract(p);
+        float b1 = 9.0, b2 = 9.0; r1 = vec3(0.0); r2 = vec3(0.0);
+        for (int z = -1; z <= 1; z++) for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+          vec3 g = vec3(float(x), float(y), float(z));
+          vec3 r = g + hash33(i + g) * 0.7 + 0.15 - f;
+          float d = dot(r, r);
+          if (d < b1) { b2 = b1; r2 = r1; b1 = d; r1 = r; }
+          else if (d < b2) { b2 = d; r2 = r; }
+        }
+      }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+      vec3 P = normalize(vObjPos);
+      // --- seams: two great circles + two curved seams around the +/-x axis ---
+      const float C0 = 0.72, D0 = 0.60;
+      float dA = abs(P.y), dB = abs(P.x);
+      float gx = abs(P.x) - (C0 - D0 * P.y * P.y);
+      vec3 gr = vec3(sign(P.x), 2.0 * D0 * P.y, 0.0);
+      vec3 grt = gr - dot(gr, P) * P;
+      float dC = abs(gx) / max(length(grt), 1e-3);
+      float sd = min(dA, min(dB, dC));
+      vec3 sdir = (dA < dB && dA < dC) ? vec3(0.0, sign(P.y), 0.0)
+                : (dB < dC ? vec3(sign(P.x), 0.0, 0.0) : sign(gx) * grt);
+      sdir = normalize(sdir - dot(sdir, P) * P + 1e-6);
+      const float SW = 0.026, GW = 0.065;
+      float aa = fwidth(sd) * 1.2;
+      float seam = 1.0 - smoothstep(SW - aa, SW + aa, sd);
+      // --- pebbles: Worley domes, faded out where they would alias ---
+      const float FREQ = 38.0;
+      vec3 r1, r2; worley2(P * FREQ, r1, r2);
+      float F1 = max(length(r1), 1e-4), F2 = max(length(r2), 1e-4);
+      float px = length(fwidth(P * FREQ));
+      float pebFade = (1.0 - smoothstep(0.45, 1.15, px)) * smoothstep(SW, SW * 2.2, sd);
+      // flat-topped pebble with a slight crown, dropping into a narrow channel
+      const float CH = 0.22;
+      float e = clamp((F2 - F1) / CH, 0.0, 1.0);
+      float edge = e * e * (3.0 - 2.0 * e);
+      float crown = 1.0 - 0.35 * F1 * F1;
+      float h = edge * crown;
+      vec3 gEdge = (6.0 * e * (1.0 - e) / CH) * (r1 / F1 - r2 / F2);   // d edge / dp (cell space)
+      vec3 gCrown = 0.7 * r1;                                         // d crown / dp
+      vec3 pebGrad = (gEdge * crown + edge * gCrown) * FREQ;          // gradient of h, object space
+      // --- leather colour: base, low-frequency tone drift, pebble tops a touch lighter ---
+      float drift = 0.035 * sin(P.x * 6.0 + P.y * 2.5) + 0.03 * sin(P.y * 4.5 - P.z * 5.5) + 0.02 * sin(P.z * 9.0 + P.x * 3.0);
+      vec3 leather = uBase * (1.0 + drift) * mix(1.0, mix(0.9, 1.05, h), pebFade);
+      float ao = mix(0.72, 1.0, smoothstep(SW, SW * 3.2, sd));
+      vec3 col = mix(leather * ao, uSeam, seam);
+      // --- printed wordmark, front and back panels ---
+      float ink = 0.0;
+      for (int k = 0; k < 2; k++) {
+        float sgn = k == 0 ? 1.0 : -1.0;
+        vec3 Ld = vec3(uLogoDir.x * sgn, uLogoDir.y, uLogoDir.z * sgn);
+        vec3 Lu = vec3(uLogoU.x * sgn, uLogoU.y, uLogoU.z * sgn);
+        if (dot(P, Ld) > 0.6) {
+          // CanvasTexture is flipY'd, so texture v runs bottom-up
+          vec2 uv = vec2(dot(P, Lu) / 0.52 + 0.5, 0.5 + dot(P, uLogoV) / (0.52 * 300.0 / 1024.0));
+          if (uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0) ink = max(ink, texture2D(uLogo, uv).a);
+        }
+      }
+      col = mix(col, uInk, ink * 0.9 * (1.0 - seam));
+      diffuseColor.rgb = col;
+      // --- final object-space normal: pebbles + seam groove walls ---
+      float tg = clamp(sd / GW, 0.0, 1.0);
+      float grooveSlope = 0.011 * 6.0 * tg * (1.0 - tg) / GW * (1.0 - seam);
+      vec3 nObj = P;
+      vec3 bump = pebGrad * 0.0034 * pebFade + grooveSlope * sdir;
+      bump -= dot(bump, P) * P;
+      nObj = normalize(P - bump);`)
+    .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      roughnessFactor = mix(0.7 - 0.08 * h * pebFade + 0.06 * (1.0 - pebFade), 0.55, seam);
+      roughnessFactor = mix(roughnessFactor, 0.42, ink * 0.8);`)
+    .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      normal = normalize(uNormalMatrix * nObj);`);
+};
+
+const ballGroup = new THREE.Group();      // world-space squash lives here
+const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 160, 120), mat);
+ball.quaternion.setFromEuler(new THREE.Euler(0.12, -0.25, 0.04));
+ballGroup.add(ball); scene.add(ballGroup);
+
+// soft contact shadow
+const sc = document.createElement('canvas'); sc.width = sc.height = 128;
+{ const g = sc.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128); }
+const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc), transparent: true, depthWrite: false, opacity: 0 }));
+shadow.position.z = -500; scene.add(shadow);
+
+// ---------- perches: where the ball lives as you scroll ----------
+// fx/mfx: where along the element's top edge the ball sits (desktop/phone).
+// dy: extra drop as a fraction of the element's height (the footer wordmark's
+// line box starts above its letters). only: restrict a perch to one layout.
+const PERCHES = [
+  { sel: '.hero-ctas', mfx: 0.88, mr: 28, only: 'mobile' },
+  { sel: '.receipt', fx: 0.25, mfx: 0.22, r: 58, mr: 36, slope: Math.tan(2.2 * Math.PI / 180) },
+  { sel: '#today .tickets, #today .empty-card', fx: 0.42, mfx: 0.84, r: 38, mr: 26 },
+  { sel: '#how .steps', fx: 0.63, mfx: 0.86, r: 38, mr: 26 },
+  { sel: '#record .record', fx: 0.9, mfx: 0.85, r: 40, mr: 26 },
+  { sel: '#results .day-rows', fx: 0.5, mfx: 0.86, r: 38, mr: 26 },
+  { sel: '#players .table-card', fx: 0.88, mfx: 0.85, r: 38, mr: 26 },
+  { sel: 'footer .f-mark', fx: 0.6, mfx: 0.72, r: 46, mr: 24, dy: 0.25 },
+];
+PERCHES.forEach(p => p.el = document.querySelector(p.sel));
+const nav = document.querySelector('.nav');
+const mobile = () => VW < 760;
+
+function floorOf(p) {
+  if (!p.el || (p.only === 'mobile' && !mobile()) || (p.only === 'desktop' && mobile())) return null;
+  const rc = p.el.getBoundingClientRect();
+  if (!rc.width) return null;
+  const fx = mobile() ? p.mfx : p.fx;
+  return { x: rc.left + rc.width * fx,
+           y: rc.top + (p.slope ? rc.width * fx * p.slope : 0) + (p.dy ? rc.height * p.dy : 0),
+           r: mobile() ? p.mr : p.r };
+}
+
+// ---------- physics state (CSS px, y down) ----------
+const G = 3200, E = 0.68;
+const S = { x: 0, y: -200, vx: 0, vy: 0, r: 40, cur: -2, floorPrev: null, squash: 0, squashV: 0, grounded: false, flying: false };
+const w = new THREE.Vector3(0, 1.1, 0);           // angular velocity, rad/s, world
+const dq = new THREE.Quaternion(), axis = new THREE.Vector3();
+
+function pick(topLimit) {
+  const fl = PERCHES.map(floorOf);
+  const ok = i => i >= 0 && fl[i] && fl[i].y > topLimit + 2 * fl[i].r && fl[i].y < VH - 8;
+  if (ok(S.cur)) return [S.cur, fl[S.cur]];
+  let best = -1, bd = 1e9;
+  fl.forEach((f, i) => { if (ok(i)) { const d = Math.abs(f.y - VH * 0.62); if (d < bd) { bd = d; best = i; } } });
+  if (best >= 0) return [best, fl[best]];
+  const r = mobile() ? 24 : 34;           // nothing on screen to sit on: wait in the bottom gutter
+  return [-1, { x: VW - Math.max(r + 14, (VW - Math.min(VW, 1240)) / 4), y: VH - 14, r }];
+}
+
+function hop(tx, floorY) {
+  const ty = floorY - S.r;
+  const rise = Math.max(40, S.y - ty + 50);
+  S.vy = -Math.sqrt(2 * G * rise);
+  const t = (-S.vy + Math.sqrt(S.vy * S.vy + 2 * G * Math.max(0, ty - S.y))) / G;
+  S.vx = (tx - S.x) / Math.max(t, 0.18);
+  S.grounded = false; S.flying = true;
+  w.x += (Math.random() - 0.5) * 3; w.z += -S.vx / S.r * 0.4;
+}
+
+let first = true, last = performance.now();
+
+// Once per frame: choose the perch, read its floor and how fast it is moving.
+function perch(dt) {
+  const topLimit = nav ? nav.getBoundingClientRect().bottom : 70;
+  const [idx, f] = pick(topLimit);
+  if (first) {   // drop in from just above the first perch
+    S.x = f.x; S.r = f.r; S.y = Math.max(topLimit + f.r, f.y - f.r - 260); S.cur = idx; S.floorPrev = f.y; first = false;
+  }
+  if (idx !== S.cur) { S.cur = idx; S.floorPrev = f.y; hop(f.x, f.y); }
+  S.r += (f.r - S.r) * Math.min(1, dt * 4);
+  f.v = Math.max(-4000, Math.min(4000, (f.y - S.floorPrev) / dt));
+  f.y0 = S.floorPrev; S.floorPrev = f.y;
+  f.top = topLimit;
+  return f;
+}
+
+// Fixed-size physics substep. The floor is interpolated across the frame so a
+// fast scroll reads as a moving surface, not a teleport.
+function integrate(f, h, u) {
+  const floorY = f.y0 + (f.y - f.y0) * u, floorV = f.v;
+  if (!S.flying) {   // spring holds it over its perch between hops, so bounces don't drift
+    const k = 55, c = 2 * 0.85 * Math.sqrt(k);
+    S.vx += (k * (f.x - S.x) - c * S.vx) * h;
+  }
+  S.x += S.vx * h;
+  S.vy += G * h; S.y += S.vy * h;
+  if (S.y + S.r > floorY) {
+    S.y = floorY - S.r;
+    const rel = S.vy - floorV;
+    if (rel > 0) {
+      if (rel > 150) {
+        S.vy = Math.max(-2600, floorV - rel * E);
+        S.squashV -= Math.min(rel, 2600) * 0.00011;
+        w.x *= 0.6;
+      } else S.vy = floorV;
+      S.grounded = true; S.flying = false;
+    }
+  } else if (S.y + S.r < floorY - 2) S.grounded = false;
+  if (S.y - S.r < f.top + 4) { S.y = f.top + 4 + S.r; S.vy = Math.abs(S.vy) * 0.3; }
+  // squash & stretch: a stiff damped spring, kept subtle (it's a basketball)
+  S.squashV += (-900 * S.squash - 26 * S.squashV) * h;
+  S.squash = Math.max(-0.13, Math.min(0.07, S.squash + S.squashV * h));
+  // spin: idle turn about the vertical axis, rolling about the screen axis
+  w.y += (1.1 - w.y) * Math.min(1, h * 1.5);
+  w.z += (-S.vx / S.r - w.z) * Math.min(1, h * (S.grounded ? 10 : 1.2));
+  w.x *= Math.exp(-h * 1.4);
+}
+
+const H = 1 / 120;
+function step(dt) {
+  const f = perch(dt);
+  if (reduced) { S.x = f.x; S.y = f.y - S.r; S.vx = S.vy = 0; return f; }
+  const n = Math.min(16, Math.ceil(dt / H));
+  for (let i = 1; i <= n; i++) integrate(f, dt / n, i / n);
+  return f;
+}
+
+const tmpM = new THREE.Matrix4();
+function frame(now) {
+  const dt = Math.min(0.12, Math.max(1 / 240, (now - last) / 1000)); last = now;   // real time, substepped
+  const f = step(dt);
+  if (!reduced) {
+    const ang = w.length() * dt;
+    if (ang > 0) { dq.setFromAxisAngle(axis.copy(w).normalize(), ang); ball.quaternion.premultiply(dq); }
+  }
+  const s = S.squash;
+  ballGroup.scale.set(S.r * (1 - 0.5 * s), S.r * (1 + s), S.r * (1 - 0.5 * s));
+  ballGroup.position.set(S.x, -(S.y - S.r * s), 0);
+  // contact shadow on the perch line
+  const gap = Math.max(0, f.y - (S.y + S.r));
+  const k = Math.max(0, 1 - gap / (S.r * 5));
+  shadow.position.set(S.x, -(f.y - 2), -500);
+  const sw = S.r * 2.1 * (0.55 + 0.45 * k);
+  shadow.scale.set(sw, sw * 0.16, 1);
+  shadow.material.opacity = 0.26 * k;
+
+  ballGroup.updateMatrixWorld(true);
+  tmpM.multiplyMatrices(camera.matrixWorldInverse, ball.matrixWorld);
+  uniforms.uNormalMatrix.value.getNormalMatrix(tmpM);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+// tap the ball for a bounce (only where nothing else wants the click)
+addEventListener('pointerdown', (ev) => {
+  if (ev.target.closest('a, button, input, label, table')) return;
+  const dx = ev.clientX - S.x, dy = ev.clientY - S.y;
+  if (dx * dx + dy * dy < S.r * S.r * 1.3 && !reduced) {
+    S.vy = -1500; S.grounded = false; S.flying = false; w.x += (Math.random() - 0.5) * 8; w.z += (Math.random() - 0.5) * 6;
+  }
+});
+
+// Start at once with whatever font is available, then reprint the wordmark in
+// Inter Tight the moment it loads, so the ball never waits on a font.
+uniforms.uLogo.value = wordmark();
+camera.updateMatrixWorld();
+requestAnimationFrame((t) => { last = t; frame(t); });
+if (document.fonts) document.fonts.load('700 124px "Inter Tight"').then(() => {
+  const old = uniforms.uLogo.value; uniforms.uLogo.value = wordmark(); old.dispose();
+}, () => {});
 </script>
 </body>
 </html>
