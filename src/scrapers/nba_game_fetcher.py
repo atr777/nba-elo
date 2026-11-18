@@ -134,6 +134,38 @@ def fetch_games_between_dates(start_date_str, end_date_str):
         return []
 
 
+def _confirmed_finals(games):
+    """Keep the games ESPN reports as final with an identical score.
+
+    Unverifiable dates (ESPN unreachable) are kept only when at least two days
+    old, by which point every game on them has long finished.
+    """
+    if not games:
+        return games
+    from src.scrapers.nba_api_data_fetcher import fetch_games_from_espn
+    kept = []
+    for d in sorted({g['date'] for g in games}):
+        day = [g for g in games if g['date'] == d]
+        ds = str(d)
+        espn = fetch_games_from_espn(f"{ds[:4]}-{ds[4:6]}-{ds[6:]}")
+        if not espn:
+            old = (datetime.now() - datetime.strptime(ds, '%Y%m%d')).days >= 2
+            print(f"[GUARD] ESPN had nothing for {ds}; {'trusting' if old else 'holding'} {len(day)} game(s)")
+            if old:
+                kept += day
+            continue
+        finals = {(e['home_id'], e['away_id']): (e['home_score'], e['away_score'])
+                  for e in espn if e['game_status_code'] == 3}
+        for g in day:
+            got = finals.get((g['home_team_id'], g['away_team_id']))
+            if got == (g['home_score'], g['away_score']):
+                kept.append(g)
+            else:
+                print(f"[GUARD] holding {g['away_team_name']} at {g['home_team_name']} {ds}: "
+                      f"API {g['away_score']}-{g['home_score']}, ESPN final {got}")
+    return kept
+
+
 def fetch_missing_games(csv_path='data/raw/nba_games_all.csv'):
     """
     Fetch games missing from the database.
@@ -162,7 +194,10 @@ def fetch_missing_games(csv_path='data/raw/nba_games_all.csv'):
     today = datetime.now()
     yesterday = today - timedelta(days=1)  # Fetch up to yesterday (today's games might not be complete)
 
-    start_date = latest_date + timedelta(days=1)
+    # Re-check the latest stored date too. A date can be partly ingested (a late
+    # game still running when we fetched); starting the day after would skip its
+    # missing games forever. Duplicates are dropped below on (date, home, away).
+    start_date = latest_date
 
     if start_date > yesterday:
         print(f"\n[OK] Database is up to date (latest: {latest_date.strftime('%Y-%m-%d')})")
@@ -177,6 +212,17 @@ def fetch_missing_games(csv_path='data/raw/nba_games_all.csv'):
         start_date.strftime('%Y-%m-%d'),
         yesterday.strftime('%Y-%m-%d')
     )
+
+    # Only games ESPN confirms as finished, with the same score. The stats API has
+    # returned games still in progress as complete, with stale partial scores
+    # (2026-11-18 00:20 ET: CHA-LAL 34-30 and UTA-LAC 58-62 were stored as finals,
+    # graded, and fed into the ratings).
+    new_games = _confirmed_finals(new_games)
+
+    # Already stored? Identity is (date, home, away): our rows carry ids from more
+    # than one source, so game_id alone cannot detect a duplicate.
+    have = set(zip(existing_games['date'], existing_games['home_team_id'], existing_games['away_team_id']))
+    new_games = [g for g in new_games if (g['date'], g['home_team_id'], g['away_team_id']) not in have]
 
     if len(new_games) == 0:
         print("\n[OK] No new games to add")
