@@ -96,10 +96,14 @@ def fetch_games_from_espn(date_str):
         for ev in r.json().get('events', []) or []:
             comp = (ev.get('competitions') or [{}])[0]
             status = (comp.get('status') or {}).get('type') or {}
-            side = {}
+            side, score = {}, {}
             for c in comp.get('competitors') or []:
                 raw = (c.get('team') or {}).get('displayName', '')
                 side[c.get('homeAway')] = aliases.get(raw, raw)
+                try:
+                    score[c.get('homeAway')] = int(c.get('score'))
+                except (TypeError, ValueError):
+                    score[c.get('homeAway')] = None
             if 'home' not in side or 'away' not in side:
                 continue
             home_id = name_to_db.get(side['home'])
@@ -108,8 +112,13 @@ def fetch_games_from_espn(date_str):
                 print(f"[WARNING] ESPN name not mapped: {side}")
                 continue
 
-            state = status.get('name', '')
-            code = 3 if state == 'STATUS_FINAL' else (2 if state == 'STATUS_IN_PROGRESS' else 1)
+            # Use ESPN's coarse state ('pre' / 'in' / 'post'), not the status name.
+            # The name has several in-game values (STATUS_HALFTIME, STATUS_END_PERIOD)
+            # that the old name check mapped to "scheduled", and the pre-game tracker
+            # only locks scheduled games, so a game at halftime could have been locked
+            # after tip-off. Fixed 2026-11-17.
+            st = status.get('state', '')
+            code = 3 if (st == 'post' and status.get('completed')) else (2 if st == 'in' else 1)
             games.append({
                 'home_team': side['home'],
                 'away_team': side['away'],
@@ -119,6 +128,8 @@ def fetch_games_from_espn(date_str):
                 'status': 'Final' if code == 3 else ('Live' if code == 2 else 'Scheduled'),
                 'game_status_code': code,
                 'game_id': f"{date_int}_{home_id}_{away_id}",
+                'home_score': score.get('home') if code > 1 else None,
+                'away_score': score.get('away') if code > 1 else None,
             })
         return games
 
@@ -332,7 +343,9 @@ def get_todays_games(date_str=None):
                 'time': time_str,
                 'status': status_text,
                 'game_status_code': game_status,
-                'game_id': game.get('gameId', '')
+                'game_id': game.get('gameId', ''),
+                'home_score': home_team_data.get('score') if game_status > 1 else None,
+                'away_score': away_team_data.get('score') if game_status > 1 else None,
             })
 
         # If the NBA API gave us nothing, go to the independent source. ESPN returns
