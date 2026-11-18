@@ -122,7 +122,39 @@ def _team_win_gap(tid: int):
     return f
 
 
+LIVE_SNAPSHOT = "data/exports/prediction_tracking_2026-27_through_20261116.csv"
+
+
+def _live():
+    """2026-27 picks graded through 2026-11-16, frozen so the quoted figure stays
+    reproducible while the season keeps moving. Refresh = new snapshot + new entry."""
+    return pd.read_csv(ROOT / LIVE_SNAPSHOT).dropna(subset=["correct"])
+
+
+def _live_accuracy():
+    d = _live()
+    return 100 * d["correct"].mean(), len(d)
+
+
+def _live_brier():
+    d = _live()
+    y = (d["actual_winner"] == "home").astype(int)
+    return float(np.mean((d["predicted_home_prob"] - y) ** 2)), len(d)
+
+
+def _live_pregame_share():
+    """Share of picks whose log timestamp falls on or before game day. 100 is the
+    claim; anything lower means a pick was written after tip and the claim dies."""
+    d = _live()
+    day = pd.to_datetime(d["date"].astype(str), format="%Y%m%d")
+    ts = pd.to_datetime(d["timestamp"], format="mixed")
+    return 100 * float((ts.dt.normalize() <= day).mean()), len(d)
+
+
 COMPUTE = {
+    "live_2026_27_accuracy": _live_accuracy,
+    "live_2026_27_brier": _live_brier,
+    "live_2026_27_pregame_locked": _live_pregame_share,
     "season_accuracy": _accuracy,
     "season_correct": _correct,
     "season_brier": _brier,

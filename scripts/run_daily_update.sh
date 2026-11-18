@@ -87,6 +87,13 @@ if [ -f "$SITE_SRC/assets/og_card.png" ]; then
   git add assets/og_card.png
 fi
 
+# The public ledger, optional for the same reason as the card: a missing receipt
+# file must never take the predictions down with it.
+if [ -f "$SITE_SRC/ledger.csv" ]; then
+  cp "$SITE_SRC/ledger.csv" .
+  git add ledger.csv
+fi
+
 # Only sitemap's <lastmod> and the page's timestamp change on a quiet day, so this
 # still commits most runs. That is fine and intended: the site says when it last ran.
 if git diff --cached --quiet; then

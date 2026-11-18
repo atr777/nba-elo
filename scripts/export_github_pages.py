@@ -823,6 +823,49 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
     return html
 
 
+LEDGER_START = 20261001  # first season whose picks are all locked before tip-off
+
+
+def write_ledger(pages_dir):
+    """pages/ledger.csv: every pre-game-locked pick, graded or still pending.
+
+    The site's git history commits this file five times a day, so anyone can check
+    that a pick existed before its game started without trusting us. Only 2026-27
+    onward: the 2025-26 record is a walk-forward replay (rebuilt after the fact,
+    logged post-game), which is honest but is not the same claim, so it is not
+    mixed in here.
+    """
+    frames = []
+    for path in ('data/exports/prediction_tracking.csv',
+                 'data/exports/pending_predictions.csv'):
+        if os.path.exists(path):
+            frames.append(pd.read_csv(path))
+    if not frames:
+        return 0
+    d = pd.concat(frames, ignore_index=True)
+    d = d[d['date'] >= LEDGER_START].copy()
+    if 'correct' not in d.columns:
+        d['correct'] = pd.NA
+    for col in ('actual_home_score', 'actual_away_score'):
+        if col not in d.columns:
+            d[col] = pd.NA
+    home_pick = d['predicted_winner'] == 'home'
+    out = pd.DataFrame({
+        'date': d['date'],
+        'logged_at_et': d['timestamp'].astype(str).str[:19],
+        'away_team': d['away_team_name'],
+        'home_team': d['home_team_name'],
+        'pick': d['home_team_name'].where(home_pick, d['away_team_name']),
+        'pick_prob': d['confidence'].round(4),
+        'home_win_prob': d['predicted_home_prob'].round(4),
+        'away_score': d['actual_away_score'].astype('Int64'),
+        'home_score': d['actual_home_score'].astype('Int64'),
+        'correct': d['correct'].map({True: 1, False: 0, 'True': 1, 'False': 0}).astype('Int64'),
+    }).sort_values(['date', 'logged_at_et'])
+    out.to_csv(os.path.join(pages_dir, 'ledger.csv'), index=False)
+    return len(out)
+
+
 # --------------------------------------------------------------------------- #
 # Main
 # --------------------------------------------------------------------------- #
@@ -891,6 +934,13 @@ def main():
     with open(robots_path, 'w', encoding='utf-8') as f:
         f.write(robots)
     print(f"  Saved: pages/robots.txt")
+
+    # Non-fatal: the ledger is a public receipt, not the page itself, and must not
+    # be able to stop today's predictions from publishing.
+    try:
+        print(f"  Saved: pages/ledger.csv ({write_ledger(pages_dir)} picks)")
+    except Exception as e:
+        print(f"  [WARN] ledger not written ({e})")
 
     return out_path
 

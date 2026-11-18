@@ -20,12 +20,55 @@
 
 metrics:
 
+  live_2026_27_accuracy:
+    label: Accuracy, 2026-27, pre-game-locked picks through 2026-11-16
+    definition: >
+      Share of 2026-27 picks that named the winner, every one logged before tip-off by
+      scripts/track_predictions_pregame.py and graded after the final. Frozen snapshot
+      so the quoted figure does not drift as the season goes on.
+    source: data/exports/prediction_tracking_2026-27_through_20261116.csv
+    value: 69.15
+    unit: percent
+    tolerance: 0.01
+    sample: 188
+    status: authoritative
+    quote_as: 69.1% across 188 picks locked before tip-off (2026-27, through Nov 16)
+    published_in:
+      - README.md
+      - Desktop/SecondBounce_Brand/Second_Bounce_resume_kit.md
+
+  live_2026_27_brier:
+    label: Brier score, 2026-27 pre-game-locked picks through 2026-11-16
+    definition: Same formula as season_brier, on the live snapshot.
+    source: data/exports/prediction_tracking_2026-27_through_20261116.csv
+    value: 0.2046
+    unit: score
+    tolerance: 0.0005
+    sample: 188
+    status: authoritative
+    note: >
+      Matches the 2025-26 walk-forward audit (0.2046). The audit's estimate held up on
+      a season it never saw. Sample is small (188), so say "consistent with", not "proves".
+
+  live_2026_27_pregame_locked:
+    label: Share of 2026-27 picks timestamped on or before game day
+    definition: The integrity claim behind every live number. Must stay 100.
+    source: data/exports/prediction_tracking_2026-27_through_20261116.csv
+    value: 100.0
+    unit: percent
+    tolerance: 0
+    sample: 188
+    status: authoritative
+
   season_accuracy:
     label: Overall accuracy, 2025-26 tracked season
     definition: >
-      Share of pre-game logged predictions that named the eventual winner, over every
-      graded game in the honest tracking log. Predictions are written before tip-off
-      and graded after the final; nothing is recomputed afterwards.
+      Share of predictions that named the eventual winner, over the 657 games the old
+      tracker graded, REPLAYED walk-forward by scripts/audit_tracking_leakage.py (each
+      game predicted from ratings built only on earlier games). Corrected 2026-11-17:
+      this used to say the picks were "written before tip-off", but all 657 rows carry
+      post-game timestamps. It is an honest audit, not a pre-registered log. The first
+      season logged before tip-off is 2026-27 (see live_2026_27_* below).
     source: data/exports/prediction_tracking_honest.csv
     filter: rows where `correct` is not null
     value: 70.62
