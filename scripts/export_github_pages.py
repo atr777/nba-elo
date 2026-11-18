@@ -18,9 +18,13 @@ for _p in [_engine_root, _src_dir]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import hashlib
 import json
+import re
 import pandas as pd
 from datetime import datetime, timedelta
+
+LEDGER_START = 20261001  # first season whose picks are all locked before tip-off
 
 # --------------------------------------------------------------------------- #
 # Team logo CDN URLs (cdn.nba.com)
@@ -68,6 +72,7 @@ def get_team_logo(team_name):
 # ESPN CDN abbreviations (differ from ours for GS, NO, NY, SA)
 _ESPN_ABBREV_MAP = {
     'GSW': 'gs', 'NOP': 'no', 'NYK': 'ny', 'SAS': 'sa',
+    'UTA': 'utah',  # ESPN's file is utah.png; uta.png 404s
 }
 
 def get_logo_by_abbrev(abbrev):
@@ -210,14 +215,8 @@ def get_today_predictions():
             else:
                 winner, win_prob, is_home_win = away_name, 1.0 - home_prob, False
 
-            if win_prob >= 0.75:
-                conf_label, conf_class = 'High Confidence', 'conf-high'
-            elif win_prob >= 0.63:
-                conf_label, conf_class = 'Medium Confidence', 'conf-med'
-            else:
-                conf_label, conf_class = 'Too Close to Call', 'conf-low'
-
-            tossup = abs(home_elo - away_elo) < 30
+            conf_label, conf_class = _conf(win_prob), ''
+            tossup = win_prob < 0.60
             nba_url = f'https://www.nba.com/game/{game_id}' if game_id else 'https://www.nba.com/games'
 
             predictions.append({
@@ -236,6 +235,9 @@ def get_today_predictions():
                 'home_elo': home_elo,
                 'away_elo': away_elo,
                 'game_status_code': game.get('game_status_code', 1),
+                'home_id': home_id,
+                'away_id': away_id,
+                'logged_at': None,
                 'predicted_home_score': _pred_home_score,
                 'predicted_away_score': _pred_away_score,
                 'predicted_margin': round(_pred_margin, 1),
@@ -243,6 +245,7 @@ def get_today_predictions():
             })
 
         # Sort: scheduled first, then live, then final
+        _overlay_logged(predictions)
         status_order = {1: 0, 2: 1, 3: 2}
         predictions.sort(key=lambda x: (status_order.get(x.get('game_status_code', 1), 0), x['time']))
         return predictions
@@ -251,101 +254,113 @@ def get_today_predictions():
         return []
 
 
-def get_week_results():
-    """Recent graded results. In season: yesterday's games. Offseason (no games
-    yesterday): fall back to the most recent graded games, so the public
-    receipts are always visible to a visitor, not blank."""
-    df = load_csv('data/exports/prediction_tracking.csv')
+def _truthy(v):
+    return v is True or v == 1 or str(v).strip().lower() in ('true', '1', '1.0')
+
+
+def _graded(df):
+    """Rows with a result, with `correct` coerced to a real bool. The column comes
+    back as bool, object or float depending on whether any row is still blank."""
+    if df.empty or 'correct' not in df.columns:
+        return df.iloc[0:0]
+    g = df[df['correct'].notna()].copy()
+    g['correct'] = g['correct'].map(_truthy)
+    return g
+
+
+def _season_start(today=None):
+    """Oct 1 of the current season, as YYYYMMDD. A game in Jan-Sep belongs to the
+    season that started the previous October."""
+    today = today or datetime.now()
+    year = today.year if today.month >= 10 else today.year - 1
+    return year * 10000 + 1001, f"{year}-{(year + 1) % 100:02d}"
+
+
+def get_week_results(n_days=3):
+    """The last few graded game days, newest first. Same in season and out: the
+    offseason simply shows the last nights of the playoffs, so the public receipts
+    are never blank."""
+    df = _graded(load_csv('data/exports/prediction_tracking.csv'))
     if df.empty:
         return [], {}
 
-    df = df.sort_values('date')
-    today = datetime.now()
-    yesterday_int = int((today - timedelta(days=1)).strftime('%Y%m%d'))
-
-    week = df[df['date'] == yesterday_int]
-    if week.empty:
-        # Offseason fallback: the last 18 graded games (games with a result).
-        graded = df[df['correct'].notna()] if 'correct' in df.columns else df
-        week = graded.tail(18)
-    if week.empty:
-        return [], {}
-
-    # Group by date, newest first
     days = []
-    for date_int, group in sorted(week.groupby('date'), reverse=True):
-        try:
-            d = datetime.strptime(str(date_int), '%Y%m%d')
-            day_label = d.strftime('%b %-d, %Y') if os.name != 'nt' else d.strftime('%b %#d, %Y')
-            nba_scores_url = f"https://www.nba.com/games?date={d.strftime('%Y-%m-%d')}"
-        except Exception:
-            day_label = str(date_int)
-            nba_scores_url = 'https://www.nba.com/scores'
-
+    for date_int in sorted(df['date'].unique())[-n_days:][::-1]:
+        group = df[df['date'] == date_int]
+        d = datetime.strptime(str(int(date_int)), '%Y%m%d')
         rows = []
         for _, row in group.iterrows():
+            home, away = row.get('home_team_name', ''), row.get('away_team_name', '')
             rows.append({
-                'home': row.get('home_team_name', ''),
-                'away': row.get('away_team_name', ''),
-                'predicted': row.get('predicted_winner', ''),
-                'correct': bool(row.get('correct', False)),
+                'home': home,
+                'away': away,
+                'pick': home if row.get('predicted_winner') == 'home' else away,
+                'pick_prob': float(row.get('confidence', 0) or 0),
+                'correct': bool(row['correct']),
                 'home_score': row.get('actual_home_score', ''),
                 'away_score': row.get('actual_away_score', ''),
-                'upset': bool(row.get('upset', False)),
             })
-
-        total = len(rows)
-        correct = sum(1 for r in rows if r['correct'])
+        correct = sum(r['correct'] for r in rows)
         days.append({
-            'label': day_label,
-            'nba_url': nba_scores_url,
+            'label': f"{d:%b} {d.day}",
+            'weekday': f"{d:%A}",
             'rows': rows,
             'correct': correct,
-            'total': total,
-            'pct': f"{correct/total*100:.0f}%" if total > 0 else '—',
+            'total': len(rows),
         })
 
-    all_rows = [r for d in days for r in d['rows']]
-    total = len(all_rows)
-    correct = sum(1 for r in all_rows if r['correct'])
-    summary = {
-        'total': total,
-        'correct': correct,
-        'pct': f"{correct/total*100:.1f}" if total > 0 else '—',
-    }
-    return days, summary
+    total = sum(d['total'] for d in days)
+    correct = sum(d['correct'] for d in days)
+    return days, {'total': total, 'correct': correct}
+
+
+def _summary(s):
+    n = len(s)
+    if not n:
+        return {'n': 0, 'correct': 0, 'pct': 'n/a', 'brier': 'n/a'}
+    c = int(s['correct'].sum())
+    y = (s['actual_winner'] == 'home').astype(int)
+    brier = float(((s['predicted_home_prob'] - y) ** 2).mean())
+    return {'n': n, 'correct': c, 'pct': f"{c / n * 100:.1f}", 'brier': f"{brier:.4f}"}
 
 
 def get_season_stats():
-    """Return accuracy stats for the current season."""
-    df = load_csv('data/exports/prediction_tracking.csv')
+    """Two records, never blended. `live` is the current season, every pick logged
+    before tip-off. `audit` is 2025-26: a walk-forward replay rebuilt after the
+    fact (all 657 rows carry post-game timestamps), honest but a different claim.
+    Until 2026-11-17 the site added them together as one '845 games' number."""
+    df = _graded(load_csv('data/exports/prediction_tracking.csv'))
     if df.empty:
         return {}
-
     df = df.sort_values('date')
-    season = df[df['date'] >= 20251001]
-    total = len(season)
-    correct = season['correct'].sum() if total > 0 else 0
+    start, label = _season_start()
+    live = df[df['date'] >= max(start, LEDGER_START)]
+    audit = df[(df['date'] >= 20251001) & (df['date'] < LEDGER_START)]
 
-    # Last 7 days
     cutoff7 = int((datetime.now() - timedelta(days=7)).strftime('%Y%m%d'))
-    last7 = season[season['date'] >= cutoff7]
-    w7 = int(last7['correct'].sum())
-    l7 = len(last7) - w7
+    last7 = live[live['date'] >= cutoff7]
+    close = live[live['confidence'] < 0.60]
 
-    # Tossup accuracy
-    tu = season[season['is_toss_up'] == True] if 'is_toss_up' in season.columns else pd.DataFrame()
-    tu_str = f"{int(tu['correct'].sum())}-{len(tu)-int(tu['correct'].sum())}" if len(tu) > 0 else 'N/A'
-    tu_pct = f"{tu['correct'].mean()*100:.1f}" if len(tu) > 0 else 'N/A'
+    calib = []
+    for lo, hi in [(0.5, 0.6), (0.6, 0.7), (0.7, 0.8), (0.8, 1.01)]:
+        b = live[(live['confidence'] >= lo) & (live['confidence'] < hi)]
+        if len(b):
+            calib.append({'lo': lo, 'hi': min(hi, 1.0), 'n': len(b),
+                          'stated': float(b['confidence'].mean()),
+                          'won': float(b['correct'].mean())})
+
+    first = int(live['date'].min()) if len(live) else None
+    day_no = ((datetime.now() - datetime.strptime(str(first), '%Y%m%d')).days + 1) if first else None
 
     return {
-        'total': total,
-        'correct': int(correct),
-        'pct': f"{correct/total*100:.2f}" if total > 0 else '—',
-        'last7_w': w7, 'last7_l': l7,
-        'last7_pct': f"{w7/(w7+l7)*100:.1f}" if (w7+l7) > 0 else '—',
-        'tossup_record': tu_str,
-        'tossup_pct': tu_pct,
+        'season_label': label,
+        'live': _summary(live),
+        'audit': _summary(audit),
+        'last7': (int(last7['correct'].sum()), len(last7) - int(last7['correct'].sum())),
+        'close': (int(close['correct'].sum()), len(close) - int(close['correct'].sum())),
+        'calib': calib,
+        'day': day_no,
+        'recent': live.tail(6).iloc[::-1].to_dict('records'),
     }
 
 
@@ -451,7 +466,7 @@ def get_top_players(n=15):
         return []
 
     df = ratings.merge(mapping, on='player_name', how='left')
-    df['team_name'] = df['team_name'].fillna('—')
+    df['team_name'] = df['team_name'].fillna('')
     if 'raw_rating' not in df.columns:
         df['raw_rating'] = df['rating']
     cols = ['player_name', 'team_name', 'rating', 'raw_rating', 'games_played']
@@ -460,7 +475,7 @@ def get_top_players(n=15):
     players = []
     for i, (_, row) in enumerate(top.iterrows(), 1):
         team_name = row['team_name']
-        team_abbr = TEAM_ABBREVS.get(team_name, team_name[:3].upper() if len(team_name) >= 3 else team_name)
+        team_abbr = TEAM_ABBREVS.get(team_name, team_name[:3].upper()) if team_name else 'No team'
         elo = int(row['rating'])
         adj = int(round(row['rating'] - row['raw_rating']))
         players.append({
@@ -468,7 +483,7 @@ def get_top_players(n=15):
             'name': row['player_name'],
             'team': team_name,
             'team_abbr': team_abbr,
-            'team_logo': get_logo_by_abbrev(team_abbr),
+            'team_logo': get_logo_by_abbrev(team_abbr) if team_name else '',
             'elo': elo,
             'adj': adj,  # model adjustment vs raw box score (+boost / -dock)
             'games': int(row['games_played']),
@@ -486,7 +501,7 @@ def get_all_players(min_games=8, cap=400):
         return []
 
     df = ratings.merge(mapping, on='player_name', how='left')
-    df['team_name'] = df['team_name'].fillna('—')
+    df['team_name'] = df['team_name'].fillna('')
     if 'raw_rating' not in df.columns:
         df['raw_rating'] = df['rating']
     df = df[df['games_played'] >= min_games].nlargest(cap, 'rating')
@@ -494,12 +509,12 @@ def get_all_players(min_games=8, cap=400):
     out = []
     for i, (_, row) in enumerate(df.iterrows(), 1):
         team_name = row['team_name']
-        team_abbr = TEAM_ABBREVS.get(team_name, team_name[:3].upper() if len(team_name) >= 3 else team_name)
+        team_abbr = TEAM_ABBREVS.get(team_name, team_name[:3].upper()) if team_name else 'No team'
         out.append({
             'rank': i,
             'name': row['player_name'],
             'abbr': team_abbr,
-            'logo': get_logo_by_abbrev(team_abbr),
+            'logo': get_logo_by_abbrev(team_abbr) if team_name else '',
             'elo': int(row['rating']),
             'adj': int(round(row['rating'] - row['raw_rating'])),
             'games': int(row['games_played']),
@@ -522,308 +537,417 @@ def _is_edt(date):
     return dst_start.date() <= date.date() < dst_end.date()
 
 
+_TIME_RE = re.compile(r'(\d{1,2}:\d{2})\s*([AP]M)', re.I)
+
+
+def _clean_time(time_str):
+    """'11/17 - 10:30 PM EST' (ESPN) or '7:30 pm ET' (NBA) -> '10:30 PM ET'."""
+    m = _TIME_RE.search(time_str or '')
+    return f"{m.group(1)} {m.group(2).upper()} ET" if m else (time_str or 'TBD')
+
+
 def _to_iso_et(date_iso, time_str):
-    """Convert '7:30 pm ET' + '2026-03-10' to an ISO-8601 string with ET offset."""
-    clean = time_str.replace(' ET', '').replace(' et', '').strip()
+    """Scheduled ET time -> ISO-8601 with the right ET offset, for local display."""
+    m = _TIME_RE.search(time_str or '')
+    if not m:
+        return None
     try:
-        dt = datetime.strptime(f"{date_iso} {clean}", "%Y-%m-%d %I:%M %p")
+        dt = datetime.strptime(f"{date_iso} {m.group(1)} {m.group(2).upper()}", "%Y-%m-%d %I:%M %p")
     except ValueError:
         return None
     offset = '-04:00' if _is_edt(dt) else '-05:00'
     return f"{date_iso}T{dt.strftime('%H:%M')}:00{offset}"
 
 
-def prob_bar(home_prob, home_name, away_name, is_home_win=True):
-    """Render a two-sided probability bar. Pick side = amber, opponent = muted."""
-    hp = round(home_prob * 100)
-    ap = 100 - hp
-    if is_home_win:
-        left_bar, right_bar = 'prob-bar-away', 'prob-bar-home'
-        left_lbl, right_lbl = 'prob-label-away', 'prob-label-home'
+def _conf(win_prob):
+    if win_prob >= 0.75:
+        return 'High confidence'
+    if win_prob >= 0.63:
+        return 'Medium confidence'
+    return 'Too close to call'
+
+
+def _overlay_logged(predictions):
+    """Show the pick we grade, not a second opinion.
+
+    The tracker locks each game into pending_predictions.csv with the deployed
+    model's rest and form adjustments. This page used to recompute its own number
+    from raw ratings, and the two disagreed by up to ten points (2026-11-17: Lakers
+    75% on the page, 84% in the record). Logged games now show the logged pick;
+    anything not yet logged is marked as outside the record.
+    """
+    frames = [load_csv(p) for p in ('data/exports/pending_predictions.csv',
+                                    'data/exports/prediction_tracking.csv')]
+    frames = [f for f in frames if not f.empty]
+    if not frames:
+        return
+    d = pd.concat(frames, ignore_index=True)
+    d = d[d['date'] == int(datetime.now().strftime('%Y%m%d'))]
+    logged = {(int(r['home_team_id']), int(r['away_team_id'])): r for _, r in d.iterrows()}
+    for p in predictions:
+        r = logged.get((p.get('home_id'), p.get('away_id')))
+        if r is None:
+            continue
+        hp = float(r['predicted_home_prob'])
+        home_pick = r['predicted_winner'] == 'home'
+        win_prob = hp if home_pick else 1 - hp
+        p.update({
+            'home_prob': hp, 'away_prob': 1 - hp, 'is_home_win': home_pick,
+            'winner': p['home'] if home_pick else p['away'], 'win_prob': win_prob,
+            'conf_label': _conf(win_prob), 'tossup': win_prob < 0.60,
+            'home_elo': float(r['home_elo']), 'away_elo': float(r['away_elo']),
+            'logged_at': str(r['timestamp'])[11:16],
+        })
+        if pd.notna(r.get('predicted_home_score')):
+            p['predicted_home_score'] = int(r['predicted_home_score'])
+            p['predicted_away_score'] = int(r['predicted_away_score'])
+
+
+def _barcode(seed, w=150, h=30):
+    """Decorative, deterministic bars from a pick's id. The same pick always draws
+    the same code, so a screenshot and the ledger row visibly belong together."""
+    hx = hashlib.sha1(str(seed).encode()).hexdigest() * 2
+    x, bars = 0, []
+    for ch in hx:
+        v = int(ch, 16)
+        bw, gap = 1 + v % 3, 1 + (v >> 2) % 2
+        if x + bw > w:
+            break
+        bars.append(f'<rect x="{x}" width="{bw}" height="{h}"/>')
+        x += bw + gap
+    return (f'<svg class="barcode" viewBox="0 0 {x} {h}" preserveAspectRatio="none" '
+            f'aria-hidden="true">{"".join(bars)}</svg>')
+
+
+def _abbr(team_name):
+    return TEAM_ABBREVS.get(team_name, (team_name or '???')[:3].upper())
+
+
+def _ticket(p, n, total, date_iso):
+    status = p.get('game_status_code', 1)
+    if status == 3:
+        status_html = '<span class="t-status">Final</span>'
+    elif status == 2:
+        status_html = f'<span class="t-status live">Live &middot; {p["time"]}</span>'
     else:
-        # Away is the pick — left side gets amber
-        left_bar, right_bar = 'prob-bar-home', 'prob-bar-away'
-        left_lbl, right_lbl = 'prob-label-home', 'prob-label-away'
+        t = _clean_time(p['time'])
+        iso = _to_iso_et(date_iso, p['time'])
+        status_html = (f'<span class="t-status" data-iso="{iso}">{t}</span>' if iso
+                       else f'<span class="t-status">{t}</span>')
+
+    away_pick = not p['is_home_win']
+    pick_pct = round(p['win_prob'] * 100)
+    teams = []
+    for side, name, elo, is_pick in (('away', p['away'], p['away_elo'], away_pick),
+                                     ('home', p['home'], p['home_elo'], not away_pick)):
+        teams.append(
+            f'<div class="t-team {side}{" is-pick" if is_pick else ""}">'
+            f'<div class="abbr"><img src="{get_logo_by_abbrev(_abbr(name))}" alt="" '
+            f'onerror="this.style.display=\'none\'"><span>{_abbr(name)}</span></div>'
+            f'<div class="name">{name}</div></div>')
+
+    proj = ''
+    if p.get('predicted_home_score'):
+        proj = f"Proj {p['predicted_away_score']}&ndash;{p['predicted_home_score']}"
+
+    if p.get('logged_at'):
+        stub_cls, stub_foot = 't-stub', f'Logged {p["logged_at"]} ET'
+    else:
+        stub_cls, stub_foot = 't-stub unlogged', 'Not in the record'
+
     return f"""
-    <div class="prob-bar-wrap">
-      <span class="{left_lbl}">{ap}%</span>
-      <div class="prob-bar-split">
-        <div class="{left_bar}" style="width:{ap}%"></div>
-        <div class="{right_bar}" style="width:{hp}%"></div>
-      </div>
-      <span class="{right_lbl}">{hp}%</span>
-    </div>"""
+      <article class="ticket">
+        <a class="ticket-link" href="{p['nba_url']}" target="_blank" rel="noopener" aria-label="{p['away']} at {p['home']} on NBA.com"></a>
+        <div class="t-main">
+          <div class="t-top mono"><span>Game {n:02d} / {total:02d}</span>{status_html}</div>
+          <div class="t-route">{teams[0]}<div class="t-at mono">at</div>{teams[1]}</div>
+          <div class="t-bar{' home-pick' if not away_pick else ''}"><i class="p" style="width:{pick_pct}%"></i></div>
+          <div class="t-foot mono"><span>{p['conf_label']}</span><span>{proj}</span></div>
+        </div>
+        <div class="{stub_cls}">
+          <div><div class="lbl mono">Pick</div><div class="pk">{_abbr(p['winner'])}</div></div>
+          <div class="pr">{pick_pct}<small>%</small></div>
+          {_barcode(f"{date_iso}_{p.get('home_id')}_{p.get('away_id')}")}
+          <div class="lg mono">{stub_foot}</div>
+        </div>
+      </article>"""
+
+
+def _receipt_card(stats, run_time):
+    live = stats.get('live', {})
+    lines = []
+    for r in stats.get('recent', []):
+        d = datetime.strptime(str(int(r['date'])), '%Y%m%d')
+        pick = r['home_team_name'] if r['predicted_winner'] == 'home' else r['away_team_name']
+        mark = '<span class="ok">&#10003; Won</span>' if r['correct'] else '<span class="no">&#10007; Miss</span>'
+        lines.append(f'<div class="r-row"><span>{d:%b} {d.day:02d} {_abbr(r["away_team_name"])} @ '
+                     f'{_abbr(r["home_team_name"])} &rarr; {_abbr(pick)}</span>{mark}</div>')
+    day = f"Day {stats['day']}" if stats.get('day') else ''
+    return f"""
+      <div class="receipt" role="img" aria-label="Season receipt: {live.get('pct')}% across {live.get('n')} games">
+        <div class="r-head"><b>Second Bounce</b>NBA prediction engine</div>
+        <hr>
+        <div class="r-row"><span>Season {stats.get('season_label', '')}</span><span>{day}</span></div>
+        <div class="r-row"><span>Run</span><span>{run_time}</span></div>
+        <hr>
+        {''.join(lines) or '<div class="r-row"><span>No graded picks yet</span></div>'}
+        <hr>
+        <div class="r-row"><span>Graded</span><span>{live.get('n', 0)}</span></div>
+        <div class="r-row"><span>Correct</span><span>{live.get('correct', 0)}</span></div>
+        <div class="r-row"><span>Brier</span><span>{live.get('brier')}</span></div>
+        <div class="r-row r-total"><span>Accuracy</span><span>{live.get('pct')}%</span></div>
+        {_barcode(f"season_{stats.get('season_label')}_{live.get('n')}", 300, 38)}
+        <div class="r-note">Logged before tip. Graded after the final.</div>
+      </div>"""
+
+
+def _calibration_svg(calib):
+    """Stated confidence (x) against how often those picks won (y), one dot per
+    bucket, dashed diagonal = perfectly calibrated. Single series, so no legend box;
+    the n per bucket is direct-labelled and repeated in the table view below."""
+    W, H, L, R, T, B = 520, 300, 46, 16, 14, 40
+    lo, hi = 0.4, 1.0
+    sx = lambda v: L + (v - lo) / (hi - lo) * (W - L - R)
+    sy = lambda v: T + (hi - v) / (hi - lo) * (H - T - B)
+    grid, axis = [], []
+    for v in (0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0):
+        grid.append(f'<line x1="{L}" x2="{W - R}" y1="{sy(v):.1f}" y2="{sy(v):.1f}"/>')
+        axis.append(f'<text x="{L - 8}" y="{sy(v) + 4:.1f}" text-anchor="end">{v * 100:.0f}%</text>')
+        axis.append(f'<text x="{sx(v):.1f}" y="{H - B + 18}" text-anchor="middle">{v * 100:.0f}%</text>')
+    axis.append(f'<text x="{(L + W - R) / 2:.0f}" y="{H - 4}" text-anchor="middle">Stated confidence</text>')
+    dots = []
+    for b in calib:
+        x, y = sx(b['stated']), sy(b['won'])
+        tip = (f"<b>{b['lo'] * 100:.0f}&ndash;{b['hi'] * 100:.0f}% picks</b><br>"
+               f"said {b['stated'] * 100:.0f}%, won {b['won'] * 100:.0f}% of {b['n']}")
+        dots.append(f'<circle class="dot" cx="{x:.1f}" cy="{y:.1f}" r="8" tabindex="0" '
+                    f'data-tip="{tip}" aria-label="{b["lo"] * 100:.0f} to {b["hi"] * 100:.0f} percent picks: '
+                    f'won {b["won"] * 100:.0f} percent of {b["n"]}"/>')
+        # Alternate above/below so neighbouring buckets' labels never collide.
+        ly = y - 15 if len(dots) % 4 == 1 else y + 24
+        dots.append(f'<text class="dl" x="{x:.1f}" y="{ly:.1f}" text-anchor="middle">'
+                    f'{b["won"] * 100:.0f}% of {b["n"]}</text>')
+    return (f'<svg class="calib" viewBox="0 0 {W} {H}" role="img" aria-label="Calibration: '
+            f'stated confidence against actual win rate">'
+            f'<g class="grid">{"".join(grid)}</g><g class="axis">{"".join(axis)}</g>'
+            f'<line class="ref" x1="{sx(0.5):.1f}" y1="{sy(0.5):.1f}" x2="{sx(1.0):.1f}" y2="{sy(1.0):.1f}"/>'
+            f'<text class="reflbl" x="{sx(0.93):.1f}" y="{sy(0.99):.1f}" text-anchor="end">perfectly calibrated</text>'
+            f'{"".join(dots)}</svg>')
 
 
 def render_html(date_str, predictions, week_days, week_summary, stats, players,
                 weekly=None, injuries=None):
-    """Origin (video-hero) template renderer.
-
-    Reads templates/origin.html (a plain static file — CSS/JS braces are
-    NOT doubled because this is never evaluated as an f-string) and fills
-    in the dynamic regions via simple str.replace() token substitution.
-
-    `weekly` and `injuries` are accepted for call-site compatibility with
-    main() but are not rendered in the Origin layout (no bar-chart weekly
-    summary or per-game injury callouts in this design — flagged to Aaron
-    as a deliberately deferred feature, not an oversight).
-    """
-    games_count = len(predictions)
+    """Ticket template renderer (2026-11). Fills templates/ticket.html by plain
+    str.replace token substitution, so the template's CSS and JS braces stay
+    literal. `weekly` and `injuries` are accepted for call-site compatibility."""
     try:
         date_iso = datetime.strptime(date_str, '%B %d, %Y').strftime('%Y-%m-%d')
     except ValueError:
         date_iso = datetime.now().strftime('%Y-%m-%d')
-
     stats = stats or {}
+    live, audit = stats.get('live', {}), stats.get('audit', {})
+    # Early in a season the live sample can be empty; lead with the audit then.
+    lead = live if live.get('n') else audit
+    now = datetime.now()
+    run_time = f"{now:%b} {now.day:02d} {now:%I:%M %p} ET".upper()
+    games_count = len(predictions)
 
-    # ---- small local rendering helpers ---- #
-    def _pct1(numerator, denominator):
-        """Format a ratio as a one-decimal percent string, or '—' if invalid."""
-        try:
-            numerator = float(numerator)
-            denominator = float(denominator)
-            if denominator:
-                return f"{numerator / denominator * 100:.1f}"
-        except (TypeError, ValueError):
-            pass
-        return '—'
-
-    def _team_logo(team_name):
-        abbr = TEAM_ABBREVS.get(team_name, team_name[:3].upper() if team_name else '')
-        return get_logo_by_abbrev(abbr)
-
-    acc_pct     = _pct1(stats.get('correct'), stats.get('total'))
-    total_games = stats.get('total', '—')
-
-    # ---- {{DATE_STAMP}} ---- #
-    date_stamp = f"{date_str} · {games_count} game{'s' if games_count != 1 else ''} today"
-
-    # ---- {{STATS}} ---- #
-    _tp = stats.get('tossup_pct')
-    if _tp in (None, 'N/A'):
-        tossup_display = _tp or '—'
+    # ---- hero ---- #
+    hero_meta = (f"<b>Second Bounce</b><span>NBA prediction engine</span>"
+                 f"<span>Season {stats.get('season_label', '')}"
+                 f"{' &middot; Day ' + str(stats['day']) if stats.get('day') else ''}</span>"
+                 f"<span>Last run {run_time}</span>")
+    if live.get('n'):
+        hero_sub = (f"Every pick is logged before the game starts and graded after the final. "
+                    f"Nothing gets recomputed, and the misses stay in. This season: "
+                    f"<strong>{live['pct']}% across {live['n']} games.</strong>")
     else:
-        tossup_display = f"{_tp}%"
+        hero_sub = (f"Every pick is logged before the game starts and graded after the final. "
+                    f"Nothing gets recomputed, and the misses stay in. Last season's audit: "
+                    f"<strong>{audit.get('pct')}% across {audit.get('n')} games.</strong>")
 
-    stats_html = f"""
-      <div class="stat">
-        <div class="stat-value">{acc_pct}%</div>
-        <div class="stat-label">Season Accuracy</div>
-        <div class="stat-sub">{stats.get('correct', '—')} of {total_games} correct</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">{tossup_display}</div>
-        <div class="stat-label">Toss-Up Games</div>
-        <div class="stat-sub">games within 30 elo pts</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">{total_games}</div>
-        <div class="stat-label">Games Tracked</div>
-        <div class="stat-sub">since Oct 2025</div>
-      </div>"""
-
-    # ---- {{PREDICTIONS}} — live game cards, offseason CTA, or no-games ---- #
+    # ---- today ---- #
+    date_stamp = f"{date_str} &middot; {games_count} game{'s' if games_count != 1 else ''}"
     if predictions:
-        cards = []
-        for p in predictions:
-            status_code = p.get('game_status_code', 1)
-            is_live  = status_code == 2
-            is_final = status_code == 3
-            if is_final:
-                time_display, iso_attr = 'Final', ''
-            elif is_live:
-                time_display = p['time'] if p['time'] != 'TBD' else 'Live'
-                iso_attr = ''
-            else:
-                time_display = p['time']
-                iso_ts = _to_iso_et(date_iso, p['time'])
-                iso_attr = f' data-iso="{iso_ts}"' if iso_ts else ''
-
-            away_logo = _team_logo(p['away'])
-            home_logo = _team_logo(p['home'])
-            hp = round(p['home_prob'] * 100)
-            ap = 100 - hp
-            pick_pct = hp if p['is_home_win'] else ap
-
-            cards.append(f"""
-      <div class="card game-card{' game-card-final' if is_final else ''}">
-        <a class="game-card-link" href="{p['nba_url']}" target="_blank" rel="noopener" aria-label="View {p['away']} @ {p['home']} on NBA.com"></a>
-        <div class="game-card-head">
-          <span class="game-time mono"{iso_attr}>{time_display}</span>
-          <span class="chip chip-neutral">{p['conf_label']}{' &middot; Toss-up' if p['tossup'] else ''}</span>
-        </div>
-        <div class="result-matchup" style="margin-top:16px;">
-          <span class="team-pair"><img class="team-logo" src="{away_logo}" alt="" onerror="this.style.display='none'">{p['away']}</span>
-          <span class="matchup-vs">@</span>
-          <span class="team-pair"><img class="team-logo" src="{home_logo}" alt="" onerror="this.style.display='none'">{p['home']}</span>
-        </div>
-        <div class="game-pick-line">{p['winner']} {'slight edge' if p['tossup'] else 'favored to win'} <span class="mono">&middot; {p['win_prob'] * 100:.0f}%</span></div>
-        <div class="game-prob-track"><div class="game-prob-fill" style="width:{pick_pct}%;"></div></div>
-        <div class="game-elo-line mono">Elo &middot; {p['away']} {p['away_elo']:.0f} &middot; {p['home']} {p['home_elo']:.0f}</div>
-      </div>""")
-        predictions_html = ''.join(cards)
+        predictions_html = ('<div class="tickets">'
+                            + ''.join(_ticket(p, i, games_count, date_iso)
+                                      for i, p in enumerate(predictions, 1))
+                            + '</div>')
     else:
-        _md = (datetime.now().month, datetime.now().day)
-        is_offseason = (6, 25) <= _md <= (10, 20)
-        if is_offseason:
+        md = (now.month, now.day)
+        if (6, 25) <= md <= (10, 20):
             predictions_html = f"""
-      <div class="card card-offseason">
-        <h2 class="card-headline">No games today. The season is over.</h2>
-        <p class="card-body">
-          The model finished {acc_pct}% across {total_games} tracked games. Daily predictions
-          return opening night. Until then we break down every offseason move
-          through the model's eyes.
-        </p>
-        <a class="btn-primary" href="https://secondbounce.substack.com" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px;flex-shrink:0;"><path d="M22.539 8.242H1.46V5.406h21.08v2.836zM1.46 10.812H22.54V24l-10.54-5.9L1.46 24V10.812zM22.54 0H1.46v2.836h21.08V0z"/></svg>
-          Get the model's offseason analysis
-        </a>
-      </div>"""
+      <div class="empty-card"><h3>No games today. The season's over.</h3>
+        <p>Daily picks return on opening night. Until then the newsletter covers the offseason
+        through the model's eyes, and the full record stays up below.</p>
+        <a class="btn" href="https://secondbounce.substack.com" target="_blank" rel="noopener">Read the newsletter</a></div>"""
         else:
             predictions_html = """
-      <div class="card card-offseason">
-        <h2 class="card-headline">No games scheduled today.</h2>
-        <p class="card-body">Predictions post every game day. Check back tomorrow, or see recent results below.</p>
-        <a class="btn-ghost" href="#results">See recent results</a>
+      <div class="empty-card"><h3>No games on the schedule today.</h3>
+        <p>Picks post every game day before the first tip. The last few nights are graded below.</p>
+        <a class="btn ghost" href="#results">See recent results</a></div>"""
+
+    # ---- record ---- #
+    w7, l7 = stats.get('last7', (0, 0))
+    cw, cl = stats.get('close', (0, 0))
+    calib = stats.get('calib', [])
+    calib_rows = ''.join(
+        f"<tr><td>{b['lo'] * 100:.0f}&ndash;{b['hi'] * 100:.0f}%</td><td>{b['n']}</td>"
+        f"<td>{b['stated'] * 100:.0f}%</td><td>{b['won'] * 100:.0f}%</td></tr>" for b in calib)
+    chart_html = (f"""
+        <div class="chart-card">
+          <h3>Does it mean what it says?</h3>
+          <p class="sub">Each dot is a group of {stats.get('season_label', '')} picks. On the dashed line, a 70% pick wins 70% of the time.</p>
+          {_calibration_svg(calib)}
+          <div class="tip" role="tooltip"></div>
+          <table class="calib-table"><thead><tr><th>Bucket</th><th>Picks</th><th>Said</th><th>Won</th></tr></thead>
+          <tbody>{calib_rows}</tbody></table>
+        </div>""" if calib else '')
+    lede = (f"{live['correct']} of {live['n']} picks correct this season, every one logged before tip-off."
+            if live.get('n') else
+            "No picks graded yet this season. The number above is last season's walk-forward audit.")
+    record_html = f"""
+      <div class="record">
+        <div>
+          <span class="mono">03 / The record &middot; {stats.get('season_label', '')}</span>
+          <div class="big-num">{lead.get('pct')}<small>%</small></div>
+          <p class="lede">{lede}</p>
+          <div class="kpis">
+            <div class="kpi"><span class="mono">Last 7 days</span><b>{w7}&ndash;{l7}</b></div>
+            <div class="kpi"><span class="mono">Brier score</span><b>{lead.get('brier')}</b></div>
+            <div class="kpi"><span class="mono">Picks under 60%</span><b>{cw}&ndash;{cl}</b></div>
+          </div>
+          <div class="audit">
+            <b>Last season, audited:</b> {audit.get('pct')}% across {audit.get('n')} games. We first published
+            73.5%, then found the tracker had been grading games with ratings that already knew the result.
+            The audit replays 2025-26 in strict time order. It was rebuilt after the fact, so it's
+            reported separately from this season's locked picks.
+            <a href="https://secondbounce.substack.com/p/how-we-caught-our-own-model-cheating" target="_blank" rel="noopener">Read how we caught it</a>
+          </div>
+          <div class="verify">
+            <a href="ledger.csv">Download every pick (CSV)</a>
+            <a href="https://github.com/atr777/nba-predictions/commits/main/ledger.csv" target="_blank" rel="noopener">Check the timestamps on GitHub</a>
+          </div>
+        </div>
+        {chart_html}
       </div>"""
 
-    # ---- {{RESULTS}} — day-grouped, ESPN logos, green/red chips ---- #
+    # ---- results timeline ---- #
     if week_days:
-        day_blocks = []
+        blocks = []
         for day in week_days:
-            day_correct = day['correct']
-            day_total   = day['total']
-            row_blocks  = []
+            rows = []
             for r in day['rows']:
-                marker_cls = 'chip-correct' if r['correct'] else 'chip-miss'
-                marker_txt = 'Correct' if r['correct'] else 'Miss'
-                pick_side  = 'Home' if r['predicted'] == r['home'] else 'Away'
-                away_logo  = _team_logo(r['away'])
-                home_logo  = _team_logo(r['home'])
-                score_html = ''
-                if r['away_score'] != '':
-                    score_html = f'<span class="result-score mono">{r["away_score"]}&ndash;{r["home_score"]}</span>'
-                upset_html = ' <span class="chip chip-neutral">Upset</span>' if r.get('upset') else ''
-                row_blocks.append(f"""
-          <div class="result-row">
-            <span class="result-matchup">
-              <span class="team-pair"><img class="team-logo" src="{away_logo}" alt="" onerror="this.style.display='none'">{r['away']}</span>
-              <span class="matchup-vs">@</span>
-              <span class="team-pair"><img class="team-logo" src="{home_logo}" alt="" onerror="this.style.display='none'">{r['home']}</span>
-            </span>
-            {score_html}
-            <span class="chip chip-neutral">Pick {pick_side}</span>{upset_html}
-            <span class="chip {marker_cls}">{marker_txt}</span>
-          </div>""")
-            day_blocks.append(f"""
-        <div class="results-day">
-          <div class="results-day-head">
-            <span class="results-day-label mono">{day['label']}</span>
-            <span class="results-day-record mono">{day_correct}-{day_total - day_correct} ({day['pct']})</span>
-          </div>
-          {''.join(row_blocks)}
+                score = ''
+                if pd.notna(r['away_score']) and r['away_score'] != '':
+                    score = f"{int(r['away_score'])}&ndash;{int(r['home_score'])}"
+                chip = ('<span class="chip ok">&#10003; Correct</span>' if r['correct']
+                        else '<span class="chip no">&#10007; Miss</span>')
+                rows.append(f"""
+            <div class="res">
+              <span class="mu"><img src="{get_logo_by_abbrev(_abbr(r['away']))}" alt="" onerror="this.style.display='none'"><span class="tn">{r['away']}</span><span class="ta">{_abbr(r['away'])}</span>
+                <span class="at">at</span><img src="{get_logo_by_abbrev(_abbr(r['home']))}" alt="" onerror="this.style.display='none'"><span class="tn">{r['home']}</span><span class="ta">{_abbr(r['home'])}</span></span>
+              <span class="sc">{score}</span>
+              <span class="pk">Pick {_abbr(r['pick'])} &middot; {r['pick_prob'] * 100:.0f}%</span>
+              {chip}
+            </div>""")
+            blocks.append(f"""
+        <div class="day">
+          <div class="day-label"><div class="d">{day['label']}</div><div class="rec mono">{day['weekday']} &middot; {day['correct']}&ndash;{day['total'] - day['correct']}</div></div>
+          <div class="day-rows">{''.join(rows)}</div>
         </div>""")
-        results_html = ''.join(day_blocks)
+        results_html = ''.join(blocks)
     else:
-        results_html = '<p style="color:var(--ash);text-align:center;padding:20px 0;">No graded results yet.</p>'
+        results_html = '<div class="empty-card"><p>No graded results yet.</p></div>'
 
-    # ---- {{PLAYERS}} — full 15 rows, no truncation ---- #
+    # ---- players ---- #
     if players:
         rows = []
         for p in players:
-            elo  = p['elo']
-            frac = max(0.06, min(1.0, (elo - 1500) / (2650 - 1500)))
-            barw = f"{frac * 100:.0f}"
-            adj  = p['adj']
-            if adj >= 20:
-                adj_cell = f'<td class="p-adj">&#9650; +{adj}</td>'
-            elif adj <= -20:
-                adj_cell = f'<td class="p-adj">&#9660; {adj}</td>'
+            frac = max(0.06, min(1.0, (p['elo'] - 1500) / (2650 - 1500)))
+            adj = p['adj']
+            if adj <= -20:
+                adj_cell = f'<td class="adj">&#9660; {adj}</td>'
+            elif adj >= 20:
+                adj_cell = f'<td class="adj">&#9650; +{adj}</td>'
             else:
-                adj_cell = '<td class="p-adj dim">&mdash;</td>'
-            rows.append(f"""
-              <tr>
-                <td class="p-rank">{p['rank']}</td>
-                <td>{p['name']}</td>
-                <td class="p-team"><span class="team-cell"><img class="team-logo-sm" src="{p['team_logo']}" alt="" onerror="this.style.display='none'"><span class="mono">{p['team_abbr']}</span></span></td>
-                <td class="p-gp">{p['games']}</td>
-                <td class="p-rating-cell">
-                  <div class="rating-track"><div class="rating-fill" style="width:{barw}%;"></div></div>
-                  <span class="rating-num">{elo}</span>
-                </td>
-                {adj_cell}
-              </tr>""")
+                adj_cell = '<td class="adj dim">0</td>'
+            rows.append(
+                f'<tr><td class="rk">{p["rank"]}</td><td class="nm">{p["name"]}</td>'
+                f'<td><span class="tm"><img src="{p["team_logo"]}" alt="" onerror="this.style.display=\'none\'">{p["team_abbr"]}</span></td>'
+                f'<td class="gp">{p["games"]}</td>'
+                f'<td><div class="rt"><div class="track"><div class="fill" style="width:{frac * 100:.0f}%"></div></div><b>{p["elo"]}</b></div></td>'
+                f'{adj_cell}</tr>')
         players_html = ''.join(rows)
     else:
-        players_html = '<tr><td colspan="6" style="text-align:center;color:var(--ash);padding:20px;">No player ratings available.</td></tr>'
+        players_html = '<tr><td colspan="6" class="empty">No player ratings available.</td></tr>'
 
-    # ---- {{RECEIPT}} / {{FOOTER_LEGAL}} ---- #
-    receipt_html = f"[ {acc_pct}% · {total_games} games · verified walk-forward ]"
-    footer_legal_html = f"&copy; {datetime.now().year} Second Bounce &nbsp;&middot;&nbsp; Updated {datetime.now().strftime('%b %d, %Y %I:%M %p')}"
-
-    # ---- Assemble from the static template via token replacement ---- #
-    template_path = os.path.join(os.path.dirname(__file__), '..', 'templates', 'origin.html')
-    with open(template_path, encoding='utf-8') as f:
-        html = f.read()
-
-    # Full rated roster for the client-side player lookup (compact JSON)
-    players_json = json.dumps(get_all_players(), separators=(',', ':'), ensure_ascii=False)
-
-    # ---- Share + discovery metadata ---- #
-    # Built from the same acc_pct / total_games the receipt uses, so the card, the
-    # page and the meta tags cannot disagree. SITE_URL keeps its trailing slash:
-    # og:image is built by concatenation, and a canonical URL that redirects
-    # (github.io drops the trailing slash on a directory) costs the signal.
+    # ---- footer + metadata ---- #
+    footer_receipt = (f"[ {lead.get('pct')}% &middot; {lead.get('n')} games &middot; "
+                      f"{stats.get('season_label', '')} &middot; logged before tip ]")
+    footer_legal = f"&copy; {now.year} Second Bounce &middot; Updated {run_time}"
     site_url = 'https://atr777.github.io/nba-predictions/'
-    share_title = f'Second Bounce · {acc_pct}% on {total_games} NBA games, logged before tip-off'
-    meta_description = (
-        f'An NBA prediction model with a public track record: {acc_pct}% across '
-        f'{total_games} games, every pick published before tip-off and graded after '
-        f'the final. Daily predictions, win probabilities and player ratings, with '
-        f'the misses left in.'
-    )
+    if live.get('n'):
+        share_title = f"Second Bounce · {live['pct']}% on {live['n']} NBA games, logged before tip-off"
+        meta_description = (
+            f"An NBA prediction model with a public receipt: {live['pct']}% across {live['n']} "
+            f"games this season, every pick logged before tip-off and graded after the final. "
+            f"Daily win probabilities, a downloadable ledger, and the misses left in.")
+    else:
+        share_title = f"Second Bounce · NBA predictions logged before tip-off"
+        meta_description = (
+            f"An NBA prediction model with a public receipt. Every pick is logged before tip-off "
+            f"and graded after the final. Last season's walk-forward audit: {audit.get('pct')}% "
+            f"across {audit.get('n')} games.")
     json_ld = json.dumps({
         '@context': 'https://schema.org',
         '@type': 'Dataset',
-        'name': 'Second Bounce NBA prediction record',
+        'name': 'Second Bounce NBA prediction ledger',
         'description': meta_description,
         'url': site_url,
+        'distribution': {'@type': 'DataDownload', 'encodingFormat': 'text/csv',
+                         'contentUrl': site_url + 'ledger.csv'},
         'creator': {'@type': 'Organization', 'name': 'Second Bounce', 'url': site_url},
         'isAccessibleForFree': True,
         'license': 'https://creativecommons.org/licenses/by/4.0/',
-        'temporalCoverage': '2025-11-30/..',
-        'keywords': ['NBA', 'predictions', 'Elo rating', 'sports analytics',
-                     'forecast accuracy', 'calibration'],
+        'temporalCoverage': '2026-10-20/..',
+        'keywords': ['NBA', 'predictions', 'Elo rating', 'forecast accuracy', 'calibration'],
         'variableMeasured': [
             {'@type': 'PropertyValue', 'name': 'Prediction accuracy',
-             'value': acc_pct, 'unitText': 'percent'},
+             'value': lead.get('pct'), 'unitText': 'percent'},
             {'@type': 'PropertyValue', 'name': 'Games graded',
-             'value': total_games, 'unitText': 'games'},
+             'value': lead.get('n'), 'unitText': 'games'},
         ],
     }, indent=2)
 
+    template_path = os.path.join(os.path.dirname(__file__), '..', 'templates', 'ticket.html')
+    with open(template_path, encoding='utf-8') as f:
+        html = f.read()
+    players_json = json.dumps(get_all_players(), separators=(',', ':'), ensure_ascii=False)
+
     replacements = {
-        '{{DATE_STR}}':     date_str,
-        '{{DATE_STAMP}}':   date_stamp,
-        '{{SITE_URL}}':         site_url,
-        '{{SHARE_TITLE}}':      share_title,
+        '{{DATE_STR}}': date_str,
+        '{{SITE_URL}}': site_url,
+        '{{SHARE_TITLE}}': share_title,
         '{{META_DESCRIPTION}}': meta_description,
-        '{{JSON_LD}}':          json_ld,
-        '{{STATS}}':        stats_html,
-        '{{PREDICTIONS}}':  predictions_html,
-        '{{RESULTS}}':      results_html,
-        '{{PLAYERS}}':      players_html,
+        '{{JSON_LD}}': json_ld,
+        '{{HERO_META}}': hero_meta,
+        '{{HERO_SUB}}': hero_sub,
+        '{{RECEIPT_CARD}}': _receipt_card(stats, run_time),
+        '{{STAMP_VALUE}}': f"{lead.get('pct')}%",
+        '{{SEASON_LABEL}}': stats.get('season_label', ''),
+        '{{DATE_STAMP}}': date_stamp,
+        '{{PREDICTIONS}}': predictions_html,
+        '{{RECORD}}': record_html,
+        '{{RESULTS}}': results_html,
+        '{{PLAYERS}}': players_html,
         '{{PLAYERS_JSON}}': players_json,
-        '{{RECEIPT}}':      receipt_html,
-        '{{FOOTER_LEGAL}}': footer_legal_html,
+        '{{FOOTER_RECEIPT}}': footer_receipt,
+        '{{FOOTER_LEGAL}}': footer_legal,
     }
     for token, value in replacements.items():
-        html = html.replace(token, value)
-
+        html = html.replace(token, str(value))
     return html
-
-
-LEDGER_START = 20261001  # first season whose picks are all locked before tip-off
 
 
 def write_ledger(pages_dir):
