@@ -632,14 +632,12 @@ def _ticket(p, n, total, date_iso):
     has_score = hs is not None and as_ is not None
     pick_pts, opp_pts = (as_, hs) if away_pick else (hs, as_)
 
-    state, stamp, mid_note = '', '', ''
+    state, mid_note = '', ''
     if status == 3 and has_score and hs != as_:
         won = pick_pts > opp_pts
         state = ' is-won' if won else ' is-miss'
         top_right = (f'<span class="t-badge {"won" if won else "miss"}">'
                      f'{"&#10003; Pick won" if won else "&#10007; Pick missed"}</span>')
-        stamp = f'<div class="t-stamp {"won" if won else "miss"}">{"Won" if won else "Miss"}</div>'
-        mid_note = 'Final'
     elif status == 3:
         top_right = '<span class="t-status">Final</span>'
     elif status == 2:
@@ -695,7 +693,6 @@ def _ticket(p, n, total, date_iso):
           <div class="pr">{pick_pct}<small>%</small></div>
           {_barcode(f"{date_iso}_{p.get('home_id')}_{p.get('away_id')}")}
           <div class="lg mono">{stub_foot}</div>
-          {stamp}
         </div>
       </article>"""
 
@@ -724,7 +721,6 @@ def _receipt_card(stats, run_time):
         <div class="r-row"><span>Brier</span><span>{live.get('brier')}</span></div>
         <div class="r-row r-total"><span>Accuracy</span><span>{live.get('pct')}%</span></div>
         {_barcode(f"season_{stats.get('season_label')}_{live.get('n')}", 300, 38)}
-        <div class="r-note">Logged before tip. Graded after the final.</div>
       </div>"""
 
 
@@ -780,18 +776,12 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
     games_count = len(predictions)
 
     # ---- hero ---- #
-    hero_meta = (f"<b>Second Bounce</b><span>NBA prediction engine</span>"
-                 f"<span>Season {stats.get('season_label', '')}"
-                 f"{' &middot; Day ' + str(stats['day']) if stats.get('day') else ''}</span>"
-                 f"<span>Last run {run_time}</span>")
     if live.get('n'):
-        hero_sub = (f"Every pick is logged before the game starts and graded after the final. "
-                    f"Nothing gets recomputed, and the misses stay in. This season: "
-                    f"<strong>{live['pct']}% across {live['n']} games.</strong>")
+        hero_sub = ("Every pick is logged before tip-off and graded after the final. "
+                    "Nothing gets recomputed, and the misses stay in.")
     else:
-        hero_sub = (f"Every pick is logged before the game starts and graded after the final. "
-                    f"Nothing gets recomputed, and the misses stay in. Last season's audit: "
-                    f"<strong>{audit.get('pct')}% across {audit.get('n')} games.</strong>")
+        hero_sub = ("Every pick is logged before tip-off and graded after the final. "
+                    "Nothing gets recomputed, and the misses stay in.")
 
     # ---- today ---- #
     date_stamp = f"{date_str} &middot; {games_count} game{'s' if games_count != 1 else ''}"
@@ -824,13 +814,13 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
     chart_html = (f"""
         <div class="chart-card">
           <h3>Does it mean what it says?</h3>
-          <p class="sub">Each dot is a group of {stats.get('season_label', '')} picks. On the dashed line, a 70% pick wins 70% of the time.</p>
+          <p class="sub">Each dot groups this season's picks by how confident the model was.</p>
           {_calibration_svg(calib)}
           <div class="tip" role="tooltip"></div>
           <table class="calib-table"><thead><tr><th>Bucket</th><th>Picks</th><th>Said</th><th>Won</th></tr></thead>
           <tbody>{calib_rows}</tbody></table>
         </div>""" if calib else '')
-    lede = (f"{live['correct']} of {live['n']} picks correct this season, every one logged before tip-off."
+    lede = (f"{live['correct']} of {live['n']} picks correct this season."
             if live.get('n') else
             "No picks graded yet this season. The number above is last season's walk-forward audit.")
     record_html = f"""
@@ -846,9 +836,7 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
           </div>
           <div class="audit">
             <b>Last season, audited:</b> {audit.get('pct')}% across {audit.get('n')} games. We first published
-            73.5%, then found the tracker had been grading games with ratings that already knew the result.
-            The audit replays 2025-26 in strict time order. It was rebuilt after the fact, so it's
-            reported separately from this season's locked picks.
+            73.5%, then caught the tracker grading games with ratings that already knew the result.
             <a href="https://secondbounce.substack.com/p/how-we-caught-our-own-model-cheating" target="_blank" rel="noopener">Read how we caught it</a>
           </div>
           <div class="verify">
@@ -911,7 +899,7 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
 
     # ---- footer + metadata ---- #
     footer_receipt = (f"[ {lead.get('pct')}% &middot; {lead.get('n')} games &middot; "
-                      f"{stats.get('season_label', '')} &middot; logged before tip ]")
+                      f"{stats.get('season_label', '')} ]")
     footer_legal = f"&copy; {now.year} Second Bounce &middot; Updated {run_time}"
     site_url = 'https://atr777.github.io/nba-predictions/'
     if live.get('n'):
@@ -958,7 +946,6 @@ def render_html(date_str, predictions, week_days, week_summary, stats, players,
         '{{SHARE_TITLE}}': share_title,
         '{{META_DESCRIPTION}}': meta_description,
         '{{JSON_LD}}': json_ld,
-        '{{HERO_META}}': hero_meta,
         '{{HERO_SUB}}': hero_sub,
         '{{RECEIPT_CARD}}': _receipt_card(stats, run_time),
         '{{STAMP_VALUE}}': f"{lead.get('pct')}%",
