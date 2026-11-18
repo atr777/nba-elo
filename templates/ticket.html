@@ -66,21 +66,7 @@
   --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
   --radius: 22px;
 }
-/* DARK ("night game"): follows the system setting unless the visitor picked one */
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  color-scheme: dark;
-  --paper: #241d17; --card: #30281f; --card-2: #382e25;
-  --ink: #f1ebe0; --ink-2: #d3cabd; --muted: #aca295; --faint: #7d7266;
-  --rule: #4b4036; --rule-2: #3e352c; --track: #4b4035;
-  --signal: #5b9cf6; --win: #4cc38a; --loss: #ff7a70; --live: #e5484d;
-  --win-bg: rgba(76, 195, 138, 0.15); --loss-bg: rgba(255, 122, 112, 0.15);
-  --pill: rgba(56, 47, 39, 0.86); --hover: rgba(255, 255, 255, 0.07);
-  --on-ink: #241d17; --ink-hover: #ffffff;
-  --receipt-paper: #e4dccd; --footer: #17120e; --footer-mark: #2a221b;
-  --record-edge: #2a3446;
-  --court-line: rgba(255, 232, 200, 0.07);
-  --wood: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='1600'%3E%3Cfilter id='g0' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55 0.0045' numOctaves='3' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.8 0 0 0 0 0.62 1.7 0 0 0 -0.78'/%3E%3C/filter%3E%3Cfilter id='g1' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55 0.0045' numOctaves='3' seed='18'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.8 0 0 0 0 0.62 1.7 0 0 0 -0.78'/%3E%3C/filter%3E%3Cfilter id='g2' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55 0.0045' numOctaves='3' seed='25'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.8 0 0 0 0 0.62 1.7 0 0 0 -0.78'/%3E%3C/filter%3E%3Cfilter id='g3' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55 0.0045' numOctaves='3' seed='32'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.8 0 0 0 0 0.62 1.7 0 0 0 -0.78'/%3E%3C/filter%3E%3Cfilter id='g4' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55 0.0045' numOctaves='3' seed='39'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.8 0 0 0 0 0.62 1.7 0 0 0 -0.78'/%3E%3C/filter%3E%3Crect x='0' width='80' height='1600' fill='rgba(255,225,190,0.000)'/%3E%3Crect x='0' width='80' height='1600' filter='url(%23g0)' opacity='0.035'/%3E%3Crect x='80' width='80' height='1600' fill='rgba(255,225,190,0.009)'/%3E%3Crect x='80' width='80' height='1600' filter='url(%23g1)' opacity='0.035'/%3E%3Crect x='160' width='80' height='1600' fill='rgba(255,225,190,0.004)'/%3E%3Crect x='160' width='80' height='1600' filter='url(%23g2)' opacity='0.035'/%3E%3Crect x='240' width='80' height='1600' fill='rgba(255,225,190,0.012)'/%3E%3Crect x='240' width='80' height='1600' filter='url(%23g3)' opacity='0.035'/%3E%3Crect x='320' width='80' height='1600' fill='rgba(255,225,190,0.006)'/%3E%3Crect x='320' width='80' height='1600' filter='url(%23g4)' opacity='0.035'/%3E%3Crect x='0' width='1' height='1600' fill='rgba(0,0,0,0.20)'/%3E%3Crect x='1' width='1' height='1600' fill='rgba(255,235,210,0.018)'/%3E%3Crect x='0' y='120' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='0' y='920' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='80' width='1' height='1600' fill='rgba(0,0,0,0.20)'/%3E%3Crect x='81' width='1' height='1600' fill='rgba(255,235,210,0.018)'/%3E%3Crect x='80' y='467' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='80' y='1267' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='160' width='1' height='1600' fill='rgba(0,0,0,0.20)'/%3E%3Crect x='161' width='1' height='1600' fill='rgba(255,235,210,0.018)'/%3E%3Crect x='160' y='814' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='160' y='14' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='240' width='1' height='1600' fill='rgba(0,0,0,0.20)'/%3E%3Crect x='241' width='1' height='1600' fill='rgba(255,235,210,0.018)'/%3E%3Crect x='240' y='1161' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='240' y='361' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='320' width='1' height='1600' fill='rgba(0,0,0,0.20)'/%3E%3Crect x='321' width='1' height='1600' fill='rgba(255,235,210,0.018)'/%3E%3Crect x='320' y='1508' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3Crect x='320' y='708' width='80' height='1' fill='rgba(0,0,0,0.16)'/%3E%3C/svg%3E");
-} }
+/* DARK ("night game"): opt-in from the nav toggle (Aaron 2026-11-17: light is the default) */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --paper: #241d17; --card: #30281f; --card-2: #382e25;
@@ -270,10 +256,6 @@ section.block { padding: 72px 0; }
 .motion-btn[aria-pressed="false"] .slash { display: block; }
 :root[data-theme="dark"] .theme-btn .sun { display: block; }
 :root[data-theme="dark"] .theme-btn .moon { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .theme-btn .sun { display: block; }
-  :root:not([data-theme="light"]) .theme-btn .moon { display: none; }
-}
 
 /* ---------- How it works ---------- */
 .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1.5px solid var(--ink); }
@@ -613,11 +595,11 @@ footer { background: var(--footer); color: #d9d7d2; margin-top: 40px; padding: 7
     el.textContent = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
   });
 
-  // Theme: follows the system until the visitor picks one, then remembers it.
+  // Theme: light by default; the toggle switches to dark and remembers it.
   (function () {
     var btn = document.getElementById('themeBtn'), root = document.documentElement;
     if (!btn) return;
-    function current() { return root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+    function current() { return root.dataset.theme === 'dark' ? 'dark' : 'light'; }
     function label() { btn.setAttribute('aria-label', current() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'); }
     label();
     btn.addEventListener('click', function () {
@@ -715,12 +697,12 @@ function studio() {
 }
 
 const canvas = document.getElementById('ballCanvas');
-// Ball motion follows the system's reduced-motion setting until the visitor picks,
-// then their choice (the nav button) wins and is remembered. Windows ships with
-// "Animation effects" off on many machines, so without the button a lot of people
-// would only ever see a still ball.
-let reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-try { const m = localStorage.getItem('sb-motion'); if (m) reduced = m === 'off'; } catch (e) {}
+// Ball motion is ON by default (Aaron 2026-11-17), including for systems that report
+// reduced motion: Windows' "Animation effects" setting is off on many machines and
+// would otherwise leave most visitors with a still ball. The nav button turns it
+// off and the choice is remembered.
+let reduced = false;
+try { reduced = localStorage.getItem('sb-motion') === 'off'; } catch (e) {}
 let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
